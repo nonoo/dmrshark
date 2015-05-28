@@ -78,7 +78,8 @@ int main(int argc, char *argv[]) {
 	}
 	if (!daemon_is_consoleclient()) {
 		base_init();
-		comm_init();
+		if (!comm_init())
+			return 1;
 	}
 
 	console_log("\n");
