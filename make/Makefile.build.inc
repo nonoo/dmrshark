@@ -10,7 +10,7 @@ OBJECTS := $(patsubst %.c, %-$(APP).o, $(SOURCES))
 
 INCLUDES := $(INCLUDES) -I$(TOPDIR)
 NEEDEDLIBS := $(patsubst %, %-$(APP), $(LIBS))
-LDFLAGS := $(LDFLAGS) -L$(TOPDIR)/libs -Wl,--start-group $(patsubst %, -l%, $(NEEDEDLIBS)) $(PREBUILTLIBS) -Wl,--end-group
+LDFLAGS := $(LDFLAGS) -L$(TOPDIR)/libs -Wl,--start-group $(patsubst %, -l%, $(NEEDEDLIBS)) $(patsubst %, -l%, $(PREBUILTLIBS)) -Wl,--end-group
 
 DEPFILE := $(EXECUTABLE).dep
 
