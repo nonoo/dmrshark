@@ -1,0 +1,17 @@
+GITHASH := $(shell git rev-parse HEAD)
+
+ifeq ($(APP),)
+APP := default
+endif
+ifneq ($(wildcard $(SRCTOPDIR)/config/app/$(APP).inc),)
+include $(SRCTOPDIR)/config/app/$(APP).inc
+endif
+
+CC := gcc
+CFLAGS := $(CFLAGS) -g -Wall -std=gnu99 -O4 -DGITHASH=\"$(GITHASH)\" \
+	-DDEFAULTCONFIG="<config/defaults.h>" \
+	-DAPPCONFIGFILE=\"$(SRCTOPDIR)/config/app/$(APP).h\" \
+	$(shell pkg-config --cflags glib-2.0) \
+	-DARCH_X86 -funsigned-bitfields -funsigned-char -Wno-unused-result
+
+LDAFTER := $(LDAFTER) $(shell pkg-config --libs glib-2.0)

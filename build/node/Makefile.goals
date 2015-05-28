@@ -1,0 +1,10 @@
+include ../../Makefile.defconfig.inc
+export CFLAGS := $(CFLAGS) -DNODE_BUILD
+include ../../make/Makefile.target.inc
+
+# Define the lib subdirs which are needed for this build.
+LIBS := $(LIBS) base config daemon comm
+PREBUILTLIBS := pcap
+
+include ../../make/Makefile.build.inc
+include ../../make/Makefile.common.inc

@@ -1,0 +1,7 @@
+Makefile.config.inc
+*-build-*
+*.o
+*.a
+*.dep
+*.log
+*.cfg
