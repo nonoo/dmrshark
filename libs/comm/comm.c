@@ -5,14 +5,119 @@
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
+#include <libs/base/log.h>
 
 #include <pcap/pcap.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
 
 static pcap_t *pcap_handle = NULL;
 
+// http://www.binarytides.com/raw-udp-sockets-c-linux/
+static uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size) {
+	uint8_t i;
+	uint16_t nextval;
+	uint32_t checksum = 0;
+
+	for (i = 0; i < ipheader_size; i += 2) {
+		if (i == 10) // Skipping CRC field.
+			continue;
+
+		if (ipheader_size-i == 1) // Last odd byte
+			nextval = *(uint8_t *)((uint8_t *)ipheader+i);
+		else
+			nextval = *(uint16_t *)((uint8_t *)ipheader+i);
+
+		checksum += nextval;
+	}
+
+	checksum = (checksum >> 16) + (checksum & 0xffff);
+	checksum += (checksum >> 16);
+
+	return ~checksum;
+}
+
+// http://www.tcpipguide.com/free/t_UDPMessageFormat-2.htm
+static uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, struct udphdr *udpheader) {
+	uint16_t i;
+	uint8_t *u8;
+	uint16_t nextval;
+	uint8_t *udppayload = (uint8_t *)udpheader+sizeof(struct udphdr);
+	uint32_t checksum;
+	uint16_t payload_size;
+
+	// Pseudo header
+	u8 = &(((uint8_t *)&ipheader->ip_src)[0]);
+	checksum = *(uint16_t *)u8;
+	u8 = &(((uint8_t *)&ipheader->ip_src)[2]);
+	checksum += *(uint16_t *)u8;
+	u8 = &(((uint8_t *)&ipheader->ip_dst)[0]);
+	checksum += *(uint16_t *)u8;
+	u8 = &(((uint8_t *)&ipheader->ip_dst)[2]);
+	checksum += *(uint16_t *)u8;
+	checksum += htons(ipheader->ip_p);
+	checksum += udpheader->len;
+
+	// UDP header
+	checksum += udpheader->source;
+	checksum += udpheader->dest;
+	checksum += udpheader->len;
+
+	// UDP payload
+	payload_size = ntohs(udpheader->len)-sizeof(struct udphdr);
+	for (i = 0; i < payload_size; i += 2) {
+		if (payload_size-i == 1) // Last odd byte
+			nextval = *(uint8_t *)(udppayload+i);
+		else
+			nextval = *(uint16_t *)(udppayload+i);
+
+		checksum += nextval;
+	}
+
+	checksum = (checksum >> 16) + (checksum & 0xffff);
+	checksum += (checksum >> 16);
+
+	return ~checksum;
+}
+
 static void comm_processpacket(const uint8_t *packet, uint16_t length) {
-	console_log(LOGLEVEL_DEBUG "got packet: %u bytes\n", length);
+	struct ether_header *eth_packet;
+	struct ip *ip_packet;
+	struct udphdr *udp_packet;
+	int ip_header_length;
+
+	eth_packet = (struct ether_header *)packet;
+	if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
+		console_log(LOGLEVEL_DEBUG "  not an IP packet, dropping\n");
+		return;
+	}
+	packet += sizeof(struct ether_header);
+
+	ip_packet = (struct ip *)packet;
+	console_log(LOGLEVEL_DEBUG "  src: %s\n", log_getipstr(&ip_packet->ip_src));
+	console_log(LOGLEVEL_DEBUG "  dst: %s\n", log_getipstr(&ip_packet->ip_dst));
+	ip_header_length = ip_packet->ip_hl*4; // http://www.governmentsecurity.org/forum/topic/16447-calculate-ip-size/
+	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet, ip_header_length)) {
+		console_log(LOGLEVEL_DEBUG "  ip checksum mismatch, dropping\n");
+		return;
+	}
+	packet += ip_header_length;
+
+	udp_packet = (struct udphdr *)packet;
+	console_log(LOGLEVEL_DEBUG "  srcport: %u\n", ntohs(udp_packet->source));
+	console_log(LOGLEVEL_DEBUG "  dstport: %u\n", ntohs(udp_packet->dest));
+	console_log(LOGLEVEL_DEBUG "  length: %u\n", ntohs(udp_packet->len)-sizeof(struct udphdr)); // Length in UDP header contains length of the UDP header too.
+	if (length-sizeof(struct ether_header)-ip_header_length != ntohs(udp_packet->len)) {
+		console_log(LOGLEVEL_DEBUG "  udp length not equal to received packet length, dropping\n");
+		return;
+	}
+	if (udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
+		console_log(LOGLEVEL_DEBUG "  udp checksum mismatch, dropping\n");
+		return;
+	}
 }
 
 void comm_process(void) {
@@ -23,8 +128,10 @@ void comm_process(void) {
 		return;
 
 	packet = pcap_next(pcap_handle, &pkthdr);
-	if (packet != NULL)
+	if (packet != NULL) {
+		console_log(LOGLEVEL_DEBUG "comm got packet: %u bytes\n", pkthdr.len);
 		comm_processpacket(packet, pkthdr.len);
+	}
 }
 
 flag_t comm_init(void) {
