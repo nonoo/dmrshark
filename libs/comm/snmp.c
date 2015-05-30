@@ -16,15 +16,15 @@ static oid oid_rssi_ts1[MAX_OID_LEN];
 static size_t oid_rssi_ts1_length = 0;
 static oid oid_rssi_ts2[MAX_OID_LEN];
 static size_t oid_rssi_ts2_length = 0;
-static double last_rssi_ts1 = 0;
-static double last_rssi_ts2 = 0;
+static int last_rssi_ts1 = 0;
+static int last_rssi_ts2 = 0;
 struct snmp_session *active_session = NULL;
 
 static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
 	//struct session *host = (struct session *)magic;
 	char value[15] = {0,};
 	char *endptr = NULL;
-	double value_double = 0;
+	int value_num = 0;
 	struct variable_list *vars = NULL;
 
 	if (sp != active_session)
@@ -36,23 +36,23 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 				if (memcmp(vars->name, oid_rssi_ts1, min(vars->name_length, oid_rssi_ts1_length)) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
-					value_double = strtod(value+9, &endptr); // +9: cutting "INTEGER: " text returned by snprint_value().
+					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", value);
 					else {
-						last_rssi_ts1 = value_double;
-						console_log("snmp: got ts1 rssi value %lf\n", last_rssi_ts1);
+						last_rssi_ts1 = value_num;
+						console_log("snmp: got ts1 rssi value %d\n", last_rssi_ts1);
 						// TODO: store timestamp
 					}
 				} else if (memcmp(vars->name, oid_rssi_ts2, min(vars->name_length, oid_rssi_ts2_length)) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
-					value_double = strtod(value+9, &endptr); // +9: cutting "INTEGER: " text returned by snprint_value().
+					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
-						last_rssi_ts2 = value_double;
-						console_log("snmp: got ts2 rssi value %lf\n", last_rssi_ts2);
+						last_rssi_ts2 = value_num;
+						console_log("snmp: got ts2 rssi value %d\n", last_rssi_ts2);
 						// TODO: store timestamp
 					}
 				}
