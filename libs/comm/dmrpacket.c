@@ -42,6 +42,8 @@ char *dmrpacket_get_readable_packet_type(dmr_packet_type_t packet_type) {
 		case 0x03: return "end of transmission";
 		case 0x41: return "hytera data";
 		case 0x62: return "signaling";
+		case 0x42:
+		case 0xe2: return "sync";
 		default: return "unknown";
 	}
 }
@@ -70,6 +72,7 @@ char *dmrpacket_get_readable_frame_type(dmr_frame_type_t frame_type) {
 		case 0x0000: return "general";
 		case 0x1111: return "voice sync";
 		case 0x6666: return "data start";
+		case 0x9999: return "voice";
 		default: return "unknown";
 	}
 }
