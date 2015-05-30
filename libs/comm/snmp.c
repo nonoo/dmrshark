@@ -9,33 +9,53 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
-#define OID_RSSI "1.3.6.1.4.1.40297.1.2.1.2.10.0"
+#define OID_RSSI_TS1 "1.3.6.1.4.1.40297.1.2.1.2.9.0"
+#define OID_RSSI_TS2 "1.3.6.1.4.1.40297.1.2.1.2.10.0"
 
-static oid oid_rssi[MAX_OID_LEN];
-static size_t oid_rssi_length = 0;
-static double last_rssi = 0;
+static oid oid_rssi_ts1[MAX_OID_LEN];
+static size_t oid_rssi_ts1_length = 0;
+static oid oid_rssi_ts2[MAX_OID_LEN];
+static size_t oid_rssi_ts2_length = 0;
+static double last_rssi_ts1 = 0;
+static double last_rssi_ts2 = 0;
 struct snmp_session *active_session = NULL;
 
 static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
 	//struct session *host = (struct session *)magic;
 	char value[15] = {0,};
 	char *endptr = NULL;
-	double value_double;
+	double value_double = 0;
+	struct variable_list *vars = NULL;
 
 	if (sp != active_session)
 		return 1;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
-			snprint_value(value, sizeof(value), oid_rssi, oid_rssi_length, pdu->variables);
-			errno = 0;
-			value_double = strtod(value+9, &endptr); // +9: cutting "INTEGER: " text returned by snprint_value().
-			if (*endptr != 0 || errno != 0)
-				console_log(LOGLEVEL_DEBUG "snmp: invalid rssi value received: %s\n", value);
-			else {
-				last_rssi = value_double;
-				console_log("snmp: got rssi value %lf\n", last_rssi);
-				// TODO: store timestamp
+			for (vars = pdu->variables; vars; vars = vars->next_variable) {
+				if (memcmp(vars->name, oid_rssi_ts1, min(vars->name_length, oid_rssi_ts1_length)) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					errno = 0;
+					value_double = strtod(value+9, &endptr); // +9: cutting "INTEGER: " text returned by snprint_value().
+					if (*endptr != 0 || errno != 0)
+						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", value);
+					else {
+						last_rssi_ts1 = value_double;
+						console_log("snmp: got ts1 rssi value %lf\n", last_rssi_ts1);
+						// TODO: store timestamp
+					}
+				} else if (memcmp(vars->name, oid_rssi_ts2, min(vars->name_length, oid_rssi_ts2_length)) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					errno = 0;
+					value_double = strtod(value+9, &endptr); // +9: cutting "INTEGER: " text returned by snprint_value().
+					if (*endptr != 0 || errno != 0)
+						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
+					else {
+						last_rssi_ts2 = value_double;
+						console_log("snmp: got ts2 rssi value %lf\n", last_rssi_ts2);
+						// TODO: store timestamp
+					}
+				}
 			}
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp: rssi read error\n");
@@ -52,7 +72,7 @@ void snmp_start_read_rssi(char *host) {
 	struct snmp_session session;
 	const char *community = "public";
 
-	if (oid_rssi_length == 0)
+	if (oid_rssi_ts1_length == 0 || oid_rssi_ts2_length == 0)
 		return;
 
 	if (active_session)
@@ -71,7 +91,8 @@ void snmp_start_read_rssi(char *host) {
 	}
 
 	pdu = snmp_pdu_create(SNMP_MSG_GET);
-	snmp_add_null_var(pdu, oid_rssi, oid_rssi_length);
+	snmp_add_null_var(pdu, oid_rssi_ts1, oid_rssi_ts1_length);
+	snmp_add_null_var(pdu, oid_rssi_ts2, oid_rssi_ts2_length);
 	if (!snmp_send(active_session, pdu))
 		console_log("snmp error: error sending request to host %s\n", host);
 	free(session.peername);
@@ -102,7 +123,11 @@ void snmp_process(void) {
 
 void snmp_init(void) {
 	init_snmp(APPNAME);
-	oid_rssi_length = MAX_OID_LEN;
-	if (!read_objid(OID_RSSI, oid_rssi, &oid_rssi_length))
-		console_log("snmp error: can't parse rssi oid (%s)\n", OID_RSSI);
+
+	oid_rssi_ts1_length = MAX_OID_LEN;
+	if (!read_objid(OID_RSSI_TS1, oid_rssi_ts1, &oid_rssi_ts1_length))
+		console_log("snmp error: can't parse ts1 rssi oid (%s)\n", OID_RSSI_TS1);
+	oid_rssi_ts2_length = MAX_OID_LEN;
+	if (!read_objid(OID_RSSI_TS2, oid_rssi_ts2, &oid_rssi_ts2_length))
+		console_log("snmp error: can't parse ts2 rssi oid (%s)\n", OID_RSSI_TS2);
 }
