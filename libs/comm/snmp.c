@@ -55,7 +55,8 @@ void snmp_start_read_rssi(char *host) {
 	if (oid_rssi_length == 0)
 		return;
 
-	snmp_close(active_session);
+	if (active_session)
+		snmp_close(active_session);
 
 	snmp_sess_init(&session);
 	session.version = SNMP_VERSION_1;
@@ -73,7 +74,6 @@ void snmp_start_read_rssi(char *host) {
 	snmp_add_null_var(pdu, oid_rssi, oid_rssi_length);
 	if (!snmp_send(active_session, pdu))
 		console_log("snmp error: error sending request to host %s\n", host);
-	snmp_free_pdu(pdu);
 	free(session.peername);
 	free(session.community);
 }
