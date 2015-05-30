@@ -57,9 +57,7 @@ int config_get_loglevel(void) {
 
 char *config_get_logfilename(void) {
 	GError *error = NULL;
-#ifdef NODE_BUILD
-	char *defaultvalue = "node.log";
-#endif
+	char *defaultvalue = APPNAME ".log";
 	char *value = g_key_file_get_string(keyfile, "main", "logfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
@@ -73,9 +71,7 @@ char *config_get_logfilename(void) {
 
 char *config_get_pidfilename(void) {
 	GError *error = NULL;
-#ifdef NODE_BUILD
-	char *defaultvalue = "node.pid";
-#endif
+	char *defaultvalue = APPNAME ".pid";
 	char *value = g_key_file_get_string(keyfile, "main", "pidfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
@@ -89,9 +85,7 @@ char *config_get_pidfilename(void) {
 
 char *config_get_daemonctlfile(void) {
 	GError *error = NULL;
-#ifdef NODE_BUILD
-	char *defaultvalue = "/tmp/node.ctl";
-#endif
+	char *defaultvalue = "/tmp/" APPNAME ".ctl";
 	char *value = g_key_file_get_string(keyfile, "main", "daemonctlfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);

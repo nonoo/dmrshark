@@ -43,6 +43,7 @@ char *dmrpacket_get_readable_packet_type(dmr_packet_type_t packet_type) {
 		case 0x41: return "hytera data";
 		case 0x62: return "signaling";
 		case 0x42:
+		case 0x22:
 		case 0xe2: return "sync";
 		default: return "unknown";
 	}

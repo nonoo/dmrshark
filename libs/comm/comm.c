@@ -2,6 +2,7 @@
 
 #include "comm.h"
 #include "dmrpacket.h"
+#include "snmp.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -138,6 +139,8 @@ void comm_process(void) {
 	const uint8_t *packet;
 	struct pcap_pkthdr pkthdr;
 
+	snmp_process();
+
 	if (pcap_handle == NULL)
 		return;
 
@@ -179,6 +182,8 @@ flag_t comm_init(void) {
 		console_log("comm warning: can't add pcap handle to the poll list\n");
 	else
 		daemon_poll_addfd_read(pcap_dev);
+
+	snmp_init();
 
 	return 1;
 }

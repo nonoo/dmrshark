@@ -3,7 +3,7 @@ TOPDIR := $(dir $(lastword $(MAKEFILE_LIST)))..
 # Checking if all lib directories exist.
 $(foreach LIB, $(LIBS), $(if $(wildcard $(TOPDIR)/libs/$(LIB)),,$(error lib $(LIB) doesn't exist)))
 
-EXECUTABLE := $(shell basename `pwd`)-build-$(APP)
+EXECUTABLE := $(shell basename `pwd`)-build-$(shell date +%Y%m%d%H%M%S)
 SOURCES := $(wildcard *.c)
 HEADERS := $(wildcard *.h)
 OBJECTS := $(patsubst %.c, %-$(APP).o, $(SOURCES))

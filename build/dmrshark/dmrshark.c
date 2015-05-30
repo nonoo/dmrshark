@@ -17,7 +17,7 @@ static flag_t node_consoleclient = 0;
 static char *node_directory = NULL;
 
 static void node_printversion(void) {
-	console_log("dmrshark by ha2non v%u.%u.%u-a%u ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
+	console_log(APPNAME " by ha2non v%u.%u.%u-a%u ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
 	console_log(__TIME__ " " __DATE__ " " GITHASH "\n");
 }
 

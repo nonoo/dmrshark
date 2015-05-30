@@ -7,6 +7,7 @@
 
 #include <libs/daemon/console.h>
 #include <libs/config/config.h>
+#include <libs/comm/snmp.h>
 
 #include <string.h>
 #include <errno.h>
@@ -25,6 +26,7 @@ void command_process(char *input_buffer) {
 		console_log("  ver                             - version\n");
 		console_log("  log (loglevel)                  - get/set loglevel\n");
 		console_log("  exit                            - exits the application\n");
+		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
 		return;
 	}
 
@@ -58,6 +60,25 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "exit") == 0) {
 		base_flags.sigexit = 1;
+		return;
+	}
+
+	if (strcmp(tok, "rssi") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		console_log("starting rssi read request to %s...\n", tok);
+		snmp_start_read_rssi(tok);
+		return;
+	}
+
+	// TODO: remove
+	if (strcmp(tok, "rsi") == 0) {
+		tok = "192.168.3.107";
+		console_log("starting rssi read request to %s...\n", tok);
+		snmp_start_read_rssi(tok);
 		return;
 	}
 

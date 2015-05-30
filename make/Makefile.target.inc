@@ -1,7 +1,7 @@
 GITHASH := $(shell git rev-parse HEAD)
 
 ifeq ($(APP),)
-APP := default
+APP := dmrshark
 endif
 ifneq ($(wildcard $(SRCTOPDIR)/config/app/$(APP).inc),)
 include $(SRCTOPDIR)/config/app/$(APP).inc
