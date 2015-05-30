@@ -22,12 +22,19 @@
 #define CONSOLELOGBUFFERSIZE	CONSOLE_INPUTBUFFERSIZE
 #define CONSOLE_NEWLINECHAR		'\n'
 
-loglevel_t loglevel;
-
+static loglevel_t loglevel;
 static char console_buffer[CONSOLE_INPUTBUFFERSIZE] = {0,};
 static uint16_t console_buffer_pos = 0;
 static struct termios console_termios_save = {0,};
 static flag_t console_termios_saved = 0;
+
+loglevel_t console_get_loglevel(void) {
+	return loglevel;
+}
+
+void console_set_loglevel(loglevel_t *new_loglevel) {
+	loglevel = *new_loglevel;
+}
 
 char *console_get_buffer(void) {
 	return console_buffer;
@@ -165,6 +172,30 @@ void console_log(const char *format, ...) {
 	switch (format[0]) {
 		case LOGLEVEL_DEBUG_VAL:
 			if (loglevel.flags.debug) {
+				vsprintf(buffer, format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
+		case LOGLEVEL_COMM_IP_VAL:
+			if (loglevel.flags.comm_ip) {
+				vsprintf(buffer, format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
+		case LOGLEVEL_COMM_DMR_VAL:
+			if (loglevel.flags.comm_dmr) {
 				vsprintf(buffer, format+1, argptr);
 				buffer_length = strlen(buffer);
 

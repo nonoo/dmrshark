@@ -1,6 +1,7 @@
 #include <config/defaults.h>
 
 #include "comm.h"
+#include "dmrpacket.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -84,39 +85,52 @@ static uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, str
 }
 
 static void comm_processpacket(const uint8_t *packet, uint16_t length) {
-	struct ether_header *eth_packet;
-	struct ip *ip_packet;
-	struct udphdr *udp_packet;
-	int ip_header_length;
+	struct ether_header *eth_packet = NULL;
+	struct ip *ip_packet = NULL;
+	struct udphdr *udp_packet = NULL;
+	int ip_header_length = 0;
+	dmr_packet_t dmr_packet;
 
 	eth_packet = (struct ether_header *)packet;
 	if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
-		console_log(LOGLEVEL_DEBUG "  not an IP packet, dropping\n");
+		console_log(LOGLEVEL_COMM_IP "  not an IP packet, dropping\n");
 		return;
 	}
 	packet += sizeof(struct ether_header);
 
 	ip_packet = (struct ip *)packet;
-	console_log(LOGLEVEL_DEBUG "  src: %s\n", log_getipstr(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DEBUG "  dst: %s\n", log_getipstr(&ip_packet->ip_dst));
+	console_log(LOGLEVEL_COMM_IP "  src: %s\n", log_getipstr(&ip_packet->ip_src));
+	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", log_getipstr(&ip_packet->ip_dst));
 	ip_header_length = ip_packet->ip_hl*4; // http://www.governmentsecurity.org/forum/topic/16447-calculate-ip-size/
 	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet, ip_header_length)) {
-		console_log(LOGLEVEL_DEBUG "  ip checksum mismatch, dropping\n");
+		console_log(LOGLEVEL_COMM_IP "  ip checksum mismatch, dropping\n");
 		return;
 	}
 	packet += ip_header_length;
 
 	udp_packet = (struct udphdr *)packet;
-	console_log(LOGLEVEL_DEBUG "  srcport: %u\n", ntohs(udp_packet->source));
-	console_log(LOGLEVEL_DEBUG "  dstport: %u\n", ntohs(udp_packet->dest));
-	console_log(LOGLEVEL_DEBUG "  length: %u\n", ntohs(udp_packet->len)-sizeof(struct udphdr)); // Length in UDP header contains length of the UDP header too.
+	console_log(LOGLEVEL_COMM_IP "  srcport: %u\n", ntohs(udp_packet->source));
+	console_log(LOGLEVEL_COMM_IP "  dstport: %u\n", ntohs(udp_packet->dest));
+	// Length in UDP header contains length of the UDP header too, so we are substracting it.
+	console_log(LOGLEVEL_COMM_IP "  length: %u\n", ntohs(udp_packet->len)-sizeof(struct udphdr));
 	if (length-sizeof(struct ether_header)-ip_header_length != ntohs(udp_packet->len)) {
-		console_log(LOGLEVEL_DEBUG "  udp length not equal to received packet length, dropping\n");
+		console_log(LOGLEVEL_COMM_IP "  udp length not equal to received packet length, dropping\n");
 		return;
 	}
 	if (udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
-		console_log(LOGLEVEL_DEBUG "  udp checksum mismatch, dropping\n");
+		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
 		return;
+	}
+
+	if (dmrpacket_decode(ip_packet, udp_packet, &dmr_packet)) {
+		console_log(LOGLEVEL_COMM_DMR "comm: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+			dmrpacket_get_readable_packet_type(dmr_packet.packet_type), dmr_packet.packet_type,
+			dmr_packet.timeslot,
+			dmrpacket_get_readable_slot_type(dmr_packet.slot_type), dmr_packet.slot_type,
+			dmrpacket_get_readable_frame_type(dmr_packet.frame_type), dmr_packet.frame_type,
+			dmrpacket_get_readable_call_type(dmr_packet.call_type), dmr_packet.call_type,
+			dmr_packet.dst_id,
+			dmr_packet.src_id);
 	}
 }
 
@@ -129,7 +143,7 @@ void comm_process(void) {
 
 	packet = pcap_next(pcap_handle, &pkthdr);
 	if (packet != NULL) {
-		console_log(LOGLEVEL_DEBUG "comm got packet: %u bytes\n", pkthdr.len);
+		console_log(LOGLEVEL_COMM_IP "comm got packet: %u bytes\n", pkthdr.len);
 		comm_processpacket(packet, pkthdr.len);
 	}
 }

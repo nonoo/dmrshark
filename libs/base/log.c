@@ -17,6 +17,18 @@ void log_loglevel(loglevel_t *loglevel) {
 		console_log("on\n");
 	else
 		console_log("off\n");
+
+	console_log("  comm-ip ");
+	if (loglevel->flags.comm_ip)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
+	console_log("  comm-dmr ");
+	if (loglevel->flags.comm_dmr)
+		console_log("on\n");
+	else
+		console_log("off\n");
 }
 
 void log_cmdmissingparam(void) {

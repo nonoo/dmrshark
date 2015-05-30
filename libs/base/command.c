@@ -13,8 +13,8 @@
 #include <ctype.h>
 
 void command_process(char *input_buffer) {
-	extern loglevel_t loglevel;
 	extern base_flags_t base_flags;
+	loglevel_t loglevel;
 
 	char *tok = strtok(input_buffer, " ");
 
@@ -34,17 +34,23 @@ void command_process(char *input_buffer) {
 	}
 
 	if (strcmp(tok, "log") == 0) {
+		loglevel = console_get_loglevel();
 		tok = strtok(NULL, " ");
 		if (tok != NULL) {
 			if (strcmp(tok, "off") == 0 || tok[0] == '0') {
 				if (loglevel.raw == 0)
 					memset((void *)&loglevel.raw, 0xff, sizeof(loglevel.raw));
 				else
-					loglevel.raw = 0;;
+					loglevel.raw = 0;
 			} else if (strcmp(tok, "debug") == 0)
 				loglevel.flags.debug = !loglevel.flags.debug;
+			else if (strcmp(tok, "comm-ip") == 0)
+				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
+			else if (strcmp(tok, "comm-dmr") == 0)
+				loglevel.flags.comm_dmr = !loglevel.flags.comm_dmr;
 
 			config_set_loglevel(&loglevel);
+			console_set_loglevel(&loglevel);
 		}
 		log_loglevel(&loglevel);
 		return;
