@@ -185,7 +185,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 			if (repeater) {
-				if (!repeater->slot[dmr_packet.timeslot-1].call_running && (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START || dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
+				if (!repeater->slot[dmr_packet.timeslot-1].call_running && (dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
 					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
 					repeater->slot[dmr_packet.timeslot-1].call_running = 1;
 					repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
@@ -199,7 +199,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 						repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
 					}
 
-					remotedb_call_start_cb(repeater, dmr_packet.timeslot);
+					remotedb_update(repeater);
 				}
 
 				if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
@@ -212,8 +212,11 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 						repeater->auto_rssi_update_enabled_at = 0;
 					}
 
-					remotedb_call_end_cb(repeater, dmr_packet.timeslot);
+					remotedb_update(repeater);
 				}
+
+				if (repeater->slot[dmr_packet.timeslot-1].call_running)
+					repeater->slot[dmr_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 		}
 	}

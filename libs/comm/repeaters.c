@@ -119,16 +119,18 @@ void repeaters_process(void) {
 			repeaters[i].last_snmpinfo_request_time = time(NULL);
 		}
 
-		if (repeaters[i].slot[0].call_running && time(NULL)-repeaters[i].slot[0].call_started_at > config_get_calltimeoutinsec()) {
+		if (repeaters[i].slot[0].call_running && time(NULL)-repeaters[i].slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {
+			console_log(LOGLEVEL_DEBUG "repeaters [%s]: call timeout on ts1\n", comm_get_ip_str(&repeaters[i].ipaddr));
 			repeaters[i].slot[0].call_running = 0;
 			repeaters[i].slot[0].call_ended_at = time(NULL);
-			remotedb_call_end_cb(&repeaters[i], 1);
+			remotedb_update(&repeaters[i]);
 		}
 
-		if (repeaters[i].slot[1].call_running && time(NULL)-repeaters[i].slot[1].call_started_at > config_get_calltimeoutinsec()) {
+		if (repeaters[i].slot[1].call_running && time(NULL)-repeaters[i].slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
+			console_log(LOGLEVEL_DEBUG "repeaters [%s]: call timeout on ts2\n", comm_get_ip_str(&repeaters[i].ipaddr));
 			repeaters[i].slot[1].call_running = 0;
 			repeaters[i].slot[1].call_ended_at = time(NULL);
-			remotedb_call_end_cb(&repeaters[i], 1);
+			remotedb_update(&repeaters[i]);
 		}
 
 		if (repeaters[i].auto_rssi_update_enabled_at > 0 && repeaters[i].auto_rssi_update_enabled_at <= time(NULL)) {

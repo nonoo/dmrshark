@@ -182,7 +182,7 @@ int config_get_rssiupdateduringcallinmsec(void) {
 
 int config_get_calltimeoutinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 600;
+	int defaultvalue = 5;
 	int value = g_key_file_get_integer(keyfile, "main", "calltimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;

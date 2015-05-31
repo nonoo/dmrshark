@@ -6,8 +6,7 @@
 
 #include <netinet/ip.h>
 
-void remotedb_call_start_cb(repeater_t *repeater, uint8_t timeslot);
-void remotedb_call_end_cb(repeater_t *repeater, uint8_t timeslot);
+void remotedb_update(repeater_t *repeater);
 
 void remotedb_init(void);
 void remotedb_deinit(void);

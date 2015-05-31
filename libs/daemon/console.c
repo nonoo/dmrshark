@@ -172,7 +172,7 @@ void console_log(const char *format, ...) {
 	switch (format[0]) {
 		case LOGLEVEL_DEBUG_VAL:
 			if (loglevel.flags.debug) {
-				vsprintf(buffer, format+1, argptr);
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
 				buffer_length = strlen(buffer);
 
 				printf("%s", buffer);
@@ -184,7 +184,7 @@ void console_log(const char *format, ...) {
 			break;
 		case LOGLEVEL_COMM_IP_VAL:
 			if (loglevel.flags.comm_ip) {
-				vsprintf(buffer, format+1, argptr);
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
 				buffer_length = strlen(buffer);
 
 				printf("%s", buffer);
@@ -196,7 +196,7 @@ void console_log(const char *format, ...) {
 			break;
 		case LOGLEVEL_COMM_DMR_VAL:
 			if (loglevel.flags.comm_dmr) {
-				vsprintf(buffer, format+1, argptr);
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
 				buffer_length = strlen(buffer);
 
 				printf("%s", buffer);
@@ -207,7 +207,7 @@ void console_log(const char *format, ...) {
 			}
 			break;
 		default:
-			vsprintf(buffer, format, argptr);
+			vsnprintf(buffer, sizeof(buffer), format, argptr);
 			buffer_length = strlen(buffer);
 
 			printf("%s", buffer);

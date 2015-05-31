@@ -5,6 +5,7 @@
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <errno.h>
 #include <net-snmp/net-snmp-config.h>
@@ -45,6 +46,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 	struct variable_list *vars = NULL;
 	repeater_t *repeater = NULL;
 	in_addr_t ipaddr;
+	flag_t dodbupdate = 0;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
@@ -62,6 +64,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 						if (repeater != NULL)
 							repeater->slot[0].rssi = value_num;
 						console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
+						dodbupdate = 1;
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -73,9 +76,13 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 						if (repeater != NULL)
 							repeater->slot[1].rssi = value_num;
 						console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
+						dodbupdate = 1;
 					}
 				}
 			}
+
+			if (dodbupdate)
+				remotedb_update(repeater);
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp: rssi read error\n");
     } else

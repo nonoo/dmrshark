@@ -12,6 +12,7 @@ typedef struct {
 	int rssi;
 	flag_t call_running;
 	time_t call_started_at;
+	time_t last_packet_received_at;
 	time_t call_ended_at;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;

@@ -13,46 +13,31 @@
 static MYSQL *remotedb_conn = NULL;
 static char *remotedb_tablename = NULL;
 
-void remotedb_call_start_cb(repeater_t *repeater, uint8_t timeslot) {
-	char query[255] = {0,};
+static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
+	char query[512] = {0,};
 
-	if (repeater == NULL || remotedb_conn == NULL || remotedb_tablename == NULL)
+	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0 || repeater->id == 0)
 		return;
 
-	if (!repeater->slot[timeslot-1].call_running)
-		return;
-
-	snprintf(query, sizeof(query), "replace into `%s` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`) values (%u, %u, %u, %u, %u, from_unixtime(%lld))",
+	snprintf(query, sizeof(query), "replace into `%s` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, (case when `avgrssi` = 0 then %d else (`avgrssi`+%d)/2.0 end))",
 		remotedb_tablename, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
-		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at);
+		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
+		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi);
 
-	console_log(LOGLEVEL_DEBUG "remotedb: call start, sending query: %s\n", query);
-
+	console_log(LOGLEVEL_DEBUG "remotedb: sending query: %s\n", query);
 	if (mysql_query(remotedb_conn, query)) {
 		console_log(LOGLEVEL_DEBUG "remotedb error: %s\n", mysql_error(remotedb_conn));
 		return;
 	}
 }
 
-void remotedb_call_end_cb(repeater_t *repeater, uint8_t timeslot) {
-	char query[255] = {0,};
-
+void remotedb_update(repeater_t *repeater) {
 	if (repeater == NULL || remotedb_conn == NULL || remotedb_tablename == NULL)
 		return;
 
-	if (repeater->slot[timeslot-1].call_running)
-		return;
-
-	snprintf(query, sizeof(query), "replace into `%s` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`) values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld))",
-		remotedb_tablename, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
-		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at);
-
-	console_log(LOGLEVEL_DEBUG "remotedb: call end, sending query: %s\n", query);
-
-	if (mysql_query(remotedb_conn, query)) {
-		console_log(LOGLEVEL_DEBUG "remotedb error: %s\n", mysql_error(remotedb_conn));
-		return;
-	}
+	remotedb_update_timeslot(repeater, 1);
+	remotedb_update_timeslot(repeater, 2);
 }
 
 void remotedb_init(void) {
