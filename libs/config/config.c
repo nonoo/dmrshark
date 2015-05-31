@@ -191,6 +191,20 @@ int config_get_calltimeoutinsec(void) {
 	return value;
 }
 
+char *config_get_ignoredrepeaterips(void) {
+	GError *error = NULL;
+	char *defaultvalue = "";
+	char *value = g_key_file_get_string(keyfile, "main", "ignoredrepeaterips", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "ignoredrepeaterips", value);
+		}
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -243,6 +257,8 @@ void config_init(char *configfilename) {
 	config_get_repeaterinactivetimeoutinsec();
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();
+	temp = config_get_ignoredrepeaterips();
+	free(temp);
 
 	config_writeconfigfile();
 }

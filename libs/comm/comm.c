@@ -184,9 +184,9 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 			if (repeater) {
-				if (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START) {
+				if (repeater->auto_rssi_update_enabled_at == 0 && (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START || dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
 					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start, starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-					repeater->auto_rssi_update_enabled_at = time(NULL);
+					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
 				}
 
 				if (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {

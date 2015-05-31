@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <sys/time.h>
+#include <stdlib.h>
 
 static repeater_t repeaters[MAX_REPEATER_COUNT];
 
@@ -33,8 +34,31 @@ static repeater_t *repeaters_findfirstemptyslot(void) {
 	return NULL;
 }
 
+flag_t repeaters_isignored(struct in_addr *ipaddr) {
+	char *ignoredips = config_get_ignoredrepeaterips();
+	char *tok = NULL;
+	in_addr_t ignoredaddr;
+
+	tok = strtok(ignoredips, ",");
+	if (tok) {
+		do {
+			ignoredaddr = inet_addr(tok);
+			if (memcmp(&ignoredaddr, ipaddr, sizeof(struct in_addr)) == 0) {
+				free(ignoredips);
+				return 1;
+			}
+			tok = strtok(NULL, ",");
+		} while (tok != NULL);
+	}
+	free(ignoredips);
+	return 0;
+}
+
 repeater_t *repeaters_add(struct in_addr *ipaddr) {
 	repeater_t *repeater = repeaters_findbyip(ipaddr);
+
+	if (repeaters_isignored(ipaddr))
+		return NULL;
 
 	if (repeater == NULL) {
 		repeater = repeaters_findfirstemptyslot();
@@ -94,7 +118,7 @@ void repeaters_process(void) {
 			repeaters[i].last_snmpinfo_request_time = time(NULL);
 		}
 
-		if (repeaters[i].auto_rssi_update_enabled_at > 0) {
+		if (repeaters[i].auto_rssi_update_enabled_at > 0 && repeaters[i].auto_rssi_update_enabled_at <= time(NULL)) {
 			if (time(NULL)-repeaters[i].auto_rssi_update_enabled_at > config_get_calltimeoutinsec())
 				repeaters[i].auto_rssi_update_enabled_at = 0;
 			else {

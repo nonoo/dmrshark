@@ -1,6 +1,8 @@
 #ifndef REPEATERS_H_
 #define REPEATERS_H_
 
+#include <libs/base/types.h>
+
 #include <arpa/inet.h>
 #include <time.h>
 
@@ -21,6 +23,7 @@ typedef struct {
 } repeater_t;
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
+flag_t repeaters_isignored(struct in_addr *ipaddr);
 repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
 
