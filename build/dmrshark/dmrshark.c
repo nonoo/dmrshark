@@ -12,24 +12,24 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-static char *node_configfilename = CONFIGFILENAME;
-static flag_t node_daemonize = 1;
-static flag_t node_consoleclient = 0;
-static char *node_directory = NULL;
+static char *dmrshark_configfilename = CONFIGFILENAME;
+static flag_t dmrshark_daemonize = 1;
+static flag_t dmrshark_consoleclient = 0;
+static char *dmrshark_directory = NULL;
 
-static void node_printversion(void) {
+static void dmrshark_printversion(void) {
 	console_log(APPNAME " by ha2non v%u.%u.%u-a%u ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
 	console_log(__TIME__ " " __DATE__ " " GITHASH "\n");
 }
 
-static void node_processcommandline(int argc, char **argv) {
+static void dmrshark_processcommandline(int argc, char **argv) {
 	int c;
 
 	while ((c = getopt(argc, argv, "hvfd:s:rc:i")) != -1) {
 		switch (c) {
 			case '?': // Unknown option
 			case 'h':
-				node_printversion();
+				dmrshark_printversion();
 				console_log("usage:\n");
 				console_log("       -h         - this help\n");
 				console_log("       -v         - version\n");
@@ -39,20 +39,20 @@ static void node_processcommandline(int argc, char **argv) {
 				console_log("       -d [dir]   - change current directory on startup\n");
 				exit(0);
 			case 'v':
-				node_printversion();
+				dmrshark_printversion();
 				exit(0);
 			case 'f':
-				node_daemonize = 0;
+				dmrshark_daemonize = 0;
 				break;
 			case 'c':
-				node_configfilename = optarg;
+				dmrshark_configfilename = optarg;
 				break;
 			case 'r':
-				node_daemonize = 0;
-				node_consoleclient = 1;
+				dmrshark_daemonize = 0;
+				dmrshark_consoleclient = 1;
 				break;
 			case 'd':
-				node_directory = optarg;
+				dmrshark_directory = optarg;
 				break;
 			default:
 				exit(1);
@@ -61,14 +61,14 @@ static void node_processcommandline(int argc, char **argv) {
 }
 
 int main(int argc, char *argv[]) {
-	node_processcommandline(argc, argv);
+	dmrshark_processcommandline(argc, argv);
 
 	// Changing the current working directory
-	if (!daemon_changecwd(node_directory))
+	if (!daemon_changecwd(dmrshark_directory))
 		return 1;
 
-	config_init(node_configfilename);
-	switch (daemon_init(node_daemonize, node_consoleclient)) {
+	config_init(dmrshark_configfilename);
+	switch (daemon_init(dmrshark_daemonize, dmrshark_consoleclient)) {
 		case DAEMON_INIT_RESULT_FORKED_PARENTEXIT:
 			return 0;
 		case DAEMON_INIT_RESULT_FORK_ERROR:
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	console_log("\n");
-	node_printversion();
+	dmrshark_printversion();
 	console_log("*** ready.\n");
 
 	while (daemon_process()) {
