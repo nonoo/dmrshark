@@ -185,7 +185,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 			if (repeater) {
-				if (!repeater->slot[dmr_packet.timeslot-1].call_running && (dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
+				if (!repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE) {
 					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
 					repeater->slot[dmr_packet.timeslot-1].call_running = 1;
 					repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
@@ -215,7 +215,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 					remotedb_update(repeater);
 				}
 
-				if (repeater->slot[dmr_packet.timeslot-1].call_running)
+				if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)
 					repeater->slot[dmr_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 		}
