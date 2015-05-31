@@ -106,11 +106,11 @@ flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 		console_log(LOGLEVEL_DEBUG "\n");
 	}
 
-	if (dmr_packet_raw->delimiter != 0x1111) {
+	/*if (dmr_packet_raw->delimiter != 0x1111) {
 		console_log(LOGLEVEL_DEBUG "dmrpacket: decode failed, delimiter mismatch (it's %.4x, should be 0x1111)\n",
 			dmr_packet_raw->delimiter);
 		return 0;
-	}
+	}*/
 
 	dmr_packet->packet_type = dmr_packet_raw->packet_type;
 	if (dmr_packet_raw->timeslot_raw == 0x1111)
