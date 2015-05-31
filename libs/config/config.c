@@ -191,15 +191,15 @@ int config_get_calltimeoutinsec(void) {
 	return value;
 }
 
-char *config_get_ignoredrepeaterips(void) {
+char *config_get_ignoredsnmprepeaterhosts(void) {
 	GError *error = NULL;
 	char *defaultvalue = "";
-	char *value = g_key_file_get_string(keyfile, "main", "ignoredrepeaterips", &error);
+	char *value = g_key_file_get_string(keyfile, "main", "ignoredsnmprepeaterhosts", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
 			strcpy(value, defaultvalue);
-			g_key_file_set_string(keyfile, "main", "ignoredrepeaterips", value);
+			g_key_file_set_string(keyfile, "main", "ignoredsnmprepeaterhosts", value);
 		}
 	}
 	return value;
@@ -327,7 +327,7 @@ void config_init(char *configfilename) {
 	config_get_repeaterinactivetimeoutinsec();
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();
-	temp = config_get_ignoredrepeaterips();
+	temp = config_get_ignoredsnmprepeaterhosts();
 	free(temp);
 	temp = config_get_remotedbhost();
 	free(temp);

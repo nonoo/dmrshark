@@ -16,6 +16,12 @@ void log_loglevel(loglevel_t *loglevel) {
 	else
 		console_log("off\n");
 
+	console_log("  comm ");
+	if (loglevel->flags.comm)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
 	console_log("  comm-ip ");
 	if (loglevel->flags.comm_ip)
 		console_log("on\n");
@@ -24,6 +30,18 @@ void log_loglevel(loglevel_t *loglevel) {
 
 	console_log("  comm-dmr ");
 	if (loglevel->flags.comm_dmr)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
+	console_log("  snmp ");
+	if (loglevel->flags.snmp)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
+	console_log("  repeaters ");
+	if (loglevel->flags.repeaters)
 		console_log("on\n");
 	else
 		console_log("off\n");

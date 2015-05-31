@@ -182,6 +182,18 @@ void console_log(const char *format, ...) {
 				}
 			}
 			break;
+		case LOGLEVEL_COMM_VAL:
+			if (loglevel.flags.comm) {
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
 		case LOGLEVEL_COMM_IP_VAL:
 			if (loglevel.flags.comm_ip) {
 				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
@@ -196,6 +208,30 @@ void console_log(const char *format, ...) {
 			break;
 		case LOGLEVEL_COMM_DMR_VAL:
 			if (loglevel.flags.comm_dmr) {
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
+		case LOGLEVEL_SNMP_VAL:
+			if (loglevel.flags.snmp) {
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
+		case LOGLEVEL_REPEATERS_VAL:
+			if (loglevel.flags.repeaters) {
 				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
 				buffer_length = strlen(buffer);
 

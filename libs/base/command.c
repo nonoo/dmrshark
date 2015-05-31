@@ -48,10 +48,16 @@ void command_process(char *input_buffer) {
 					loglevel.raw = 0;
 			} else if (strcmp(tok, "debug") == 0)
 				loglevel.flags.debug = !loglevel.flags.debug;
+			else if (strcmp(tok, "comm") == 0)
+				loglevel.flags.comm = !loglevel.flags.comm;
 			else if (strcmp(tok, "comm-ip") == 0)
 				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
 			else if (strcmp(tok, "comm-dmr") == 0)
 				loglevel.flags.comm_dmr = !loglevel.flags.comm_dmr;
+			else if (strcmp(tok, "snmp") == 0)
+				loglevel.flags.snmp = !loglevel.flags.snmp;
+			else if (strcmp(tok, "repeaters") == 0)
+				loglevel.flags.repeaters = !loglevel.flags.repeaters;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

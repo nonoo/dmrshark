@@ -35,30 +35,32 @@ static repeater_t *repeaters_findfirstemptyslot(void) {
 	return NULL;
 }
 
-flag_t repeaters_isignored(struct in_addr *ipaddr) {
-	char *ignoredips = config_get_ignoredrepeaterips();
+static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
+	char *ignoredhosts = config_get_ignoredsnmprepeaterhosts();
 	char *tok = NULL;
 	in_addr_t ignoredaddr;
 
-	tok = strtok(ignoredips, ",");
+	// TODO: resolve every host
+
+	tok = strtok(ignoredhosts, ",");
 	if (tok) {
 		do {
 			ignoredaddr = inet_addr(tok);
 			if (memcmp(&ignoredaddr, ipaddr, sizeof(struct in_addr)) == 0) {
-				free(ignoredips);
+				free(ignoredhosts);
 				return 1;
 			}
 			tok = strtok(NULL, ",");
 		} while (tok != NULL);
 	}
-	free(ignoredips);
+	free(ignoredhosts);
 	return 0;
 }
 
 repeater_t *repeaters_add(struct in_addr *ipaddr) {
 	repeater_t *repeater = repeaters_findbyip(ipaddr);
 
-	if (repeaters_isignored(ipaddr))
+	if (repeaters_issnmpignoredforip(ipaddr))
 		return NULL;
 
 	if (repeater == NULL) {

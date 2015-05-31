@@ -20,7 +20,7 @@ int config_get_snmpinfoupdateinsec(void);
 int config_get_repeaterinactivetimeoutinsec(void);
 int config_get_rssiupdateduringcallinmsec(void);
 int config_get_calltimeoutinsec(void);
-char *config_get_ignoredrepeaterips(void);
+char *config_get_ignoredsnmprepeaterhosts(void);
 char *config_get_remotedbhost(void);
 char *config_get_remotedbuser(void);
 char *config_get_remotedbpass(void);
