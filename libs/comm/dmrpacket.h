@@ -3,7 +3,6 @@
 
 #include <libs/base/types.h>
 
-#include <netinet/ip.h>
 #include <netinet/udp.h>
 
 typedef uint8_t dmr_packet_type_t;

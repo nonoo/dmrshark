@@ -8,15 +8,59 @@
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
 #include <libs/base/log.h>
+#include <libs/livestat/livestat.h>
 
 #include <pcap/pcap.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#define _GNU_SOURCE // To get defns of NI_MAXSERV and NI_MAXHOST.
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <string.h>
 
 static pcap_t *pcap_handle = NULL;
+
+char *comm_get_ip_str(struct in_addr *ipaddr) {
+	static char ip[INET_ADDRSTRLEN];
+
+	inet_ntop(AF_INET, ipaddr, ip, sizeof(ip));
+	return ip;
+}
+
+// Retruns true if ipaddr is associated with the device we are currently listening on.
+flag_t comm_is_our_ipaddr(char *ipaddr) {
+	char *netdevname = NULL;
+	struct ifaddrs *ifaddr = NULL;
+	struct ifaddrs *ifa = NULL;
+	int i = 0;
+	int res = 0;
+	char dev_ipaddr[NI_MAXHOST] = {0,};
+
+	// Finding out the IP addresses associated with the network interface we are listening on.
+	netdevname = config_get_netdevicename();
+	getifaddrs(&ifaddr);
+	for (ifa = ifaddr, i = 0; ifa != NULL; ifa = ifa->ifa_next, i++) {
+		if (ifa->ifa_addr == NULL || strcmp(netdevname, ifa->ifa_name) != 0)
+			continue;
+
+		if (ifa->ifa_addr->sa_family == AF_INET || ifa->ifa_addr->sa_family == AF_INET6) {
+			res = getnameinfo(ifa->ifa_addr, (ifa->ifa_addr->sa_family == AF_INET) ?
+				sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
+				dev_ipaddr, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+			if (res != 0)
+				console_log("livestat error: can't get IP address for interface %s: %s\n", netdevname, gai_strerror(res));
+			else {
+				if (strcmp(dev_ipaddr, ipaddr) == 0)
+					return 1;
+			}
+		}
+	}
+	freeifaddrs(ifaddr);
+	free(netdevname);
+	return 0;
+}
 
 // http://www.binarytides.com/raw-udp-sockets-c-linux/
 static uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size) {
@@ -100,8 +144,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	packet += sizeof(struct ether_header);
 
 	ip_packet = (struct ip *)packet;
-	console_log(LOGLEVEL_COMM_IP "  src: %s\n", log_getipstr(&ip_packet->ip_src));
-	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", log_getipstr(&ip_packet->ip_dst));
+	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
+	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
 	ip_header_length = ip_packet->ip_hl*4; // http://www.governmentsecurity.org/forum/topic/16447-calculate-ip-size/
 	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet, ip_header_length)) {
 		console_log(LOGLEVEL_COMM_IP "  ip checksum mismatch, dropping\n");
@@ -132,6 +176,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmrpacket_get_readable_call_type(dmr_packet.call_type), dmr_packet.call_type,
 			dmr_packet.dst_id,
 			dmr_packet.src_id);
+
+		livestat_process(ip_packet, &dmr_packet);
 	}
 }
 

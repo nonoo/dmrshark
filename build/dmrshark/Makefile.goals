@@ -3,7 +3,7 @@ export CFLAGS := $(CFLAGS) -DDMRSHARK_BUILD
 include ../../make/Makefile.target.inc
 
 # Define the lib subdirs which are needed for this build.
-LIBS := $(LIBS) base config daemon comm
+LIBS := $(LIBS) base config daemon comm livestat
 PREBUILTLIBS := pcap snmp
 
 include ../../make/Makefile.build.inc

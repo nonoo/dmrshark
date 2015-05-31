@@ -6,6 +6,7 @@
 #include <libs/daemon/daemon.h>
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
+#include <libs/livestat/livestat.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -80,6 +81,7 @@ int main(int argc, char *argv[]) {
 		base_init();
 		if (!comm_init())
 			return 1;
+		livestat_init();
 	}
 
 	console_log("\n");
