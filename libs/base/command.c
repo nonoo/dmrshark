@@ -8,6 +8,7 @@
 #include <libs/daemon/console.h>
 #include <libs/config/config.h>
 #include <libs/comm/snmp.h>
+#include <libs/comm/repeaters.h>
 
 #include <string.h>
 #include <errno.h>
@@ -27,6 +28,7 @@ void command_process(char *input_buffer) {
 		console_log("  log (loglevel)                  - get/set loglevel\n");
 		console_log("  exit                            - exits the application\n");
 		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
+		console_log("  replist                         - list repeaters\n");
 		return;
 	}
 
@@ -82,6 +84,11 @@ void command_process(char *input_buffer) {
 		}
 		console_log("starting info read request to %s...\n", tok);
 		snmp_start_read_repeaterinfo(tok);
+		return;
+	}
+
+	if (strcmp(tok, "replist") == 0) {
+		repeaters_list();
 		return;
 	}
 

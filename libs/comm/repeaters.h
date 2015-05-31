@@ -18,6 +18,8 @@ typedef struct {
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
 void repeaters_add(struct in_addr *ipaddr);
+void repeaters_list(void);
+
 void repeaters_process(void);
 void repeaters_init(void);
 

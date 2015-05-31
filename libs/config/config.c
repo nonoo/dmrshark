@@ -149,7 +149,7 @@ char *config_get_netdevicename(void) {
 
 int config_get_snmpinfoupdateinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 60;
+	int defaultvalue = 300;
 	int value = g_key_file_get_integer(keyfile, "main", "snmpinfoupdateinsec", &error);
 	if (error) {
 		value = defaultvalue;
@@ -160,7 +160,7 @@ int config_get_snmpinfoupdateinsec(void) {
 
 int config_get_repeaterinactivetimeoutinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 60;
+	int defaultvalue = 30;
 	int value = g_key_file_get_integer(keyfile, "main", "repeaterinactivetimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;

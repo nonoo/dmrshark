@@ -182,6 +182,13 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			repeaters_add(&ip_packet->ip_src);
 		livestat_process(ip_packet, &dmr_packet);
 	}
+
+	if (dmrpacket_heartbeat_decode(udp_packet)) {
+		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
+			console_log(LOGLEVEL_COMM_DMR "comm [%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src));
+			repeaters_add(&ip_packet->ip_src);
+		}
+	}
 }
 
 void comm_process(void) {

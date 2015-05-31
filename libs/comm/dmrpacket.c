@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 typedef struct __attribute__((packed)) {
 	uint16_t port;
@@ -97,7 +98,7 @@ flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
 	dmr_packet_raw_length = ntohs(udp_packet->len)-sizeof(struct udphdr);
 	if (dmr_packet_raw_length != DMR_PACKET_SIZE) {
-		console_log(LOGLEVEL_DEBUG "dmrpacket: decode failed, packet size not %u bytes.\n", DMR_PACKET_SIZE);
+		//console_log(LOGLEVEL_DEBUG "dmrpacket: decode failed, packet size not %u bytes.\n", DMR_PACKET_SIZE);
 		return 0;
 	}
 
@@ -132,4 +133,12 @@ flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 	dmr_packet->src_id = dmr_packet_raw->src_id_raw3 << 16 | dmr_packet_raw->src_id_raw2 << 8 | dmr_packet_raw->src_id_raw1;
 
 	return 1;
+}
+
+flag_t dmrpacket_heartbeat_decode(struct udphdr *udp_packet) {
+	uint8_t heartbeat[] = { 0x0a, 0x00, 0x00, 0x00, 0x14 };
+
+	if (memcmp((uint8_t *)udp_packet + sizeof(struct udphdr) + 4, heartbeat, sizeof(heartbeat)) == 0)
+		return 1;
+	return 0;
 }
