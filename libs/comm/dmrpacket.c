@@ -86,9 +86,9 @@ char *dmrpacket_get_readable_call_type(dmr_call_type_t call_type) {
 	}
 }
 
-// Decodes the UDP packet given in ip_packet and udp_packet to dmr_packet,
+// Decodes the UDP packet given in udp_packet to dmr_packet,
 // returns 1 if decoding was successful, otherwise returns 0.
-flag_t dmrpacket_decode(struct ip *ip_packet, struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
+flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 	dmr_packet_raw_t *dmr_packet_raw = (dmr_packet_raw_t *)((uint8_t *)udp_packet + sizeof(struct udphdr));
 	int dmr_packet_raw_length = 0;
 	int i;

@@ -27,6 +27,6 @@ char *dmrpacket_get_readable_packet_type(dmr_packet_type_t packet_type);
 char *dmrpacket_get_readable_slot_type(dmr_slot_type_t slot_type);
 char *dmrpacket_get_readable_frame_type(dmr_frame_type_t frame_type);
 char *dmrpacket_get_readable_call_type(dmr_call_type_t call_type);
-flag_t dmrpacket_decode(struct ip *ip_packet, struct udphdr *udp_packet, dmr_packet_t *dmr_packet);
+flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet);
 
 #endif

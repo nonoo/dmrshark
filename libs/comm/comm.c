@@ -123,7 +123,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 		return;
 	}
 
-	if (dmrpacket_decode(ip_packet, udp_packet, &dmr_packet)) {
+	if (dmrpacket_decode(udp_packet, &dmr_packet)) {
 		console_log(LOGLEVEL_COMM_DMR "comm: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
 			dmrpacket_get_readable_packet_type(dmr_packet.packet_type), dmr_packet.packet_type,
 			dmr_packet.timeslot,
