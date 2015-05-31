@@ -121,13 +121,15 @@ static int snmp_hexstring_to_bytearray(char *inbuf, char *outbuf, int outbuflen)
 	char *endptr = NULL;
 
 	tok = strtok(inbuf, " ");
-	do {
-		*outbuf = strtol(tok, &endptr, 16);
-		byteswritten++;
-		outbuf++;
-		outbuflen--;
-		tok = strtok(NULL, " ");
-	} while (tok != NULL && outbuflen > 0);
+	if (tok) {
+		do {
+			*outbuf = strtol(tok, &endptr, 16);
+			byteswritten++;
+			outbuf++;
+			outbuflen--;
+			tok = strtok(NULL, " ");
+		} while (tok != NULL && outbuflen > 0);
+	}
 
 	return byteswritten;
 }
