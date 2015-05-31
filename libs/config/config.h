@@ -18,6 +18,8 @@ int config_get_ttyconsolebaudrate(void);
 char *config_get_netdevicename(void);
 int config_get_snmpinfoupdateinsec(void);
 int config_get_repeaterinactivetimeoutinsec(void);
+int config_get_rssiupdateduringcallinmsec(void);
+int config_get_calltimeoutinsec(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

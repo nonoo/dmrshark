@@ -25,8 +25,6 @@ static oid oid_rssi_ts1[MAX_OID_LEN];
 static size_t oid_rssi_ts1_length = 0;
 static oid oid_rssi_ts2[MAX_OID_LEN];
 static size_t oid_rssi_ts2_length = 0;
-static int last_rssi_ts1 = 0;
-static int last_rssi_ts2 = 0;
 static oid oid_id[MAX_OID_LEN];
 static size_t oid_id_length = 0;
 static oid oid_repeatertype[MAX_OID_LEN];
@@ -41,13 +39,19 @@ static oid oid_ulfreq[MAX_OID_LEN];
 static size_t oid_ulfreq_length = 0;
 
 static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
+	char *host = (char *)magic;
 	char value[15] = {0,};
 	char *endptr = NULL;
 	int value_num = 0;
 	struct variable_list *vars = NULL;
+	repeater_t *repeater = NULL;
+	in_addr_t ipaddr;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
+			ipaddr = inet_addr(host);
+			repeater = repeaters_findbyip((struct in_addr *)&ipaddr);
+
 			for (vars = pdu->variables; vars; vars = vars->next_variable) {
 				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts1, oid_rssi_ts1_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -56,9 +60,9 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", value);
 					else {
-						last_rssi_ts1 = value_num;
-						console_log("snmp: got ts1 rssi value %d\n", last_rssi_ts1);
-						// TODO: store timestamp
+						if (repeater != NULL)
+							repeater->rssi_ts1 = value_num;
+						console_log("snmp [%s]: got ts1 rssi value %d\n", host, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -67,9 +71,9 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
-						last_rssi_ts2 = value_num;
-						console_log("snmp: got ts2 rssi value %d\n", last_rssi_ts2);
-						// TODO: store timestamp
+						if (repeater != NULL)
+							repeater->rssi_ts2 = value_num;
+						console_log("snmp [%s]: got ts2 rssi value %d\n", host, value_num);
 					}
 				}
 			}

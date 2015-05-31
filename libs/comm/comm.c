@@ -136,6 +136,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	struct udphdr *udp_packet = NULL;
 	int ip_header_length = 0;
 	dmr_packet_t dmr_packet;
+	repeater_t *repeater;
 
 	eth_packet = (struct ether_header *)packet;
 	if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
@@ -169,7 +170,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	}
 
 	if (dmrpacket_decode(udp_packet, &dmr_packet)) {
-		console_log(LOGLEVEL_COMM_DMR "comm: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+		console_log(LOGLEVEL_COMM_DMR "comm [%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+			comm_get_ip_str(&ip_packet->ip_dst),
 			dmrpacket_get_readable_packet_type(dmr_packet.packet_type), dmr_packet.packet_type,
 			dmr_packet.timeslot,
 			dmrpacket_get_readable_slot_type(dmr_packet.slot_type), dmr_packet.slot_type,
@@ -178,8 +180,22 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmr_packet.dst_id,
 			dmr_packet.src_id);
 
-		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst)))
-			repeaters_add(&ip_packet->ip_src);
+		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
+			repeater = repeaters_add(&ip_packet->ip_src);
+
+			if (repeater) {
+				if (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START) {
+					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start, starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
+					repeater->auto_rssi_update_enabled_at = time(NULL);
+				}
+
+				if (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
+					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call end, stopping auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
+					repeater->auto_rssi_update_enabled_at = 0;
+				}
+			}
+		}
+
 		livestat_process(ip_packet, &dmr_packet);
 	}
 

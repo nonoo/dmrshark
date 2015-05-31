@@ -38,51 +38,51 @@ typedef struct __attribute__((packed)) {
 
 char *dmrpacket_get_readable_packet_type(dmr_packet_type_t packet_type) {
 	switch (packet_type) {
-		case 0x01: return "voice";
-		case 0x02: return "sync/start of transmission";
-		case 0x03: return "end of transmission";
-		case 0x41: return "hytera data";
-		case 0x62: return "signaling";
-		case 0x42:
-		case 0x22:
-		case 0xe2: return "sync";
+		case DMRPACKET_PACKET_TYPE_VOICE: return "voice";
+		case DMRPACKET_PACKET_TYPE_START_OF_TRANSMISSION: return "sync/start of transmission";
+		case DMRPACKET_PACKET_TYPE_END_OF_TRANSMISSION: return "end of transmission";
+		case DMRPACKET_PACKET_TYPE_HYTERA_DATA: return "hytera data";
+		case DMRPACKET_PACKET_TYPE_SIGNALING: return "signaling";
+		case DMRPACKET_PACKET_TYPE_SYNC1: return "sync1";
+		case DMRPACKET_PACKET_TYPE_SYNC2: return "sync2";
+		case DMRPACKET_PACKET_TYPE_SYNC3: return "sync3";
 		default: return "unknown";
 	}
 }
 
 char *dmrpacket_get_readable_slot_type(dmr_slot_type_t slot_type) {
 	switch (slot_type) {
-		case 0xDDDD: return "call start";
-		case 0xEEEE: return "start";
-		case 0x2222: return "call end";
-		case 0x3333: return "csbk"; // Control Signaling Block
-		case 0x4444: return "data header";
-		case 0x5555: return "1/2 rate data";
-		case 0x6666: return "3/4 rate data";
-		case 0xBBBB: return "voice data 1";
-		case 0xCCCC: return "voice data 2";
-		case 0x7777: return "voice data 3";
-		case 0x8888: return "voice data 4";
-		case 0x9999: return "voice data 5";
-		case 0xAAAA: return "voice data 6";
+		case DMRPACKET_SLOT_TYPE_CALL_START: return "call start";
+		case DMRPACKET_SLOT_TYPE_START: return "start";
+		case DMRPACKET_SLOT_TYPE_CALL_END: return "call end";
+		case DMRPACKET_SLOT_TYPE_CSBK: return "csbk"; // Control Signaling Block
+		case DMRPACKET_SLOT_TYPE_DATA_HEADER: return "data header";
+		case DMRPACKET_SLOT_TYPE_1_2_RATE_DATA: return "1/2 rate data";
+		case DMRPACKET_SLOT_TYPE_3_4_RATE_DATA: return "3/4 rate data";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_1: return "voice data 1";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_2: return "voice data 2";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_3: return "voice data 3";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_4: return "voice data 4";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_5: return "voice data 5";
+		case DMRPACKET_SLOT_TYPE_VOICE_DATA_6: return "voice data 6";
 		default: return "unknown";
 	}
 }
 
 char *dmrpacket_get_readable_frame_type(dmr_frame_type_t frame_type) {
 	switch (frame_type) {
-		case 0x0000: return "general";
-		case 0x1111: return "voice sync";
-		case 0x6666: return "data start";
-		case 0x9999: return "voice";
+		case DMRPACKET_FRAME_TYPE_GENERAL: return "general";
+		case DMRPACKET_FRAME_TYPE_VOICE_SYNC: return "voice sync";
+		case DMRPACKET_FRAME_TYPE_DATA_START: return "data start";
+		case DMRPACKET_FRAME_TYPE_VOICE: return "voice";
 		default: return "unknown";
 	}
 }
 
 char *dmrpacket_get_readable_call_type(dmr_call_type_t call_type) {
 	switch (call_type) {
-		case 0x00: return "private";
-		case 0x01: return "group";
+		case DMRPACKET_CALL_TYPE_PRIVATE: return "private";
+		case DMRPACKET_CALL_TYPE_GROUP: return "group";
 		default: return "unknown";
 	}
 }
@@ -103,7 +103,7 @@ flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 	}
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.debug) {
+	if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
 		console_log(LOGLEVEL_DEBUG "dmrpacket: decoding: ");
 		for (i = 0; i < dmr_packet_raw_length; i++)
 			console_log(LOGLEVEL_DEBUG "%.2x ", *((uint8_t *)dmr_packet_raw+i));

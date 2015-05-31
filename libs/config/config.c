@@ -169,6 +169,28 @@ int config_get_repeaterinactivetimeoutinsec(void) {
 	return value;
 }
 
+int config_get_rssiupdateduringcallinmsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 500;
+	int value = g_key_file_get_integer(keyfile, "main", "rssiupdateduringcallinmsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "rssiupdateduringcallinmsec", value);
+	}
+	return value;
+}
+
+int config_get_calltimeoutinsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 600;
+	int value = g_key_file_get_integer(keyfile, "main", "calltimeoutinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "calltimeoutinsec", value);
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -219,6 +241,8 @@ void config_init(char *configfilename) {
 	free(temp);
 	config_get_snmpinfoupdateinsec();
 	config_get_repeaterinactivetimeoutinsec();
+	config_get_rssiupdateduringcallinmsec();
+	config_get_calltimeoutinsec();
 
 	config_writeconfigfile();
 }
