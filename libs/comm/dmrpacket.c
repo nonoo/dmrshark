@@ -42,10 +42,6 @@ char *dmrpacket_get_readable_packet_type(dmr_packet_type_t packet_type) {
 		case DMRPACKET_PACKET_TYPE_START_OF_TRANSMISSION: return "sync/start of transmission";
 		case DMRPACKET_PACKET_TYPE_END_OF_TRANSMISSION: return "end of transmission";
 		case DMRPACKET_PACKET_TYPE_HYTERA_DATA: return "hytera data";
-		case DMRPACKET_PACKET_TYPE_SIGNALING: return "signaling";
-		case DMRPACKET_PACKET_TYPE_SYNC1: return "sync1";
-		case DMRPACKET_PACKET_TYPE_SYNC2: return "sync2";
-		case DMRPACKET_PACKET_TYPE_SYNC3: return "sync3";
 		default: return "unknown";
 	}
 }

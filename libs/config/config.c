@@ -205,6 +205,76 @@ char *config_get_ignoredrepeaterips(void) {
 	return value;
 }
 
+char *config_get_remotedbhost(void) {
+	GError *error = NULL;
+	char *defaultvalue = "";
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbhost", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "remotedbhost", value);
+		}
+	}
+	return value;
+}
+
+char *config_get_remotedbuser(void) {
+	GError *error = NULL;
+	char *defaultvalue = APPNAME;
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbuser", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "remotedbuser", value);
+		}
+	}
+	return value;
+}
+
+char *config_get_remotedbpass(void) {
+	GError *error = NULL;
+	char *defaultvalue = "";
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbpass", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "remotedbpass", value);
+		}
+	}
+	return value;
+}
+
+char *config_get_remotedbname(void) {
+	GError *error = NULL;
+	char *defaultvalue = APPNAME;
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbname", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "remotedbname", value);
+		}
+	}
+	return value;
+}
+
+char *config_get_remotedbtablename(void) {
+	GError *error = NULL;
+	char *defaultvalue = APPNAME "-live";
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbtablename", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "remotedbtablename", value);
+		}
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -258,6 +328,16 @@ void config_init(char *configfilename) {
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();
 	temp = config_get_ignoredrepeaterips();
+	free(temp);
+	temp = config_get_remotedbhost();
+	free(temp);
+	temp = config_get_remotedbuser();
+	free(temp);
+	temp = config_get_remotedbpass();
+	free(temp);
+	temp = config_get_remotedbname();
+	free(temp);
+	temp = config_get_remotedbtablename();
 	free(temp);
 
 	config_writeconfigfile();

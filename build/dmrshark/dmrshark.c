@@ -6,7 +6,7 @@
 #include <libs/daemon/daemon.h>
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
-#include <libs/livestat/livestat.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -79,9 +79,9 @@ int main(int argc, char *argv[]) {
 	}
 	if (!daemon_is_consoleclient()) {
 		base_init();
+		remotedb_init();
 		if (!comm_init())
 			return 1;
-		livestat_init();
 	}
 
 	console_log("\n");
@@ -97,6 +97,7 @@ int main(int argc, char *argv[]) {
 
 	if (!daemon_is_consoleclient()) {
 		comm_deinit();
+		remotedb_deinit();
 		base_deinit();
 	}
 	daemon_deinit();

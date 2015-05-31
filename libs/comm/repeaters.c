@@ -7,6 +7,7 @@
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <string.h>
 #include <sys/time.h>
@@ -118,8 +119,20 @@ void repeaters_process(void) {
 			repeaters[i].last_snmpinfo_request_time = time(NULL);
 		}
 
+		if (repeaters[i].slot[0].call_running && time(NULL)-repeaters[i].slot[0].call_started_at > config_get_calltimeoutinsec()) {
+			repeaters[i].slot[0].call_running = 0;
+			repeaters[i].slot[0].call_ended_at = time(NULL);
+			remotedb_call_end_cb(&repeaters[i], 1);
+		}
+
+		if (repeaters[i].slot[1].call_running && time(NULL)-repeaters[i].slot[1].call_started_at > config_get_calltimeoutinsec()) {
+			repeaters[i].slot[1].call_running = 0;
+			repeaters[i].slot[1].call_ended_at = time(NULL);
+			remotedb_call_end_cb(&repeaters[i], 1);
+		}
+
 		if (repeaters[i].auto_rssi_update_enabled_at > 0 && repeaters[i].auto_rssi_update_enabled_at <= time(NULL)) {
-			if (time(NULL)-repeaters[i].auto_rssi_update_enabled_at > config_get_calltimeoutinsec())
+			if (!repeaters[i].slot[0].call_running && !repeaters[i].slot[1].call_running)
 				repeaters[i].auto_rssi_update_enabled_at = 0;
 			else {
 				gettimeofday(&currtime, NULL);

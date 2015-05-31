@@ -60,7 +60,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
 					else {
 						if (repeater != NULL)
-							repeater->rssi_ts1 = value_num;
+							repeater->slot[0].rssi = value_num;
 						console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
@@ -71,7 +71,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
 						if (repeater != NULL)
-							repeater->rssi_ts2 = value_num;
+							repeater->slot[1].rssi = value_num;
 						console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
 					}
 				}

@@ -9,7 +9,7 @@
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
 #include <libs/base/log.h>
-#include <libs/livestat/livestat.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <pcap/pcap.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ flag_t comm_is_our_ipaddr(char *ipaddr) {
 				sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
 				dev_ipaddr, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 			if (res != 0)
-				console_log("livestat error: can't get IP address for interface %s: %s\n", netdevname, gai_strerror(res));
+				console_log("comm error: can't get IP address for interface %s: %s\n", netdevname, gai_strerror(res));
 			else {
 				if (strcmp(dev_ipaddr, ipaddr) == 0)
 					return 1;
@@ -180,23 +180,42 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmr_packet.dst_id,
 			dmr_packet.src_id);
 
+		// The packet is for us?
 		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 			if (repeater) {
-				if (repeater->auto_rssi_update_enabled_at == 0 && (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START || dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
-					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start, starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
+				if (!repeater->slot[dmr_packet.timeslot-1].call_running && (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_START || dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)) {
+					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
+					repeater->slot[dmr_packet.timeslot-1].call_running = 1;
+					repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
+					repeater->slot[dmr_packet.timeslot-1].call_ended_at = 0;
+					repeater->slot[dmr_packet.timeslot-1].call_type = dmr_packet.call_type;
+					repeater->slot[dmr_packet.timeslot-1].dst_id = dmr_packet.dst_id;
+					repeater->slot[dmr_packet.timeslot-1].src_id = dmr_packet.src_id;
+
+					if (repeater->auto_rssi_update_enabled_at == 0) {
+						console_log(LOGLEVEL_COMM_DMR "comm [%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
+						repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
+					}
+
+					remotedb_call_start_cb(repeater, dmr_packet.timeslot);
 				}
 
-				if (dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
-					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call end, stopping auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-					repeater->auto_rssi_update_enabled_at = 0;
+				if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
+					console_log(LOGLEVEL_COMM_DMR "comm [%s]: call end\n", comm_get_ip_str(&ip_packet->ip_dst));
+					repeater->slot[dmr_packet.timeslot-1].call_running = 0;
+					repeater->slot[dmr_packet.timeslot-1].call_ended_at = time(NULL);
+
+					if (repeater->auto_rssi_update_enabled_at != 0) {
+						console_log(LOGLEVEL_COMM_DMR "comm [%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
+						repeater->auto_rssi_update_enabled_at = 0;
+					}
+
+					remotedb_call_end_cb(repeater, dmr_packet.timeslot);
 				}
 			}
 		}
-
-		livestat_process(ip_packet, &dmr_packet);
 	}
 
 	if (dmrpacket_heartbeat_decode(udp_packet)) {

@@ -1,24 +1,35 @@
 #ifndef REPEATERS_H_
 #define REPEATERS_H_
 
+#include "dmrpacket.h"
+
 #include <libs/base/types.h>
 
 #include <arpa/inet.h>
 #include <time.h>
 
 typedef struct {
+	int rssi;
+	flag_t call_running;
+	time_t call_started_at;
+	time_t call_ended_at;
+	dmr_call_type_t call_type;
+	dmr_id_t dst_id;
+	dmr_id_t src_id;
+} repeater_slot_t;
+
+typedef struct {
 	struct in_addr ipaddr;
 	time_t last_active_time;
 	time_t last_snmpinfo_request_time;
 	struct timeval last_rssi_request_time;
-	int id;
+	dmr_id_t id;
 	char type[25];
 	char fwversion[25];
 	char callsign[25];
 	int dlfreq;
 	int ulfreq;
-	int rssi_ts1;
-	int rssi_ts2;
+	repeater_slot_t slot[2];
 	time_t auto_rssi_update_enabled_at;
 } repeater_t;
 

@@ -21,6 +21,11 @@ int config_get_repeaterinactivetimeoutinsec(void);
 int config_get_rssiupdateduringcallinmsec(void);
 int config_get_calltimeoutinsec(void);
 char *config_get_ignoredrepeaterips(void);
+char *config_get_remotedbhost(void);
+char *config_get_remotedbuser(void);
+char *config_get_remotedbpass(void);
+char *config_get_remotedbname(void);
+char *config_get_remotedbtablename(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);
