@@ -1,6 +1,7 @@
 #include <config/defaults.h>
 
 #include "snmp.h"
+#include "repeaters.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -8,32 +9,47 @@
 #include <errno.h>
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
+#include <iconv.h>
 
-#define OID_RSSI_TS1 "1.3.6.1.4.1.40297.1.2.1.2.9.0"
-#define OID_RSSI_TS2 "1.3.6.1.4.1.40297.1.2.1.2.10.0"
+#define OID_RSSI_TS1		"1.3.6.1.4.1.40297.1.2.1.2.9.0"
+#define OID_RSSI_TS2		"1.3.6.1.4.1.40297.1.2.1.2.10.0"
+#define OID_ID				"1.3.6.1.4.1.40297.1.2.4.7.0"
+#define OID_REPEATERTYPE	"1.3.6.1.4.1.40297.1.2.4.1.0"
+#define OID_FWVERSION		"1.3.6.1.4.1.40297.1.2.4.3.0"
+#define OID_CALLSIGN		"1.3.6.1.4.1.40297.1.2.4.6.0"
+#define OID_DLFREQ			"1.3.6.1.4.1.40297.1.2.4.10.0"
+#define OID_ULFREQ			"1.3.6.1.4.1.40297.1.2.4.11.0"
 
+static iconv_t conv_utf16_utf8;
 static oid oid_rssi_ts1[MAX_OID_LEN];
 static size_t oid_rssi_ts1_length = 0;
 static oid oid_rssi_ts2[MAX_OID_LEN];
 static size_t oid_rssi_ts2_length = 0;
 static int last_rssi_ts1 = 0;
 static int last_rssi_ts2 = 0;
-struct snmp_session *active_session = NULL;
+static oid oid_id[MAX_OID_LEN];
+static size_t oid_id_length = 0;
+static oid oid_repeatertype[MAX_OID_LEN];
+static size_t oid_repeatertype_length = 0;
+static oid oid_fwversion[MAX_OID_LEN];
+static size_t oid_fwversion_length = 0;
+static oid oid_callsign[MAX_OID_LEN];
+static size_t oid_callsign_length = 0;
+static oid oid_dlfreq[MAX_OID_LEN];
+static size_t oid_dlfreq_length = 0;
+static oid oid_ulfreq[MAX_OID_LEN];
+static size_t oid_ulfreq_length = 0;
 
 static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
-	//struct session *host = (struct session *)magic;
 	char value[15] = {0,};
 	char *endptr = NULL;
 	int value_num = 0;
 	struct variable_list *vars = NULL;
 
-	if (sp != active_session)
-		return 1;
-
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
 			for (vars = pdu->variables; vars; vars = vars->next_variable) {
-				if (memcmp(vars->name, oid_rssi_ts1, min(vars->name_length, oid_rssi_ts1_length)) == 0) {
+				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts1, oid_rssi_ts1_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
@@ -44,7 +60,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 						console_log("snmp: got ts1 rssi value %d\n", last_rssi_ts1);
 						// TODO: store timestamp
 					}
-				} else if (memcmp(vars->name, oid_rssi_ts2, min(vars->name_length, oid_rssi_ts2_length)) == 0) {
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
@@ -62,21 +78,17 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
     } else
     	console_log(LOGLEVEL_DEBUG "snmp: rssi read timeout\n");
 
-	active_session = NULL;
-
-	return 0;
+	return 1;
 }
 
 void snmp_start_read_rssi(char *host) {
 	struct snmp_pdu *pdu;
 	struct snmp_session session;
 	const char *community = "public";
+	struct snmp_session *new_session = NULL;
 
 	if (oid_rssi_ts1_length == 0 || oid_rssi_ts2_length == 0)
 		return;
-
-	if (active_session)
-		snmp_close(active_session);
 
 	snmp_sess_init(&session);
 	session.version = SNMP_VERSION_1;
@@ -85,7 +97,7 @@ void snmp_start_read_rssi(char *host) {
 	session.community_len = strlen(community);
 	session.callback = snmp_get_rssi_cb;
 	session.callback_magic = host;
-	if (!(active_session = snmp_open(&session))) {
+	if (!(new_session = snmp_open(&session))) {
 		console_log("snmp error: error opening session to host %s\n", host);
 		return;
 	}
@@ -93,8 +105,154 @@ void snmp_start_read_rssi(char *host) {
 	pdu = snmp_pdu_create(SNMP_MSG_GET);
 	snmp_add_null_var(pdu, oid_rssi_ts1, oid_rssi_ts1_length);
 	snmp_add_null_var(pdu, oid_rssi_ts2, oid_rssi_ts2_length);
-	if (!snmp_send(active_session, pdu))
-		console_log("snmp error: error sending request to host %s\n", host);
+	if (!snmp_send(new_session, pdu))
+		console_log("snmp error: error sending rssi request to host %s\n", host);
+	free(session.peername);
+	free(session.community);
+}
+
+static int snmp_hexstring_to_bytearray(char *inbuf, char *outbuf, int outbuflen) {
+	char *tok = NULL;
+	int byteswritten = 0;
+	char *endptr = NULL;
+
+	tok = strtok(inbuf, " ");
+	do {
+		*outbuf = strtol(tok, &endptr, 16);
+		byteswritten++;
+		outbuf++;
+		outbuflen--;
+		tok = strtok(NULL, " ");
+	} while (tok != NULL && outbuflen > 0);
+
+	return byteswritten;
+}
+
+static void snmp_utf16_to_utf8(char *str_utf16, int str_utf16_length, char *str_utf8, int str_utf8_length) {
+	char *iconv_in = NULL;
+	char *iconv_out = NULL;
+	size_t iconv_in_length = 0;
+	size_t iconv_out_length = 0;
+
+	iconv_in = str_utf16;
+	iconv_in_length = str_utf16_length;
+	iconv_out = str_utf8;
+	iconv_out_length = str_utf8_length;
+	iconv(conv_utf16_utf8, &iconv_in, &iconv_in_length, &iconv_out, &iconv_out_length);
+}
+
+static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
+	char *host = (char *)magic;
+	char value[200] = {0,};
+	char *endptr = NULL;
+	int value_num = 0;
+	struct variable_list *vars = NULL;
+	repeater_t *repeater = NULL;
+	in_addr_t ipaddr;
+	char value_utf16[sizeof(value)/2] = {0,};
+	char value_utf8[sizeof(value_utf16)/2] = {0,};
+	int length = 0;
+
+	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
+		if (pdu->errstat == SNMP_ERR_NOERROR) {
+			ipaddr = inet_addr(host);
+			repeater = repeaters_findbyip((struct in_addr *)&ipaddr);
+
+			for (vars = pdu->variables; vars; vars = vars->next_variable) {
+				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_id, oid_id_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					errno = 0;
+					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
+					if (*endptr != 0 || errno != 0)
+						console_log(LOGLEVEL_DEBUG "snmp: invalid id value received: %s\n", value);
+					else {
+						if (repeater)
+							repeater->id = value_num;
+						console_log("snmp: got id value %d\n", value_num);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_repeatertype, oid_repeatertype_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
+					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
+					if (repeater)
+						strncpy(repeater->type, value_utf8, sizeof(repeater->type));
+					console_log("snmp: got repeater type value %s\n", value_utf8);
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_fwversion, oid_fwversion_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
+					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
+					if (repeater)
+						strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
+					console_log("snmp: got repeater fw version value %s\n", value_utf8);
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_callsign, oid_callsign_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
+					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
+					if (repeater)
+						strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
+					console_log("snmp: got repeater callsign value %s\n", value_utf8);
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_dlfreq, oid_dlfreq_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					errno = 0;
+					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
+					if (*endptr != 0 || errno != 0)
+						console_log(LOGLEVEL_DEBUG "snmp: invalid dl freq value received: %s\n", value);
+					else {
+						if (repeater)
+							repeater->dlfreq = value_num;
+						console_log("snmp: got dl freq value %d\n", value_num);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_ulfreq, oid_ulfreq_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					errno = 0;
+					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
+					if (*endptr != 0 || errno != 0)
+						console_log(LOGLEVEL_DEBUG "snmp: invalid dl freq value received: %s\n", value);
+					else {
+						if (repeater)
+							repeater->ulfreq = value_num;
+						console_log("snmp: got ul freq value %d\n", value_num);
+					}
+				}
+			}
+		} else
+			console_log(LOGLEVEL_DEBUG "snmp: repeater info read error\n");
+    } else
+    	console_log(LOGLEVEL_DEBUG "snmp: repeater info read timeout\n");
+
+	return 1;
+}
+
+void snmp_start_read_repeaterinfo(char *host) {
+	struct snmp_pdu *pdu;
+	struct snmp_session session;
+	const char *community = "public";
+	struct snmp_session *new_session = NULL;
+
+	if (oid_id_length == 0)
+		return;
+
+	snmp_sess_init(&session);
+	session.version = SNMP_VERSION_1;
+	session.peername = strdup(host);
+	session.community = (unsigned char *)strdup(community);
+	session.community_len = strlen(community);
+	session.callback = snmp_get_repeaterinfo_cb;
+	session.callback_magic = host;
+	if (!(new_session = snmp_open(&session))) {
+		console_log("snmp error: error opening session to host %s\n", host);
+		return;
+	}
+
+	pdu = snmp_pdu_create(SNMP_MSG_GET);
+	snmp_add_null_var(pdu, oid_id, oid_id_length);
+	snmp_add_null_var(pdu, oid_repeatertype, oid_repeatertype_length);
+	snmp_add_null_var(pdu, oid_fwversion, oid_fwversion_length);
+	snmp_add_null_var(pdu, oid_callsign, oid_callsign_length);
+	snmp_add_null_var(pdu, oid_dlfreq, oid_dlfreq_length);
+	snmp_add_null_var(pdu, oid_ulfreq, oid_ulfreq_length);
+	if (!snmp_send(new_session, pdu))
+		console_log("snmp error: error sending repeater info request to host %s\n", host);
 	free(session.peername);
 	free(session.community);
 }
@@ -104,9 +262,6 @@ void snmp_process(void) {
     int block = 1;
     fd_set fdset;
     struct timeval timeout;
-
-	if (active_session == NULL)
-		return;
 
 	FD_ZERO(&fdset);
 	snmp_select_info(&nfds, &fdset, &timeout, &block);
@@ -123,6 +278,7 @@ void snmp_process(void) {
 
 void snmp_init(void) {
 	init_snmp(APPNAME);
+	conv_utf16_utf8 = iconv_open("UTF-8","UTF-16LE");
 
 	oid_rssi_ts1_length = MAX_OID_LEN;
 	if (!read_objid(OID_RSSI_TS1, oid_rssi_ts1, &oid_rssi_ts1_length))
@@ -130,4 +286,27 @@ void snmp_init(void) {
 	oid_rssi_ts2_length = MAX_OID_LEN;
 	if (!read_objid(OID_RSSI_TS2, oid_rssi_ts2, &oid_rssi_ts2_length))
 		console_log("snmp error: can't parse ts2 rssi oid (%s)\n", OID_RSSI_TS2);
+
+	oid_id_length = MAX_OID_LEN;
+	if (!read_objid(OID_ID, oid_id, &oid_id_length))
+		console_log("snmp error: can't parse id oid (%s)\n", OID_ID);
+	oid_repeatertype_length = MAX_OID_LEN;
+	if (!read_objid(OID_REPEATERTYPE, oid_repeatertype, &oid_repeatertype_length))
+		console_log("snmp error: can't parse repeatertype oid (%s)\n", OID_REPEATERTYPE);
+	oid_fwversion_length = MAX_OID_LEN;
+	if (!read_objid(OID_FWVERSION, oid_fwversion, &oid_fwversion_length))
+		console_log("snmp error: can't parse fwversion oid (%s)\n", OID_FWVERSION);
+	oid_callsign_length = MAX_OID_LEN;
+	if (!read_objid(OID_CALLSIGN, oid_callsign, &oid_callsign_length))
+		console_log("snmp error: can't parse callsign oid (%s)\n", OID_CALLSIGN);
+	oid_dlfreq_length = MAX_OID_LEN;
+	if (!read_objid(OID_DLFREQ, oid_dlfreq, &oid_dlfreq_length))
+		console_log("snmp error: can't parse callsign oid (%s)\n", OID_DLFREQ);
+	oid_ulfreq_length = MAX_OID_LEN;
+	if (!read_objid(OID_ULFREQ, oid_ulfreq, &oid_ulfreq_length))
+		console_log("snmp error: can't parse callsign oid (%s)\n", OID_ULFREQ);
+}
+
+void snmp_deinit(void) {
+	iconv_close(conv_utf16_utf8);
 }

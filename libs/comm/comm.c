@@ -3,6 +3,7 @@
 #include "comm.h"
 #include "dmrpacket.h"
 #include "snmp.h"
+#include "repeaters.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -177,6 +178,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmr_packet.dst_id,
 			dmr_packet.src_id);
 
+		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst)))
+			repeaters_add(&ip_packet->ip_src);
 		livestat_process(ip_packet, &dmr_packet);
 	}
 }
@@ -195,6 +198,8 @@ void comm_process(void) {
 		console_log(LOGLEVEL_COMM_IP "comm got packet: %u bytes\n", pkthdr.len);
 		comm_processpacket(packet, pkthdr.len);
 	}
+
+	repeaters_process();
 }
 
 flag_t comm_init(void) {
@@ -203,6 +208,8 @@ flag_t comm_init(void) {
 	struct bpf_program pcap_filter = {0,};
 	int pcap_dev = -1;
 	char *pcap_filter_str = "ip and udp";
+
+	repeaters_init();
 
 	netdevname = config_get_netdevicename();
 
@@ -242,4 +249,5 @@ void comm_deinit(void) {
 		daemon_poll_removefd(pcap_dev);
 
 	pcap_close(pcap_handle);
+	snmp_deinit();
 }

@@ -16,6 +16,8 @@ char *config_get_ttyconsoledev(void);
 flag_t config_get_ttyconsoleenabled(void);
 int config_get_ttyconsolebaudrate(void);
 char *config_get_netdevicename(void);
+int config_get_snmpinfoupdateinsec(void);
+int config_get_repeaterinactivetimeoutinsec(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

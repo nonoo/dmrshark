@@ -147,6 +147,28 @@ char *config_get_netdevicename(void) {
 	return value;
 }
 
+int config_get_snmpinfoupdateinsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 60;
+	int value = g_key_file_get_integer(keyfile, "main", "snmpinfoupdateinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "snmpinfoupdateinsec", value);
+	}
+	return value;
+}
+
+int config_get_repeaterinactivetimeoutinsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 60;
+	int value = g_key_file_get_integer(keyfile, "main", "repeaterinactivetimeoutinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "repeaterinactivetimeoutinsec", value);
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -195,6 +217,8 @@ void config_init(char *configfilename) {
 	config_get_ttyconsolebaudrate();
 	temp = config_get_netdevicename();
 	free(temp);
+	config_get_snmpinfoupdateinsec();
+	config_get_repeaterinactivetimeoutinsec();
 
 	config_writeconfigfile();
 }

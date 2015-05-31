@@ -74,11 +74,28 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
+	if (strcmp(tok, "info") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		console_log("starting info read request to %s...\n", tok);
+		snmp_start_read_repeaterinfo(tok);
+		return;
+	}
+
 	// TODO: remove
 	if (strcmp(tok, "rsi") == 0) {
 		tok = "192.168.3.107";
 		console_log("starting rssi read request to %s...\n", tok);
 		snmp_start_read_rssi(tok);
+		return;
+	}
+	if (strcmp(tok, "inf") == 0) {
+		tok = "192.168.3.107";
+		console_log("starting info read request to %s...\n", tok);
+		snmp_start_read_repeaterinfo(tok);
 		return;
 	}
 
