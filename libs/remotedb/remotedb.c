@@ -27,7 +27,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 	char *tablename = NULL;
 	char query[512] = {0,};
 
-	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0 || repeater->id == 0)
+	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
 		return;
 
 	if (repeater == NULL || remotedb_conn == NULL)

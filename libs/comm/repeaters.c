@@ -61,9 +61,6 @@ static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
 repeater_t *repeaters_add(struct in_addr *ipaddr) {
 	repeater_t *repeater = repeaters_findbyip(ipaddr);
 
-	if (repeaters_issnmpignoredforip(ipaddr))
-		return NULL;
-
 	if (repeater == NULL) {
 		repeater = repeaters_findfirstemptyslot();
 		if (repeater == NULL) {
@@ -72,6 +69,8 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 		}
 		memset(repeater, 0, sizeof(repeater_t));
 		memcpy(&repeater->ipaddr, ipaddr, sizeof(struct in_addr));
+		if (repeaters_issnmpignoredforip(ipaddr))
+			repeater->snmpignored = 1;
 		console_log("repeaters [%s]: added\n", comm_get_ip_str(ipaddr));
 	}
 	repeater->last_active_time = time(NULL);
@@ -87,7 +86,7 @@ void repeaters_list(void) {
 		if (repeaters[i].ipaddr.s_addr == 0)
 			continue;
 
-		console_log("  #%4u: %15s %6u %9s %4u  %6u %10s %10s %9u %9u\n",
+		console_log("  #%4u: %15s %6u %9s %4u  %6u %10s %10s %9u %9u %s\n",
 			i,
 			comm_get_ip_str(&repeaters[i].ipaddr),
 			repeaters[i].id,
@@ -97,7 +96,8 @@ void repeaters_list(void) {
 			repeaters[i].type,
 			repeaters[i].fwversion,
 			repeaters[i].dlfreq,
-			repeaters[i].ulfreq);
+			repeaters[i].ulfreq,
+			(repeaters[i].snmpignored ? "snmp ignored" : ""));
 	}
 }
 
@@ -116,7 +116,7 @@ void repeaters_process(void) {
 			continue;
 		}
 
-		if (time(NULL)-repeaters[i].last_snmpinfo_request_time > config_get_snmpinfoupdateinsec()) {
+		if (!repeaters[i].snmpignored && time(NULL)-repeaters[i].last_snmpinfo_request_time > config_get_snmpinfoupdateinsec()) {
 			console_log(LOGLEVEL_DEBUG "repeaters [%s]: sending snmp info update request\n", comm_get_ip_str(&repeaters[i].ipaddr));
 			snmp_start_read_repeaterinfo(comm_get_ip_str(&repeaters[i].ipaddr));
 			repeaters[i].last_snmpinfo_request_time = time(NULL);

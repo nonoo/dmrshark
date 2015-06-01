@@ -153,8 +153,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	struct ip *ip_packet = NULL;
 	struct udphdr *udp_packet = NULL;
 	int ip_header_length = 0;
-	dmr_packet_t dmr_packet;
-	repeater_t *repeater;
+	dmr_packet_t dmr_packet = {0,};
+	repeater_t *repeater = NULL;
 
 	eth_packet = (struct ether_header *)packet;
 	if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
@@ -188,7 +188,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	}
 
 	if (dmrpacket_decode(udp_packet, &dmr_packet)) {
-		console_log(LOGLEVEL_COMM_DMR "comm [%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+		console_log(LOGLEVEL_COMM_DMR "comm [%s->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+			comm_get_ip_str(&ip_packet->ip_src),
 			comm_get_ip_str(&ip_packet->ip_dst),
 			dmrpacket_get_readable_packet_type(dmr_packet.packet_type), dmr_packet.packet_type,
 			dmr_packet.timeslot,
@@ -199,49 +200,49 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmr_packet.src_id);
 
 		// The packet is for us?
-		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
+		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst)))
 			repeater = repeaters_add(&ip_packet->ip_src);
 
-			if (repeater) {
-				if (!repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE) {
-					console_log(LOGLEVEL_COMM "comm [%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
-					repeater->slot[dmr_packet.timeslot-1].call_running = 1;
-					repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
-					repeater->slot[dmr_packet.timeslot-1].call_ended_at = 0;
-					repeater->slot[dmr_packet.timeslot-1].call_type = dmr_packet.call_type;
-					repeater->slot[dmr_packet.timeslot-1].dst_id = dmr_packet.dst_id;
-					repeater->slot[dmr_packet.timeslot-1].src_id = dmr_packet.src_id;
+		// The packet is for us, or from a listed repeater?
+		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
+			if (!repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE) {
+				console_log(LOGLEVEL_COMM "comm [%s->%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
+				repeater->slot[dmr_packet.timeslot-1].call_running = 1;
+				repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
+				repeater->slot[dmr_packet.timeslot-1].call_ended_at = 0;
+				repeater->slot[dmr_packet.timeslot-1].call_type = dmr_packet.call_type;
+				repeater->slot[dmr_packet.timeslot-1].dst_id = dmr_packet.dst_id;
+				repeater->slot[dmr_packet.timeslot-1].src_id = dmr_packet.src_id;
 
-					if (repeater->auto_rssi_update_enabled_at == 0) {
-						console_log(LOGLEVEL_COMM "comm [%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-						repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
-					}
-
-					remotedb_update(repeater);
+				if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
+					console_log(LOGLEVEL_COMM "comm [%s->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
 				}
 
-				if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
-					console_log(LOGLEVEL_COMM "comm [%s]: call end\n", comm_get_ip_str(&ip_packet->ip_dst));
-					repeater->slot[dmr_packet.timeslot-1].call_running = 0;
-					repeater->slot[dmr_packet.timeslot-1].call_ended_at = time(NULL);
-
-					if (repeater->auto_rssi_update_enabled_at != 0) {
-						console_log(LOGLEVEL_COMM "comm [%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-						repeater->auto_rssi_update_enabled_at = 0;
-					}
-
-					remotedb_update(repeater);
-				}
-
-				if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)
-					repeater->slot[dmr_packet.timeslot-1].last_packet_received_at = time(NULL);
+				remotedb_update(repeater);
 			}
+
+			if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
+				console_log(LOGLEVEL_COMM "comm [%s->%s]: call end\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+				repeater->slot[dmr_packet.timeslot-1].call_running = 0;
+				repeater->slot[dmr_packet.timeslot-1].call_ended_at = time(NULL);
+
+				if (repeater->auto_rssi_update_enabled_at != 0) {
+					console_log(LOGLEVEL_COMM "comm [%s->%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+					repeater->auto_rssi_update_enabled_at = 0;
+				}
+
+				remotedb_update(repeater);
+			}
+
+			if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)
+				repeater->slot[dmr_packet.timeslot-1].last_packet_received_at = time(NULL);
 		}
 	}
 
 	if (dmrpacket_heartbeat_decode(udp_packet)) {
 		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
-			console_log(LOGLEVEL_DEBUG "comm [%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_DEBUG "comm [%s->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
 			repeaters_add(&ip_packet->ip_src);
 		}
 	}
