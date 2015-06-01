@@ -242,6 +242,30 @@ void console_log(const char *format, ...) {
 				}
 			}
 			break;
+		case LOGLEVEL_HEARTBEAT_VAL:
+			if (loglevel.flags.heartbeat) {
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
+		case LOGLEVEL_REMOTEDB_VAL:
+			if (loglevel.flags.remotedb) {
+				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
+				buffer_length = strlen(buffer);
+
+				printf("%s", buffer);
+				if (daemon_is_consoleserver()) {
+					daemon_consoleserver_sendbroadcast(buffer, buffer_length);
+					ttyconsole_send(buffer, buffer_length);
+				}
+			}
+			break;
 		default:
 			vsnprintf(buffer, sizeof(buffer), format, argptr);
 			buffer_length = strlen(buffer);

@@ -15,6 +15,10 @@
 #define LOGLEVEL_SNMP_VAL		0x05
 #define LOGLEVEL_REPEATERS		"\x06"
 #define LOGLEVEL_REPEATERS_VAL	0x06
+#define LOGLEVEL_HEARTBEAT		"\x07"
+#define LOGLEVEL_HEARTBEAT_VAL	0x07
+#define LOGLEVEL_REMOTEDB		"\x08"
+#define LOGLEVEL_REMOTEDB_VAL	0x08
 
 // Don't forget to add new loglevels to the log command handler in command.c,
 // and to the loglevel display list in log.c!
@@ -26,6 +30,8 @@ typedef union __attribute__((packed)) {
 		uint8_t comm_dmr		: 1;
 		uint8_t snmp			: 1;
 		uint8_t repeaters		: 1;
+		uint8_t heartbeat		: 1;
+		uint8_t remotedb		: 1;
 	} flags;
 	uint8_t raw;
 } loglevel_t;

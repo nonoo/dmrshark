@@ -16,9 +16,9 @@ static void remotedb_query(char *query) {
 	if (remotedb_conn == NULL)
 		return;
 
-	console_log(LOGLEVEL_DEBUG "remotedb: sending query: %s\n", query);
+	console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
 	if (mysql_query(remotedb_conn, query)) {
-		console_log(LOGLEVEL_DEBUG "remotedb error: %s\n", mysql_error(remotedb_conn));
+		console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
 		return;
 	}
 }
@@ -76,7 +76,7 @@ void remotedb_maintain(void) {
 	char *tablename = NULL;
 	char query[512] = {0,};
 
-	console_log("remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
+	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
 	tablename = config_get_remotedbtablename();
 	snprintf(query, sizeof(query), "delete from `%s` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tablename, config_get_remotedbdeleteolderthansec());

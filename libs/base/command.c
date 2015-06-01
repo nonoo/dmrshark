@@ -60,6 +60,10 @@ void command_process(char *input_buffer) {
 				loglevel.flags.snmp = !loglevel.flags.snmp;
 			else if (strcmp(tok, "repeaters") == 0)
 				loglevel.flags.repeaters = !loglevel.flags.repeaters;
+			else if (strcmp(tok, "heartbeat") == 0)
+				loglevel.flags.heartbeat = !loglevel.flags.heartbeat;
+			else if (strcmp(tok, "remotedb") == 0)
+				loglevel.flags.remotedb = !loglevel.flags.remotedb;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

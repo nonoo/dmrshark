@@ -242,7 +242,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 
 	if (dmrpacket_heartbeat_decode(udp_packet)) {
 		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
-			console_log(LOGLEVEL_DEBUG "comm [%s->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+			console_log(LOGLEVEL_HEARTBEAT "comm [%s->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
 			repeaters_add(&ip_packet->ip_src);
 		}
 	}

@@ -45,6 +45,18 @@ void log_loglevel(loglevel_t *loglevel) {
 		console_log("on\n");
 	else
 		console_log("off\n");
+
+	console_log("  heartbeat ");
+	if (loglevel->flags.heartbeat)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
+	console_log("  remotedb ");
+	if (loglevel->flags.remotedb)
+		console_log("on\n");
+	else
+		console_log("off\n");
 }
 
 void log_cmdmissingparam(void) {
