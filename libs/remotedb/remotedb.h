@@ -8,6 +8,7 @@
 
 void remotedb_update(repeater_t *repeater);
 
+void remotedb_process(void);
 void remotedb_init(void);
 void remotedb_deinit(void);
 

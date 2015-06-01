@@ -23,6 +23,24 @@
 
 static pcap_t *pcap_handle = NULL;
 
+flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr) {
+	struct hostent *he;
+	struct in_addr **addr_list;
+	int i;
+
+	if ((he = gethostbyname(hostname)) == NULL)
+		return 0;
+
+	addr_list = (struct in_addr **)he->h_addr_list;
+
+	for (i = 0; addr_list[i] != NULL; i++) {
+		// Return the first one.
+		memcpy(ipaddr, addr_list[i], sizeof(struct in_addr));
+		return 1;
+	}
+	return 0;
+}
+
 char *comm_get_ip_str(struct in_addr *ipaddr) {
 	static char ip[INET_ADDRSTRLEN];
 

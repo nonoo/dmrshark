@@ -11,19 +11,24 @@
 #include <stdio.h>
 
 static MYSQL *remotedb_conn = NULL;
-static char *remotedb_tablename = NULL;
 
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
+	char *tablename = NULL;
 	char query[512] = {0,};
 
 	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0 || repeater->id == 0)
 		return;
 
+	if (repeater == NULL || remotedb_conn == NULL)
+		return;
+
+	tablename = config_get_remotedbtablename();
 	snprintf(query, sizeof(query), "replace into `%s` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, (case when `avgrssi` = 0 then %d else (`avgrssi`+%d)/2.0 end))",
-		remotedb_tablename, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, (case when `avgrssi` = 0 then %d else (`avgrssi`+%d)/2 end))",
+		tablename, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
 		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi);
+	free(tablename);
 
 	console_log(LOGLEVEL_DEBUG "remotedb: sending query: %s\n", query);
 	if (mysql_query(remotedb_conn, query)) {
@@ -33,39 +38,65 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 }
 
 void remotedb_update(repeater_t *repeater) {
-	if (repeater == NULL || remotedb_conn == NULL || remotedb_tablename == NULL)
-		return;
-
 	remotedb_update_timeslot(repeater, 1);
 	remotedb_update_timeslot(repeater, 2);
 }
 
+static void remotedb_connect(void) {
+	char *server = NULL;
+	char *user = NULL;
+	char *pass = NULL;
+	char *dbname = NULL;
+
+	server = config_get_remotedbhost();
+	user = config_get_remotedbuser();
+	pass = config_get_remotedbpass();
+	dbname = config_get_remotedbname();
+
+	console_log("remotedb: trying to connect to mysql server %s...\n", server);
+	if (!mysql_real_connect(remotedb_conn, server, user, pass, dbname, 0, NULL, CLIENT_REMEMBER_OPTIONS))
+		console_log("remotedb error: can't connect to remote db: %s\n", mysql_error(remotedb_conn));
+	else
+		console_log("remotedb: connected\n");
+
+	free(server);
+	free(user);
+	free(pass);
+	free(dbname);
+}
+
+void remotedb_process(void) {
+	static time_t lastconnecttriedat = 0;
+
+	if (remotedb_conn != NULL && time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
+		if (mysql_ping(remotedb_conn) != 0)
+			remotedb_connect();
+		lastconnecttriedat = time(NULL);
+	}
+}
+
 void remotedb_init(void) {
+	unsigned int opt;
 	char *server = config_get_remotedbhost();
-	char *user = config_get_remotedbuser();
-	char *pass = config_get_remotedbpass();
-	char *dbname = config_get_remotedbname();
-	remotedb_tablename = config_get_remotedbtablename();
-	my_bool opt;
 
 	console_log("remotedb: init\n");
 
 	if (strlen(server) != 0) {
 		remotedb_conn = mysql_init(NULL);
-		opt = 1;
-		mysql_options(remotedb_conn, MYSQL_OPT_RECONNECT, &opt);
-		console_log("remotedb: trying to connect to mysql server %s...\n", server);
-		if (!mysql_real_connect(remotedb_conn, server, user, pass, dbname, 0, NULL, 0)) {
-			console_log("remotedb error: can't connect to remote db: %s\n", mysql_error(remotedb_conn));
-			mysql_close(remotedb_conn);
-			remotedb_conn = NULL;
-		} else
-			console_log("remotedb: connected\n");
+		if (remotedb_conn == NULL)
+			console_log("remotedb error: can't initialize mysql\n");
+		else {
+			opt = 3;
+			mysql_options(remotedb_conn, MYSQL_OPT_CONNECT_TIMEOUT, &opt);
+			opt = 3;
+			mysql_options(remotedb_conn, MYSQL_OPT_WRITE_TIMEOUT, &opt);
+			opt = 3;
+			mysql_options(remotedb_conn, MYSQL_OPT_READ_TIMEOUT, &opt);
+
+			remotedb_connect();
+		}
 	}
 	free(server);
-	free(user);
-	free(pass);
-	free(dbname);
 }
 
 void remotedb_deinit(void) {
@@ -75,6 +106,4 @@ void remotedb_deinit(void) {
 		mysql_close(remotedb_conn);
 		remotedb_conn = NULL;
 	}
-	free(remotedb_tablename);
-	remotedb_tablename = NULL;
 }

@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
 	while (daemon_process()) {
 		if (!daemon_is_consoleclient()) {
 			base_process();
+			remotedb_process();
 			comm_process();
 		}
 	}

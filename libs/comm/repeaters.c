@@ -38,18 +38,19 @@ static repeater_t *repeaters_findfirstemptyslot(void) {
 static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
 	char *ignoredhosts = config_get_ignoredsnmprepeaterhosts();
 	char *tok = NULL;
-	in_addr_t ignoredaddr;
-
-	// TODO: resolve every host
+	struct in_addr ignoredaddr;
 
 	tok = strtok(ignoredhosts, ",");
 	if (tok) {
 		do {
-			ignoredaddr = inet_addr(tok);
-			if (memcmp(&ignoredaddr, ipaddr, sizeof(struct in_addr)) == 0) {
-				free(ignoredhosts);
-				return 1;
-			}
+			if (comm_hostname_to_ip(tok, &ignoredaddr)) {
+				if (memcmp(&ignoredaddr, ipaddr, sizeof(struct in_addr)) == 0) {
+					free(ignoredhosts);
+					return 1;
+				}
+			} else
+				console_log(LOGLEVEL_DEBUG "repeaters: can't resolve hostname %s\n", tok);
+
 			tok = strtok(NULL, ",");
 		} while (tok != NULL);
 	}
@@ -81,12 +82,12 @@ void repeaters_list(void) {
 	int i;
 
 	console_log("repeaters:\n");
-	console_log("      nr              ip     id  callsign  act  lstinf type  fwver        dlfreq    ulfreq\n");
+	console_log("      nr              ip     id  callsign  act  lstinf       type        fwver    dlfreq    ulfreq\n");
 	for (i = 0; i < MAX_REPEATER_COUNT; i++) {
 		if (repeaters[i].ipaddr.s_addr == 0)
 			continue;
 
-		console_log("  #%4u: %15s %6u %7s %4u %4u %10s %10s %9u %9u\n",
+		console_log("  #%4u: %15s %6u %9s %4u  %6u %10s %10s %9u %9u\n",
 			i,
 			comm_get_ip_str(&repeaters[i].ipaddr),
 			repeaters[i].id,

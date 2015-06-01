@@ -275,6 +275,17 @@ char *config_get_remotedbtablename(void) {
 	return value;
 }
 
+int config_get_remotedbreconnecttrytimeoutinsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 5;
+	int value = g_key_file_get_integer(keyfile, "main", "remotedbreconnecttrytimeoutinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "remotedbreconnecttrytimeoutinsec", value);
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -339,6 +350,7 @@ void config_init(char *configfilename) {
 	free(temp);
 	temp = config_get_remotedbtablename();
 	free(temp);
+	config_get_remotedbreconnecttrytimeoutinsec();
 
 	config_writeconfigfile();
 }
