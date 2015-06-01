@@ -9,6 +9,7 @@
 #include <libs/config/config.h>
 #include <libs/comm/snmp.h>
 #include <libs/comm/repeaters.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <string.h>
 #include <errno.h>
@@ -29,6 +30,7 @@ void command_process(char *input_buffer) {
 		console_log("  exit                            - exits the application\n");
 		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
 		console_log("  replist                         - list repeaters\n");
+		console_log("  remotedbmaintain                - start db maintenance\n");
 		return;
 	}
 
@@ -98,17 +100,8 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
-	// TODO: remove
-	if (strcmp(tok, "rsi") == 0) {
-		tok = "192.168.3.107";
-		console_log("starting rssi read request to %s...\n", tok);
-		snmp_start_read_rssi(tok);
-		return;
-	}
-	if (strcmp(tok, "inf") == 0) {
-		tok = "192.168.3.107";
-		console_log("starting info read request to %s...\n", tok);
-		snmp_start_read_repeaterinfo(tok);
+	if (strcmp(tok, "remotedbmaintain") == 0) {
+		remotedb_maintain();
 		return;
 	}
 

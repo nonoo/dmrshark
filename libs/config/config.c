@@ -286,6 +286,29 @@ int config_get_remotedbreconnecttrytimeoutinsec(void) {
 	return value;
 }
 
+int config_get_remotedbmaintenanceperiodinsec(void) {
+	GError *error = NULL;
+	int defaultvalue = 3600;
+	int value = g_key_file_get_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", value);
+	}
+	return value;
+}
+
+
+int config_get_remotedbdeleteolderthansec(void) {
+	GError *error = NULL;
+	int defaultvalue = 86400;
+	int value = g_key_file_get_integer(keyfile, "main", "remotedbdeleteolderthansec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "remotedbdeleteolderthansec", value);
+	}
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -351,6 +374,7 @@ void config_init(char *configfilename) {
 	temp = config_get_remotedbtablename();
 	free(temp);
 	config_get_remotedbreconnecttrytimeoutinsec();
+	config_get_remotedbdeleteolderthansec();
 
 	config_writeconfigfile();
 }

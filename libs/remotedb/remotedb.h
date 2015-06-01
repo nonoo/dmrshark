@@ -7,6 +7,7 @@
 #include <netinet/ip.h>
 
 void remotedb_update(repeater_t *repeater);
+void remotedb_maintain(void);
 
 void remotedb_process(void);
 void remotedb_init(void);

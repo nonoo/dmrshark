@@ -27,6 +27,8 @@ char *config_get_remotedbpass(void);
 char *config_get_remotedbname(void);
 char *config_get_remotedbtablename(void);
 int config_get_remotedbreconnecttrytimeoutinsec(void);
+int config_get_remotedbmaintenanceperiodinsec(void);
+int config_get_remotedbdeleteolderthansec(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

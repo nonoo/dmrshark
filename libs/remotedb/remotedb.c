@@ -12,6 +12,17 @@
 
 static MYSQL *remotedb_conn = NULL;
 
+static void remotedb_query(char *query) {
+	if (remotedb_conn == NULL)
+		return;
+
+	console_log(LOGLEVEL_DEBUG "remotedb: sending query: %s\n", query);
+	if (mysql_query(remotedb_conn, query)) {
+		console_log(LOGLEVEL_DEBUG "remotedb error: %s\n", mysql_error(remotedb_conn));
+		return;
+	}
+}
+
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tablename = NULL;
 	char query[512] = {0,};
@@ -30,11 +41,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi);
 	free(tablename);
 
-	console_log(LOGLEVEL_DEBUG "remotedb: sending query: %s\n", query);
-	if (mysql_query(remotedb_conn, query)) {
-		console_log(LOGLEVEL_DEBUG "remotedb error: %s\n", mysql_error(remotedb_conn));
-		return;
-	}
+	remotedb_query(query);
 }
 
 void remotedb_update(repeater_t *repeater) {
@@ -65,14 +72,36 @@ static void remotedb_connect(void) {
 	free(dbname);
 }
 
+void remotedb_maintain(void) {
+	char *tablename = NULL;
+	char query[512] = {0,};
+
+	console_log("remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
+	tablename = config_get_remotedbtablename();
+	snprintf(query, sizeof(query), "delete from `%s` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
+		tablename, config_get_remotedbdeleteolderthansec());
+	free(tablename);
+
+	remotedb_query(query);
+}
+
 void remotedb_process(void) {
 	static time_t lastconnecttriedat = 0;
+	static time_t lastmaintenanceat = 0;
 
-	if (remotedb_conn != NULL && time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
-		if (mysql_ping(remotedb_conn) != 0)
-			remotedb_connect();
-		lastconnecttriedat = time(NULL);
+	if (remotedb_conn != NULL) {
+		if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
+			if (mysql_ping(remotedb_conn) != 0)
+				remotedb_connect();
+			lastconnecttriedat = time(NULL);
+		}
+
+		if (time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
+			remotedb_maintain();
+			lastmaintenanceat = time(NULL);
+		}
 	}
+
 }
 
 void remotedb_init(void) {
