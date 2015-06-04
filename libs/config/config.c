@@ -135,7 +135,7 @@ int config_get_ttyconsolebaudrate(void) {
 
 char *config_get_netdevicename(void) {
 	GError *error = NULL;
-	char *defaultvalue = "eth0";
+	char *defaultvalue = "any";
 	char *value = g_key_file_get_string(keyfile, "main", "netdevicename", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);

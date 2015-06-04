@@ -23,6 +23,14 @@
 
 static pcap_t *pcap_handle = NULL;
 
+struct __attribute__((packed)) linux_sll {
+	uint16_t packet_type; // Packet_* describing packet origins
+	uint16_t dev_type; // ARPHDR_* from net/if_arp.h
+	uint16_t addr_len;
+	uint8_t addr[8];
+	uint16_t eth_type; // Same as ieee802_3 'lentype' field, with additional * Eth_Type_* exceptions
+};
+
 flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr) {
 	struct hostent *he;
 	struct in_addr **addr_list;
@@ -48,14 +56,13 @@ char *comm_get_ip_str(struct in_addr *ipaddr) {
 	return ip;
 }
 
-// Retruns true if ipaddr is associated with the device we are currently listening on.
-flag_t comm_is_our_ipaddr(char *ipaddr) {
+static char *comm_get_our_ipaddr(void) {
 	char *netdevname = NULL;
 	struct ifaddrs *ifaddr = NULL;
 	struct ifaddrs *ifa = NULL;
 	int i = 0;
 	int res = 0;
-	char dev_ipaddr[NI_MAXHOST] = {0,};
+	static char dev_ipaddr[NI_MAXHOST] = {0,};
 
 	// Finding out the IP addresses associated with the network interface we are listening on.
 	netdevname = config_get_netdevicename();
@@ -71,14 +78,22 @@ flag_t comm_is_our_ipaddr(char *ipaddr) {
 			if (res != 0)
 				console_log("comm error: can't get IP address for interface %s: %s\n", netdevname, gai_strerror(res));
 			else {
-				if (strcmp(dev_ipaddr, ipaddr) == 0)
-					return 1;
+				return dev_ipaddr;
 			}
 		}
 	}
 	freeifaddrs(ifaddr);
 	free(netdevname);
-	return 0;
+	return NULL;
+}
+
+// Retruns true if ipaddr is associated with the device we are currently listening on.
+flag_t comm_is_our_ipaddr(char *ipaddr) {
+	char *our_addr = comm_get_our_ipaddr();
+
+	if (our_addr != NULL)
+		return (strcmp(our_addr, ipaddr) == 0);
+	return 1;
 }
 
 // http://www.binarytides.com/raw-udp-sockets-c-linux/
@@ -150,18 +165,37 @@ static uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, str
 
 static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	struct ether_header *eth_packet = NULL;
+	struct linux_sll *linux_sll_packet = NULL;
 	struct ip *ip_packet = NULL;
 	struct udphdr *udp_packet = NULL;
 	int ip_header_length = 0;
 	dmr_packet_t dmr_packet = {0,};
 	repeater_t *repeater = NULL;
+	loglevel_t loglevel = console_get_loglevel();
+	int i;
 
-	eth_packet = (struct ether_header *)packet;
-	if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
-		console_log(LOGLEVEL_COMM_IP "  not an IP packet, dropping\n");
-		return;
+	if (loglevel.flags.debug && loglevel.flags.comm_ip) {
+		console_log(LOGLEVEL_DEBUG "comm packet: ");
+		for (i = 0; i < length; i++)
+			console_log(LOGLEVEL_DEBUG "%.2x ", packet[i]);
+		console_log(LOGLEVEL_DEBUG "\n");
 	}
-	packet += sizeof(struct ether_header);
+
+	if (pcap_datalink(pcap_handle) == pcap_datalink_name_to_val("EN10MB")) {
+		eth_packet = (struct ether_header *)packet;
+		if (ntohs(eth_packet->ether_type) != ETHERTYPE_IP) {
+			console_log(LOGLEVEL_COMM_IP "  not an IP packet (type %u), dropping\n", ntohs(eth_packet->ether_type));
+			return;
+		}
+		packet += sizeof(struct ether_header);
+	} else if (pcap_datalink(pcap_handle) == pcap_datalink_name_to_val("LINUX_SLL")) {
+		linux_sll_packet = (struct linux_sll *)packet;
+		if (ntohs(linux_sll_packet->eth_type) != ETHERTYPE_IP) {
+			console_log(LOGLEVEL_COMM_IP "  not an IP packet (type %u), dropping\n", ntohs(linux_sll_packet->eth_type));
+			return;
+		}
+		packet += sizeof(struct linux_sll);
+	}
 
 	ip_packet = (struct ip *)packet;
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
@@ -178,9 +212,16 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	console_log(LOGLEVEL_COMM_IP "  dstport: %u\n", ntohs(udp_packet->dest));
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
 	console_log(LOGLEVEL_COMM_IP "  length: %u\n", ntohs(udp_packet->len)-sizeof(struct udphdr));
-	if (length-sizeof(struct ether_header)-ip_header_length != ntohs(udp_packet->len)) {
-		console_log(LOGLEVEL_COMM_IP "  udp length not equal to received packet length, dropping\n");
-		return;
+	if (pcap_datalink(pcap_handle) == pcap_datalink_name_to_val("EN10MB")) {
+		if (length-sizeof(struct ether_header)-ip_header_length != ntohs(udp_packet->len)) {
+			console_log(LOGLEVEL_COMM_IP "  udp length not equal to received packet length, dropping\n");
+			return;
+		}
+	} else if (pcap_datalink(pcap_handle) == pcap_datalink_name_to_val("LINUX_SLL")) {
+		if (length-sizeof(struct linux_sll)-ip_header_length != ntohs(udp_packet->len)) {
+			console_log(LOGLEVEL_COMM_IP "  udp length not equal to received packet length, dropping\n");
+			return;
+		}
 	}
 	if (udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
@@ -272,6 +313,8 @@ flag_t comm_init(void) {
 	struct bpf_program pcap_filter = {0,};
 	int pcap_dev = -1;
 	char *pcap_filter_str = "ip and udp";
+	int *datalinks = NULL;
+	int i;
 
 	repeaters_init();
 
@@ -285,7 +328,17 @@ flag_t comm_init(void) {
 		free(netdevname);
 		return 0;
 	}
+	console_log("comm: dev %s ip addr is %s\n", netdevname, comm_get_our_ipaddr());
 	free(netdevname);
+
+	i = pcap_list_datalinks(pcap_handle, &datalinks);
+	if (i > 0) {
+		pcap_set_datalink(pcap_handle, datalinks[0]);
+		console_log("comm: setting pcap data link to %s\n", pcap_datalink_val_to_name(datalinks[0]));
+	}
+	pcap_free_datalinks(datalinks);
+	datalinks = NULL;
+
 	if (pcap_compile(pcap_handle, &pcap_filter, pcap_filter_str, 1, PCAP_NETMASK_UNKNOWN) < 0) {
 		console_log("comm error: can't init packet capture: %s\n", pcap_geterr(pcap_handle));
 		return 0;
