@@ -113,6 +113,17 @@ void remotedb_maintain(void) {
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "delete from `%slive` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tableprefix, config_get_remotedbdeleteolderthansec());
+	free(tableprefix);
+
+	remotedb_query(query);
+}
+
+void remotedb_maintain_repeaterlist(void) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+
+	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing repeater entries older than %u seconds\n", config_get_repeaterinactivetimeoutinsec());
+	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "delete from `%slive-repeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
 		tableprefix, config_get_repeaterinactivetimeoutinsec());
 	free(tableprefix);
@@ -123,6 +134,7 @@ void remotedb_maintain(void) {
 void remotedb_process(void) {
 	static time_t lastconnecttriedat = 0;
 	static time_t lastmaintenanceat = 0;
+	static time_t lastrepeaterlistmaintenanceat = 0;
 
 	if (remotedb_conn != NULL) {
 		if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
@@ -134,6 +146,11 @@ void remotedb_process(void) {
 		if (time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
 			remotedb_maintain();
 			lastmaintenanceat = time(NULL);
+		}
+
+		if (time(NULL)-lastrepeaterlistmaintenanceat > config_get_repeaterinactivetimeoutinsec()) {
+			remotedb_maintain_repeaterlist();
+			lastrepeaterlistmaintenanceat = time(NULL);
 		}
 	}
 

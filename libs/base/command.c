@@ -31,6 +31,7 @@ void command_process(char *input_buffer) {
 		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
 		console_log("  replist                         - list repeaters\n");
 		console_log("  remotedbmaintain                - start db maintenance\n");
+		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
 		return;
 	}
 
@@ -106,6 +107,11 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "remotedbmaintain") == 0) {
 		remotedb_maintain();
+		return;
+	}
+
+	if (strcmp(tok, "remotedbreplistmaintain") == 0) {
+		remotedb_maintain_repeaterlist();
 		return;
 	}
 
