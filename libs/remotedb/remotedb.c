@@ -114,7 +114,7 @@ void remotedb_maintain(void) {
 	snprintf(query, sizeof(query), "delete from `%slive` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tableprefix, config_get_remotedbdeleteolderthansec());
 	snprintf(query, sizeof(query), "delete from `%slive-repeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
-		tableprefix, config_get_remotedbdeleteolderthansec());
+		tableprefix, config_get_repeaterinactivetimeoutinsec());
 	free(tableprefix);
 
 	remotedb_query(query);
