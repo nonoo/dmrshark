@@ -71,7 +71,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 		memcpy(&repeater->ipaddr, ipaddr, sizeof(struct in_addr));
 		if (repeaters_issnmpignoredforip(ipaddr))
 			repeater->snmpignored = 1;
-		console_log("repeaters [%s]: added\n", comm_get_ip_str(ipaddr));
+		console_log("repeaters [%s]: added (snmp ignored: %u)\n", comm_get_ip_str(ipaddr), repeater->snmpignored);
 	}
 	repeater->last_active_time = time(NULL);
 	return repeater;

@@ -167,6 +167,8 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
 			ipaddr = inet_addr(sp->peername);
 			repeater = repeaters_findbyip((struct in_addr *)&ipaddr);
+			if (!repeater)
+				return 1;
 
 			for (vars = pdu->variables; vars; vars = vars->next_variable) {
 				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_id, oid_id_length) == 0) {
@@ -176,30 +178,26 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid id value received: %s\n", sp->peername, value);
 					else {
-						if (repeater)
-							repeater->id = value_num;
+						repeater->id = value_num;
 						console_log("snmp [%s]: got id value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_repeatertype, oid_repeatertype_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					if (repeater)
-						strncpy(repeater->type, value_utf8, sizeof(repeater->type));
+					strncpy(repeater->type, value_utf8, sizeof(repeater->type));
 					console_log("snmp [%s]: got repeater type value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_fwversion, oid_fwversion_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					if (repeater)
-						strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
+					strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
 					console_log("snmp [%s]: got repeater fw version value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_callsign, oid_callsign_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					if (repeater)
-						strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
+					strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
 					console_log("snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_dlfreq, oid_dlfreq_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -208,8 +206,7 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
-						if (repeater)
-							repeater->dlfreq = value_num;
+						repeater->dlfreq = value_num;
 						console_log("snmp [%s]: got dl freq value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_ulfreq, oid_ulfreq_length) == 0) {
@@ -219,12 +216,12 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
-						if (repeater)
-							repeater->ulfreq = value_num;
+						repeater->ulfreq = value_num;
 						console_log("snmp [%s]: got ul freq value %d\n", sp->peername, value_num);
 					}
 				}
 			}
+			remotedb_update_repeater(repeater);
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp [%s]: repeater info read error\n", sp->peername);
     } else

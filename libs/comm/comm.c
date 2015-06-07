@@ -21,10 +21,18 @@
 #include <ifaddrs.h>
 #include <string.h>
 
+#define HEARTBEAT_PERIOD_IN_SEC 6
+
 static pcap_t *pcap_handle = NULL;
 
 struct __attribute__((packed)) linux_sll {
-	uint16_t packet_type; // Packet_* describing packet origins
+	// Packet_* describing packet origins:
+	// 0 - Packet was sent to us by somebody else
+	// 1 - Packet was broadcast by somebody else
+	// 2 - Packet was multicast, but not broadcast, by somebody else
+	// 3 - Packet was sent by somebody else to somebody else
+	// 4 - Packet was sent by us
+	uint16_t packet_type;
 	uint16_t dev_type; // ARPHDR_* from net/if_arp.h
 	uint16_t addr_len;
 	uint8_t addr[8];
@@ -78,6 +86,7 @@ static char *comm_get_our_ipaddr(void) {
 			if (res != 0)
 				console_log("comm error: can't get IP address for interface %s: %s\n", netdevname, gai_strerror(res));
 			else {
+				freeifaddrs(ifaddr);
 				return dev_ipaddr;
 			}
 		}
@@ -87,13 +96,23 @@ static char *comm_get_our_ipaddr(void) {
 	return NULL;
 }
 
-// Retruns true if ipaddr is associated with the device we are currently listening on.
-flag_t comm_is_our_ipaddr(char *ipaddr) {
-	char *our_addr = comm_get_our_ipaddr();
+static flag_t comm_is_our_ipaddr(struct in_addr *ipaddr) {
+	struct ifaddrs *ifaddr = NULL;
+	struct ifaddrs *ifa = NULL;
+	int i;
 
-	if (our_addr != NULL)
-		return (strcmp(our_addr, ipaddr) == 0);
-	return 1;
+	getifaddrs(&ifaddr);
+	for (ifa = ifaddr, i = 0; ifa != NULL; ifa = ifa->ifa_next, i++) {
+		if (ifa->ifa_addr == NULL)
+			continue;
+
+		if (memcmp(ipaddr, ifa->ifa_addr, sizeof(struct in_addr)) == 0) {
+			freeifaddrs(ifaddr);
+			return 1;
+		}
+	}
+	freeifaddrs(ifaddr);
+	return 0;
 }
 
 // http://www.binarytides.com/raw-udp-sockets-c-linux/
@@ -229,8 +248,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	}
 
 	if (dmrpacket_decode(udp_packet, &dmr_packet)) {
-		console_log(LOGLEVEL_COMM_DMR "comm [%s->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
-			comm_get_ip_str(&ip_packet->ip_src),
+		console_log(LOGLEVEL_COMM_DMR "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+		console_log(LOGLEVEL_COMM_DMR "->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
 			comm_get_ip_str(&ip_packet->ip_dst),
 			dmrpacket_get_readable_packet_type(dmr_packet.packet_type), dmr_packet.packet_type,
 			dmr_packet.timeslot,
@@ -241,13 +260,14 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			dmr_packet.src_id);
 
 		// The packet is for us?
-		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst)))
+		if (comm_is_our_ipaddr(&ip_packet->ip_dst))
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 		// The packet is for us, or from a listed repeater?
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
 			if (!repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE) {
-				console_log(LOGLEVEL_COMM "comm [%s->%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
+				console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+				console_log(LOGLEVEL_COMM "->%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
 				repeater->slot[dmr_packet.timeslot-1].call_running = 1;
 				repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
 				repeater->slot[dmr_packet.timeslot-1].call_ended_at = 0;
@@ -256,7 +276,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 				repeater->slot[dmr_packet.timeslot-1].src_id = dmr_packet.src_id;
 
 				if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
-					console_log(LOGLEVEL_COMM "comm [%s->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+					console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+					console_log(LOGLEVEL_COMM "->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
 					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
 				}
 
@@ -264,12 +285,14 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 			}
 
 			if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
-				console_log(LOGLEVEL_COMM "comm [%s->%s]: call end\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+				console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+				console_log(LOGLEVEL_COMM "->%s]: call end\n", comm_get_ip_str(&ip_packet->ip_dst));
 				repeater->slot[dmr_packet.timeslot-1].call_running = 0;
 				repeater->slot[dmr_packet.timeslot-1].call_ended_at = time(NULL);
 
 				if (repeater->auto_rssi_update_enabled_at != 0) {
-					console_log(LOGLEVEL_COMM "comm [%s->%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
+					console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+					console_log(LOGLEVEL_COMM "->%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
 					repeater->auto_rssi_update_enabled_at = 0;
 				}
 
@@ -282,9 +305,16 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 	}
 
 	if (dmrpacket_heartbeat_decode(udp_packet)) {
-		if (comm_is_our_ipaddr(comm_get_ip_str(&ip_packet->ip_dst))) {
-			console_log(LOGLEVEL_HEARTBEAT "comm [%s->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_src), comm_get_ip_str(&ip_packet->ip_dst));
-			repeaters_add(&ip_packet->ip_src);
+		if (comm_is_our_ipaddr(&ip_packet->ip_dst)) {
+			console_log(LOGLEVEL_HEARTBEAT "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_HEARTBEAT "->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_dst));
+			repeater = repeaters_findbyip(&ip_packet->ip_src);
+			if (repeater == NULL)
+				repeater = repeaters_add(&ip_packet->ip_src);
+			else if (time(NULL)-repeater->last_active_time > HEARTBEAT_PERIOD_IN_SEC/2) {
+				repeater->last_active_time = time(NULL);
+				remotedb_update_repeater_lastactive(repeater);
+			}
 		}
 	}
 }

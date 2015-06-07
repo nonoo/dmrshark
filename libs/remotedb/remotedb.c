@@ -24,7 +24,7 @@ static void remotedb_query(char *query) {
 }
 
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
-	char *tablename = NULL;
+	char *tableprefix = NULL;
 	char query[512] = {0,};
 
 	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
@@ -33,13 +33,45 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 	if (repeater == NULL || remotedb_conn == NULL)
 		return;
 
-	tablename = config_get_remotedbtablename();
-	snprintf(query, sizeof(query), "replace into `%s` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "replace into `%slive` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, (case when `avgrssi` = 0 then %d else (`avgrssi`+%d)/2 end))",
-		tablename, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
+		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
 		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi);
-	free(tablename);
+	free(tableprefix);
+
+	remotedb_query(query);
+}
+
+void remotedb_update_repeater(repeater_t *repeater) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+
+	if (repeater == NULL || remotedb_conn == NULL || repeater->id == 0 || strlen(repeater->callsign) == 0)
+		return;
+
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "replace into `%slive-repeaters` (`callsign`, `id`, `type`, `fwversion`, `dlfreq`, `ulfreq`, `lastactive`) "
+		"values ('%s', %u, '%s', '%s', %u, %u, from_unixtime(%lld))",
+		tableprefix, repeater->callsign, repeater->id, repeater->type, repeater->fwversion,
+		repeater->dlfreq, repeater->ulfreq, (long long)repeater->last_active_time);
+	free(tableprefix);
+
+	remotedb_query(query);
+}
+
+void remotedb_update_repeater_lastactive(repeater_t *repeater) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+
+	if (repeater == NULL || remotedb_conn == NULL || repeater->id == 0 || strlen(repeater->callsign) == 0)
+		return;
+
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "update `%slive-repeaters` set `lastactive` = from_unixtime(%lld) where `id` = %u",
+		tableprefix, (long long)repeater->last_active_time, repeater->id);
+	free(tableprefix);
 
 	remotedb_query(query);
 }
@@ -47,6 +79,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 void remotedb_update(repeater_t *repeater) {
 	remotedb_update_timeslot(repeater, 1);
 	remotedb_update_timeslot(repeater, 2);
+	remotedb_update_repeater_lastactive(repeater);
 }
 
 static void remotedb_connect(void) {
@@ -73,14 +106,16 @@ static void remotedb_connect(void) {
 }
 
 void remotedb_maintain(void) {
-	char *tablename = NULL;
+	char *tableprefix = NULL;
 	char query[512] = {0,};
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
-	tablename = config_get_remotedbtablename();
-	snprintf(query, sizeof(query), "delete from `%s` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
-		tablename, config_get_remotedbdeleteolderthansec());
-	free(tablename);
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "delete from `%slive` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
+		tableprefix, config_get_remotedbdeleteolderthansec());
+	snprintf(query, sizeof(query), "delete from `%slive-repeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
+		tableprefix, config_get_remotedbdeleteolderthansec());
+	free(tableprefix);
 
 	remotedb_query(query);
 }

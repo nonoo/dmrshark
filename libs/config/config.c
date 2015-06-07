@@ -261,15 +261,15 @@ char *config_get_remotedbname(void) {
 	return value;
 }
 
-char *config_get_remotedbtablename(void) {
+char *config_get_remotedbtableprefix(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME "-live";
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbtablename", &error);
+	char *defaultvalue = APPNAME "-";
+	char *value = g_key_file_get_string(keyfile, "main", "remotedbtableprefix", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
 			strcpy(value, defaultvalue);
-			g_key_file_set_string(keyfile, "main", "remotedbtablename", value);
+			g_key_file_set_string(keyfile, "main", "remotedbtableprefix", value);
 		}
 	}
 	return value;
@@ -371,7 +371,7 @@ void config_init(char *configfilename) {
 	free(temp);
 	temp = config_get_remotedbname();
 	free(temp);
-	temp = config_get_remotedbtablename();
+	temp = config_get_remotedbtableprefix();
 	free(temp);
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();

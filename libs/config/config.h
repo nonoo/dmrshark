@@ -25,7 +25,7 @@ char *config_get_remotedbhost(void);
 char *config_get_remotedbuser(void);
 char *config_get_remotedbpass(void);
 char *config_get_remotedbname(void);
-char *config_get_remotedbtablename(void);
+char *config_get_remotedbtableprefix(void);
 int config_get_remotedbreconnecttrytimeoutinsec(void);
 int config_get_remotedbmaintenanceperiodinsec(void);
 int config_get_remotedbdeleteolderthansec(void);
