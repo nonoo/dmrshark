@@ -269,7 +269,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
 			if (!repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE) {
 				console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
-				console_log(LOGLEVEL_COMM "->%s]: call start on ts %u\n", comm_get_ip_str(&ip_packet->ip_dst), dmr_packet.timeslot);
+				console_log(LOGLEVEL_COMM "->%s]: %s call start on ts %u src id %u dst id %u\n",
+					comm_get_ip_str(&ip_packet->ip_dst), dmrpacket_get_readable_call_type(dmr_packet.call_type), dmr_packet.timeslot, dmr_packet.src_id, dmr_packet.dst_id);
 				repeater->slot[dmr_packet.timeslot-1].call_running = 1;
 				repeater->slot[dmr_packet.timeslot-1].call_started_at = time(NULL);
 				repeater->slot[dmr_packet.timeslot-1].call_ended_at = 0;
@@ -288,7 +289,8 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 
 			if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.slot_type == DMRPACKET_SLOT_TYPE_CALL_END) {
 				console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
-				console_log(LOGLEVEL_COMM "->%s]: call end\n", comm_get_ip_str(&ip_packet->ip_dst));
+				console_log(LOGLEVEL_COMM "->%s]: %s call end on ts %u src id %u dst id %u\n",
+					comm_get_ip_str(&ip_packet->ip_dst), dmrpacket_get_readable_call_type(dmr_packet.call_type), dmr_packet.timeslot, dmr_packet.src_id, dmr_packet.dst_id);
 				repeater->slot[dmr_packet.timeslot-1].call_running = 0;
 				repeater->slot[dmr_packet.timeslot-1].call_ended_at = time(NULL);
 
