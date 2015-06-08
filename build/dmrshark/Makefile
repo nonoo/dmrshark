@@ -16,7 +16,12 @@ install:
 test:
 	@echo running $(NPROCS) jobs...
 	@if [ -e /usr/bin/colormake ]; then colormake -j$(NPROCS) -f Makefile.goals; else make -j$(NPROCS) -f Makefile.goals; fi
-	@sudo ./`ls -1 -t | grep build | head -n1` -f
+	@if [ ! -z "`pidof dmrshark-build-*`" ]; then sudo kill `pidof dmrshark-build-*`; fi
+	@sudo ./`ls -1 -t | grep build | head -n1`
+	@sudo ./`ls -1 -t | grep build | head -n1` -r
+
+rc:
+	@sudo ./`ls -1 -t | grep build | head -n1` -r
 
 %:
 	@echo running $(NPROCS) jobs...

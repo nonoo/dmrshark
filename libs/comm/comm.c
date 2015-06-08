@@ -281,7 +281,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 				if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
 					console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
 					console_log(LOGLEVEL_COMM "->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the RSSI.
+					repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
 				}
 
 				remotedb_update(repeater);

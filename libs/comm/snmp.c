@@ -292,6 +292,8 @@ void snmp_process(void) {
 
 	FD_ZERO(&fdset);
 	snmp_select_info(&nfds, &fdset, &timeout, &block);
+	if (nfds < 0)
+		return;
 	// Timeout is handled by daemon-poll.
 	daemon_poll_setmaxtimeout(timeout.tv_sec*1000+timeout.tv_usec/1000);
 	// As timeout is handled by daemon-poll, we want select() to return immediately here.
