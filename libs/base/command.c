@@ -29,6 +29,7 @@ void command_process(char *input_buffer) {
 		console_log("  log (loglevel)                  - get/set loglevel\n");
 		console_log("  exit                            - exits the application\n");
 		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
+		console_log("  repinfo [host]                  - reads repeater info from host using snmp\n");
 		console_log("  replist                         - list repeaters\n");
 		console_log("  remotedbmaintain                - start db maintenance\n");
 		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
@@ -89,7 +90,7 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
-	if (strcmp(tok, "info") == 0) {
+	if (strcmp(tok, "repinfo") == 0) {
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
 			log_cmdmissingparam();

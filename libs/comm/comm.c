@@ -99,6 +99,7 @@ static char *comm_get_our_ipaddr(void) {
 static flag_t comm_is_our_ipaddr(struct in_addr *ipaddr) {
 	struct ifaddrs *ifaddr = NULL;
 	struct ifaddrs *ifa = NULL;
+	struct sockaddr_in *addr = NULL;
 	int i;
 
 	getifaddrs(&ifaddr);
@@ -106,7 +107,8 @@ static flag_t comm_is_our_ipaddr(struct in_addr *ipaddr) {
 		if (ifa->ifa_addr == NULL)
 			continue;
 
-		if (memcmp(ipaddr, ifa->ifa_addr, sizeof(struct in_addr)) == 0) {
+		addr = (struct sockaddr_in *)ifa->ifa_addr;
+		if (memcmp(ipaddr, &addr->sin_addr, sizeof(struct in_addr)) == 0) {
 			freeifaddrs(ifaddr);
 			return 1;
 		}

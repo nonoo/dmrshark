@@ -61,10 +61,11 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
 					else {
-						if (repeater != NULL)
+						if (repeater != NULL) {
 							repeater->slot[0].rssi = value_num;
+							dodbupdate = 1;
+						}
 						console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
-						dodbupdate = 1;
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -73,10 +74,11 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
-						if (repeater != NULL)
+						if (repeater != NULL) {
 							repeater->slot[1].rssi = value_num;
+							dodbupdate = 1;
+						}
 						console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
-						dodbupdate = 1;
 					}
 				}
 			}
@@ -162,13 +164,12 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 	char value_utf16[sizeof(value)/2] = {0,};
 	char value_utf8[sizeof(value_utf16)/2] = {0,};
 	int length = 0;
+	flag_t dodbupdate = 0;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
 			ipaddr = inet_addr(sp->peername);
 			repeater = repeaters_findbyip((struct in_addr *)&ipaddr);
-			if (!repeater)
-				return 1;
 
 			for (vars = pdu->variables; vars; vars = vars->next_variable) {
 				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_id, oid_id_length) == 0) {
@@ -178,26 +179,38 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid id value received: %s\n", sp->peername, value);
 					else {
-						repeater->id = value_num;
+						if (repeater != NULL) {
+							repeater->id = value_num;
+							dodbupdate = 1;
+						}
 						console_log("snmp [%s]: got id value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_repeatertype, oid_repeatertype_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					strncpy(repeater->type, value_utf8, sizeof(repeater->type));
+					if (repeater != NULL) {
+						strncpy(repeater->type, value_utf8, sizeof(repeater->type));
+						dodbupdate = 1;
+					}
 					console_log("snmp [%s]: got repeater type value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_fwversion, oid_fwversion_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
+					if (repeater != NULL) {
+						strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
+						dodbupdate = 1;
+					}
 					console_log("snmp [%s]: got repeater fw version value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_callsign, oid_callsign_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
-					strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
+					if (repeater != NULL) {
+						strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
+						dodbupdate = 1;
+					}
 					console_log("snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_dlfreq, oid_dlfreq_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -206,7 +219,10 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
-						repeater->dlfreq = value_num;
+						if (repeater != NULL) {
+							repeater->dlfreq = value_num;
+							dodbupdate = 1;
+						}
 						console_log("snmp [%s]: got dl freq value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_ulfreq, oid_ulfreq_length) == 0) {
@@ -216,12 +232,17 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
-						repeater->ulfreq = value_num;
+						if (repeater != NULL) {
+							repeater->ulfreq = value_num;
+							dodbupdate = 1;
+						}
 						console_log("snmp [%s]: got ul freq value %d\n", sp->peername, value_num);
 					}
 				}
 			}
-			remotedb_update_repeater(repeater);
+
+			if (dodbupdate)
+				remotedb_update_repeater(repeater);
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp [%s]: repeater info read error\n", sp->peername);
     } else

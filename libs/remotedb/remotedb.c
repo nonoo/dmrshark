@@ -13,7 +13,7 @@
 static MYSQL *remotedb_conn = NULL;
 
 static void remotedb_query(char *query) {
-	if (remotedb_conn == NULL)
+	if (remotedb_conn == NULL || query == NULL)
 		return;
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
@@ -27,10 +27,10 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 	char *tableprefix = NULL;
 	char query[512] = {0,};
 
-	if (repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
+	if (repeater == NULL || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
 		return;
 
-	if (repeater == NULL || remotedb_conn == NULL)
+	if (remotedb_conn == NULL)
 		return;
 
 	tableprefix = config_get_remotedbtableprefix();
