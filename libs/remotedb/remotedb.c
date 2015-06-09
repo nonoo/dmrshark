@@ -34,7 +34,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 		return;
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%slive` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
+	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d)",
 		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
@@ -52,7 +52,7 @@ void remotedb_update_repeater(repeater_t *repeater) {
 		return;
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%slive-repeaters` (`callsign`, `id`, `type`, `fwversion`, `dlfreq`, `ulfreq`, `lastactive`) "
+	snprintf(query, sizeof(query), "replace into `%srepeaters` (`callsign`, `id`, `type`, `fwversion`, `dlfreq`, `ulfreq`, `lastactive`) "
 		"values ('%s', %u, '%s', '%s', %u, %u, from_unixtime(%lld))",
 		tableprefix, repeater->callsign, repeater->id, repeater->type, repeater->fwversion,
 		repeater->dlfreq, repeater->ulfreq, (long long)repeater->last_active_time);
@@ -69,7 +69,7 @@ void remotedb_update_repeater_lastactive(repeater_t *repeater) {
 		return;
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "update `%slive-repeaters` set `lastactive` = from_unixtime(%lld) where `id` = %u",
+	snprintf(query, sizeof(query), "update `%srepeaters` set `lastactive` = from_unixtime(%lld) where `id` = %u",
 		tableprefix, (long long)repeater->last_active_time, repeater->id);
 	free(tableprefix);
 
@@ -111,7 +111,7 @@ void remotedb_maintain(void) {
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "delete from `%slive` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
+	snprintf(query, sizeof(query), "delete from `%slog` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tableprefix, config_get_remotedbdeleteolderthansec());
 	free(tableprefix);
 
@@ -124,7 +124,7 @@ void remotedb_maintain_repeaterlist(void) {
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing repeater entries older than %u seconds\n", config_get_repeaterinactivetimeoutinsec());
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "delete from `%slive-repeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
+	snprintf(query, sizeof(query), "delete from `%srepeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
 		tableprefix, config_get_repeaterinactivetimeoutinsec());
 	free(tableprefix);
 
