@@ -1,5 +1,7 @@
 NPROCS := $(shell nproc)
 
+.PHONY: install test instest rc kill grep
+
 all:
 	@echo running $(NPROCS) jobs...
 	@if [ -e /usr/bin/colormake ]; then colormake -j$(NPROCS) -f Makefile.goals; else make -j$(NPROCS) -f Makefile.goals; fi
