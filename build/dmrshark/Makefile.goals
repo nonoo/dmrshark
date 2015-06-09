@@ -4,7 +4,7 @@ include ../../make/Makefile.target.inc
 
 # Define the lib subdirs which are needed for this build.
 LIBS := $(LIBS) base config daemon comm remotedb
-PREBUILTLIBS := pcap snmp mysqlclient
+PREBUILTLIBS := pcap snmp mysqlclient pthread
 
 include ../../make/Makefile.build.inc
 include ../../make/Makefile.common.inc

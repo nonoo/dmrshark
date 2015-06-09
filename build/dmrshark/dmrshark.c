@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 static char *dmrshark_configfilename = CONFIGFILENAME;
 static flag_t dmrshark_daemonize = 1;
@@ -91,7 +92,6 @@ int main(int argc, char *argv[]) {
 	while (daemon_process()) {
 		if (!daemon_is_consoleclient()) {
 			base_process();
-			remotedb_process();
 			comm_process();
 		}
 	}
@@ -103,6 +103,8 @@ int main(int argc, char *argv[]) {
 	}
 	daemon_deinit();
 	config_deinit();
+
+	pthread_exit(NULL);
 
 	return 0;
 }

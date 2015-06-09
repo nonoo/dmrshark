@@ -8,7 +8,9 @@
 #include <glib.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
+static pthread_mutex_t config_mutex;
 static GKeyFile *keyfile = NULL;
 static GKeyFileFlags flags;
 static char *config_configfilename = NULL;
@@ -24,6 +26,8 @@ void config_writeconfigfile(void) {
 		return;
 	}
 
+	pthread_mutex_lock(&config_mutex);
+
 	data = g_key_file_to_data(keyfile, &size, &error);
 	if (!error && data != NULL) {
 		f = fopen(config_configfilename, "w");
@@ -37,28 +41,41 @@ void config_writeconfigfile(void) {
 
 	if (data)
 		free(data);
+
+	pthread_mutex_unlock(&config_mutex);
 }
 
 void config_set_loglevel(loglevel_t *loglevel) {
+	pthread_mutex_lock(&config_mutex);
 	g_key_file_set_integer(keyfile, "main", "loglevel", loglevel->raw);
+	pthread_mutex_unlock(&config_mutex);
 	config_writeconfigfile();
 }
 
 int config_get_loglevel(void) {
 	GError *error = NULL;
+	int value = 0;
 	int defaultvalue = 0;
-	int value = g_key_file_get_integer(keyfile, "main", "loglevel", &error);
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 0;
+	value = g_key_file_get_integer(keyfile, "main", "loglevel", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "loglevel", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_logfilename(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME ".log";
-	char *value = g_key_file_get_string(keyfile, "main", "logfile", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME ".log";
+	value = g_key_file_get_string(keyfile, "main", "logfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -66,13 +83,18 @@ char *config_get_logfilename(void) {
 			g_key_file_set_string(keyfile, "main", "logfile", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_pidfilename(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME ".pid";
-	char *value = g_key_file_get_string(keyfile, "main", "pidfile", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME ".pid";
+	value = g_key_file_get_string(keyfile, "main", "pidfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -80,13 +102,18 @@ char *config_get_pidfilename(void) {
 			g_key_file_set_string(keyfile, "main", "pidfile", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_daemonctlfile(void) {
 	GError *error = NULL;
-	char *defaultvalue = "/tmp/" APPNAME ".ctl";
-	char *value = g_key_file_get_string(keyfile, "main", "daemonctlfile", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "/tmp/" APPNAME ".ctl";
+	value = g_key_file_get_string(keyfile, "main", "daemonctlfile", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -94,13 +121,18 @@ char *config_get_daemonctlfile(void) {
 			g_key_file_set_string(keyfile, "main", "daemonctlfile", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_ttyconsoledev(void) {
 	GError *error = NULL;
-	char *defaultvalue = "/dev/ttyUSB0";
-	char *value = g_key_file_get_string(keyfile, "main", "ttyconsoledev", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "/dev/ttyUSB0";
+	value = g_key_file_get_string(keyfile, "main", "ttyconsoledev", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -108,35 +140,50 @@ char *config_get_ttyconsoledev(void) {
 			g_key_file_set_string(keyfile, "main", "ttyconsoledev", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 flag_t config_get_ttyconsoleenabled(void) {
 	GError *error = NULL;
+	int value = 0;
 	int defaultvalue = 0;
-	int value = g_key_file_get_integer(keyfile, "main", "ttyconsoleenabled", &error);
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 0;
+	value = g_key_file_get_integer(keyfile, "main", "ttyconsoleenabled", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "ttyconsoleenabled", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return (value != 0 ? 1 : 0);
 }
 
 int config_get_ttyconsolebaudrate(void) {
 	GError *error = NULL;
-	int defaultvalue = 115200;
-	int value = g_key_file_get_integer(keyfile, "main", "ttyconsolebaudrate", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 115200;
+	value = g_key_file_get_integer(keyfile, "main", "ttyconsolebaudrate", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "ttyconsolebaudrate", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_netdevicename(void) {
 	GError *error = NULL;
-	char *defaultvalue = "any";
-	char *value = g_key_file_get_string(keyfile, "main", "netdevicename", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "any";
+	value = g_key_file_get_string(keyfile, "main", "netdevicename", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -144,57 +191,82 @@ char *config_get_netdevicename(void) {
 			g_key_file_set_string(keyfile, "main", "netdevicename", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_snmpinfoupdateinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 300;
-	int value = g_key_file_get_integer(keyfile, "main", "snmpinfoupdateinsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 300;
+	value = g_key_file_get_integer(keyfile, "main", "snmpinfoupdateinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "snmpinfoupdateinsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_repeaterinactivetimeoutinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 30;
-	int value = g_key_file_get_integer(keyfile, "main", "repeaterinactivetimeoutinsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 30;
+	value = g_key_file_get_integer(keyfile, "main", "repeaterinactivetimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "repeaterinactivetimeoutinsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_rssiupdateduringcallinmsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 500;
-	int value = g_key_file_get_integer(keyfile, "main", "rssiupdateduringcallinmsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 500;
+	value = g_key_file_get_integer(keyfile, "main", "rssiupdateduringcallinmsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "rssiupdateduringcallinmsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_calltimeoutinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 5;
-	int value = g_key_file_get_integer(keyfile, "main", "calltimeoutinsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 5;
+	value = g_key_file_get_integer(keyfile, "main", "calltimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "calltimeoutinsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_ignoredsnmprepeaterhosts(void) {
 	GError *error = NULL;
-	char *defaultvalue = "";
-	char *value = g_key_file_get_string(keyfile, "main", "ignoredsnmprepeaterhosts", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, "main", "ignoredsnmprepeaterhosts", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -202,13 +274,18 @@ char *config_get_ignoredsnmprepeaterhosts(void) {
 			g_key_file_set_string(keyfile, "main", "ignoredsnmprepeaterhosts", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_remotedbhost(void) {
 	GError *error = NULL;
-	char *defaultvalue = "";
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbhost", &error);
+	char *defaultvalue = NULL;
+	char *value = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, "main", "remotedbhost", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -216,13 +293,18 @@ char *config_get_remotedbhost(void) {
 			g_key_file_set_string(keyfile, "main", "remotedbhost", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_remotedbuser(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME;
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbuser", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME;
+	value = g_key_file_get_string(keyfile, "main", "remotedbuser", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -230,13 +312,18 @@ char *config_get_remotedbuser(void) {
 			g_key_file_set_string(keyfile, "main", "remotedbuser", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_remotedbpass(void) {
 	GError *error = NULL;
-	char *defaultvalue = "";
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbpass", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, "main", "remotedbpass", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -244,13 +331,18 @@ char *config_get_remotedbpass(void) {
 			g_key_file_set_string(keyfile, "main", "remotedbpass", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_remotedbname(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME;
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbname", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME;
+	value = g_key_file_get_string(keyfile, "main", "remotedbname", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -258,13 +350,18 @@ char *config_get_remotedbname(void) {
 			g_key_file_set_string(keyfile, "main", "remotedbname", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 char *config_get_remotedbtableprefix(void) {
 	GError *error = NULL;
-	char *defaultvalue = APPNAME "-";
-	char *value = g_key_file_get_string(keyfile, "main", "remotedbtableprefix", &error);
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME "-";
+	value = g_key_file_get_string(keyfile, "main", "remotedbtableprefix", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
@@ -272,40 +369,56 @@ char *config_get_remotedbtableprefix(void) {
 			g_key_file_set_string(keyfile, "main", "remotedbtableprefix", value);
 		}
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_remotedbreconnecttrytimeoutinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 5;
-	int value = g_key_file_get_integer(keyfile, "main", "remotedbreconnecttrytimeoutinsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 5;
+	value = g_key_file_get_integer(keyfile, "main", "remotedbreconnecttrytimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "remotedbreconnecttrytimeoutinsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 int config_get_remotedbmaintenanceperiodinsec(void) {
 	GError *error = NULL;
-	int defaultvalue = 3600;
-	int value = g_key_file_get_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 3600;
+	value = g_key_file_get_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
 
 int config_get_remotedbdeleteolderthansec(void) {
 	GError *error = NULL;
-	int defaultvalue = 86400;
-	int value = g_key_file_get_integer(keyfile, "main", "remotedbdeleteolderthansec", &error);
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 86400;
+	value = g_key_file_get_integer(keyfile, "main", "remotedbdeleteolderthansec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "remotedbdeleteolderthansec", value);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return value;
 }
 
@@ -313,6 +426,8 @@ void config_init(char *configfilename) {
 	GError *error = NULL;
 
 	console_log("config: init\n");
+
+	pthread_mutex_init(&config_mutex, NULL);
 
 	if (configfilename != NULL)
 		config_configfilename = configfilename;
@@ -386,4 +501,6 @@ void config_deinit(void) {
 		g_key_file_free(keyfile);
 		keyfile = NULL;
 	}
+
+	pthread_mutex_destroy(&config_mutex);
 }

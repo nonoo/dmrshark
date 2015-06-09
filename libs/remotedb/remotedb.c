@@ -9,18 +9,40 @@
 #include <mysql/mysql.h>
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+
+#define REMOTEDB_QUERYBUFSIZE	10
+#define REMOTEDB_MAXQUERYSIZE	1024
+
+typedef struct {
+	char query[REMOTEDB_MAXQUERYSIZE];
+} remotedb_query_t;
 
 static MYSQL *remotedb_conn = NULL;
+static pthread_t remotedb_thread;
 
-static void remotedb_query(char *query) {
-	if (remotedb_conn == NULL || query == NULL)
+static pthread_mutex_t remotedb_mutex_thread_should_stop;
+static flag_t remotedb_thread_should_stop = 0;
+
+static pthread_mutex_t remotedb_mutex_querybuf;
+static remotedb_query_t remotedb_querybuf[REMOTEDB_QUERYBUFSIZE];
+
+static void remotedb_addquery(char *query) {
+	int i;
+
+	if (query == NULL)
 		return;
 
-	console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
-	if (mysql_query(remotedb_conn, query)) {
-		console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
-		return;
+	pthread_mutex_lock(&remotedb_mutex_querybuf);
+	for (i = 0; i < REMOTEDB_QUERYBUFSIZE; i++) {
+		if (remotedb_querybuf[i].query[0] == 0) {
+			strncpy(remotedb_querybuf[i].query, query, REMOTEDB_MAXQUERYSIZE);
+			//console_log(LOGLEVEL_REMOTEDB "remotedb: added query to buf entry #%u: %s\n", i, query);
+			break;
+		}
 	}
+	pthread_mutex_unlock(&remotedb_mutex_querybuf);
 }
 
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
@@ -41,7 +63,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].avg_rssi);
 	free(tableprefix);
 
-	remotedb_query(query);
+	remotedb_addquery(query);
 }
 
 void remotedb_update_repeater(repeater_t *repeater) {
@@ -58,7 +80,7 @@ void remotedb_update_repeater(repeater_t *repeater) {
 		repeater->dlfreq, repeater->ulfreq, (long long)repeater->last_active_time);
 	free(tableprefix);
 
-	remotedb_query(query);
+	remotedb_addquery(query);
 }
 
 void remotedb_update_repeater_lastactive(repeater_t *repeater) {
@@ -73,7 +95,7 @@ void remotedb_update_repeater_lastactive(repeater_t *repeater) {
 		tableprefix, (long long)repeater->last_active_time, repeater->id);
 	free(tableprefix);
 
-	remotedb_query(query);
+	remotedb_addquery(query);
 }
 
 void remotedb_update(repeater_t *repeater) {
@@ -82,7 +104,33 @@ void remotedb_update(repeater_t *repeater) {
 	remotedb_update_repeater_lastactive(repeater);
 }
 
-static void remotedb_connect(void) {
+void remotedb_maintain(void) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+
+	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "delete from `%slog` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
+		tableprefix, config_get_remotedbdeleteolderthansec());
+	free(tableprefix);
+
+	remotedb_addquery(query);
+}
+
+void remotedb_maintain_repeaterlist(void) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+
+	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing repeater entries older than %u seconds\n", config_get_repeaterinactivetimeoutinsec());
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "delete from `%srepeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
+		tableprefix, config_get_repeaterinactivetimeoutinsec());
+	free(tableprefix);
+
+	remotedb_addquery(query);
+}
+
+static void remotedb_thread_connect(void) {
 	char *server = NULL;
 	char *user = NULL;
 	char *pass = NULL;
@@ -105,86 +153,119 @@ static void remotedb_connect(void) {
 	free(dbname);
 }
 
-void remotedb_maintain(void) {
-	char *tableprefix = NULL;
-	char query[512] = {0,};
-
-	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
-	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "delete from `%slog` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
-		tableprefix, config_get_remotedbdeleteolderthansec());
-	free(tableprefix);
-
-	remotedb_query(query);
-}
-
-void remotedb_maintain_repeaterlist(void) {
-	char *tableprefix = NULL;
-	char query[512] = {0,};
-
-	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing repeater entries older than %u seconds\n", config_get_repeaterinactivetimeoutinsec());
-	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "delete from `%srepeaters` where unix_timestamp(`lastactive`) < (UNIX_TIMESTAMP() - %u) or `lastactive` = NULL",
-		tableprefix, config_get_repeaterinactivetimeoutinsec());
-	free(tableprefix);
-
-	remotedb_query(query);
-}
-
-void remotedb_process(void) {
+// Returns 1 if we have another query in the query buffer (so we should not sleep at all).
+static flag_t remotedb_thread_process(void) {
+	int i;
 	static time_t lastconnecttriedat = 0;
 	static time_t lastmaintenanceat = 0;
 	static time_t lastrepeaterlistmaintenanceat = 0;
 
-	if (remotedb_conn != NULL) {
-		if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
-			if (mysql_ping(remotedb_conn) != 0)
-				remotedb_connect();
-			lastconnecttriedat = time(NULL);
-		}
+	if (remotedb_conn == NULL)
+		return 0;
 
-		if (time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
-			remotedb_maintain();
-			lastmaintenanceat = time(NULL);
-		}
-
-		if (time(NULL)-lastrepeaterlistmaintenanceat > config_get_repeaterinactivetimeoutinsec()) {
-			remotedb_maintain_repeaterlist();
-			lastrepeaterlistmaintenanceat = time(NULL);
-		}
+	if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
+		if (mysql_ping(remotedb_conn) != 0)
+			remotedb_thread_connect();
+		lastconnecttriedat = time(NULL);
 	}
 
+	if (time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
+		remotedb_maintain();
+		lastmaintenanceat = time(NULL);
+	}
+
+	if (time(NULL)-lastrepeaterlistmaintenanceat > config_get_repeaterinactivetimeoutinsec()) {
+		remotedb_maintain_repeaterlist();
+		lastrepeaterlistmaintenanceat = time(NULL);
+	}
+
+	// Do we have a query in the buffer?
+	pthread_mutex_lock(&remotedb_mutex_querybuf);
+	if (remotedb_querybuf[0].query[0] != 0) {
+		console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", remotedb_querybuf[0].query);
+		if (mysql_query(remotedb_conn, remotedb_querybuf[0].query))
+			console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
+
+		// Shifting the query buffer.
+		for (i = 1; i < REMOTEDB_QUERYBUFSIZE-1; i++)
+			strncpy(remotedb_querybuf[i-1].query, remotedb_querybuf[i].query, REMOTEDB_MAXQUERYSIZE);
+	}
+	pthread_mutex_unlock(&remotedb_mutex_querybuf);
+
+	return (remotedb_querybuf[0].query[0] != 0);
+}
+
+static void *remotedb_thread_init(void *arg) {
+	int i;
+	unsigned int opt;
+
+	pthread_mutex_init(&remotedb_mutex_thread_should_stop, NULL);
+	remotedb_thread_should_stop = 0;
+	pthread_mutex_init(&remotedb_mutex_querybuf, NULL);
+	for (i = 0; i < REMOTEDB_QUERYBUFSIZE; i++)
+		memset(remotedb_querybuf[i].query, 0, REMOTEDB_MAXQUERYSIZE);
+
+	remotedb_conn = mysql_init(NULL);
+	if (remotedb_conn == NULL)
+		console_log("remotedb error: can't initialize mysql\n");
+	else {
+		opt = 3;
+		mysql_options(remotedb_conn, MYSQL_OPT_CONNECT_TIMEOUT, &opt);
+		opt = 3;
+		mysql_options(remotedb_conn, MYSQL_OPT_WRITE_TIMEOUT, &opt);
+		opt = 3;
+		mysql_options(remotedb_conn, MYSQL_OPT_READ_TIMEOUT, &opt);
+
+		remotedb_thread_connect();
+
+		while (1) {
+			pthread_mutex_lock(&remotedb_mutex_thread_should_stop);
+			if (remotedb_thread_should_stop) {
+				pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
+				break;
+			}
+			pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
+
+			if (!remotedb_thread_process())
+				usleep(100000);
+		}
+
+		mysql_close(remotedb_conn);
+		remotedb_conn = NULL;
+	}
+
+	pthread_mutex_destroy(&remotedb_mutex_thread_should_stop);
+	pthread_mutex_destroy(&remotedb_mutex_querybuf);
+
+	pthread_exit((void*) 0);
 }
 
 void remotedb_init(void) {
-	unsigned int opt;
-	char *server = config_get_remotedbhost();
+	pthread_attr_t attr;
+	char *server = NULL;
 
 	console_log("remotedb: init\n");
 
+	server = config_get_remotedbhost();
 	if (strlen(server) != 0) {
-		remotedb_conn = mysql_init(NULL);
-		if (remotedb_conn == NULL)
-			console_log("remotedb error: can't initialize mysql\n");
-		else {
-			opt = 3;
-			mysql_options(remotedb_conn, MYSQL_OPT_CONNECT_TIMEOUT, &opt);
-			opt = 3;
-			mysql_options(remotedb_conn, MYSQL_OPT_WRITE_TIMEOUT, &opt);
-			opt = 3;
-			mysql_options(remotedb_conn, MYSQL_OPT_READ_TIMEOUT, &opt);
+		console_log("remotedb: starting thread for remote db\n");
 
-			remotedb_connect();
-		}
+		// Explicitly creating the thread as joinable to be compatible with other systems.
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+		pthread_create(&remotedb_thread, &attr, remotedb_thread_init, NULL);
 	}
 	free(server);
 }
 
 void remotedb_deinit(void) {
+	void *status = NULL;
+
 	console_log("remotedb: deinit\n");
 
-	if (remotedb_conn != NULL) {
-		mysql_close(remotedb_conn);
-		remotedb_conn = NULL;
-	}
+	pthread_mutex_lock(&remotedb_mutex_thread_should_stop);
+	remotedb_thread_should_stop = 1;
+	pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
+	console_log("remotedb: waiting for remote db thread to exit\n");
+	pthread_join(remotedb_thread, &status);
 }
