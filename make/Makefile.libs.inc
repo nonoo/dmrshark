@@ -23,7 +23,4 @@ $(DEPFILE): $(SOURCES)
 
 $(OBJECTS): $(SOURCES) $(HEADERS) $(TOPDIR)/config/*.h $(TOPDIR)/config/app/*.h
 
-install: $(LIBDEST)
-	@echo done.
-
 include $(TOPDIR)/make/Makefile.subdir.inc
