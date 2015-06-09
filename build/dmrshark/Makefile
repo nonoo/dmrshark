@@ -26,6 +26,9 @@ rc:
 kill:
 	@dmrsharkpid=`ps ax | grep dmrshark | grep -v grep | sed -e 's/^[[:space:]]*//' | cut -f1 -d' '`; if [ ! -z "$$dmrsharkpid" ]; then sudo kill $$dmrsharkpid; fi
 
+grep:
+	@ps aux | grep dmrshark | grep -v grep
+
 %:
 	@echo running $(NPROCS) jobs...
 	@if [ -e /usr/bin/colormake ]; then colormake -j$(NPROCS) -f Makefile.goals $@; else make -j$(NPROCS) -f Makefile.goals $@; fi
