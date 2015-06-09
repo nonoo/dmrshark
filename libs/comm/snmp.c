@@ -39,6 +39,12 @@ static size_t oid_dlfreq_length = 0;
 static oid oid_ulfreq[MAX_OID_LEN];
 static size_t oid_ulfreq_length = 0;
 
+static struct snmp_session *snmp_session_repeaterinfo = NULL;
+static flag_t snmp_repeaterinfo_received = 0;
+
+static struct snmp_session *snmp_session_rssi = NULL;
+static flag_t snmp_rssi_received = 0;
+
 static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
 	char value[15] = {0,};
 	char *endptr = NULL;
@@ -93,6 +99,8 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 
 			if (dodbupdate)
 				remotedb_update(repeater);
+
+			snmp_rssi_received = 1;
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp: rssi read error\n");
     } else
@@ -105,10 +113,16 @@ void snmp_start_read_rssi(char *host) {
 	struct snmp_pdu *pdu;
 	struct snmp_session session;
 	const char *community = "public";
-	struct snmp_session *new_session = NULL;
 
 	if (oid_rssi_ts1_length == 0 || oid_rssi_ts2_length == 0)
 		return;
+
+	snmp_rssi_received = 0;
+
+	if (snmp_session_rssi != NULL) {
+		snmp_close(snmp_session_rssi);
+		snmp_session_rssi = NULL;
+	}
 
 	snmp_sess_init(&session);
 	session.version = SNMP_VERSION_1;
@@ -116,7 +130,7 @@ void snmp_start_read_rssi(char *host) {
 	session.community = (unsigned char *)strdup(community);
 	session.community_len = strlen(community);
 	session.callback = snmp_get_rssi_cb;
-	if (!(new_session = snmp_open(&session))) {
+	if (!(snmp_session_rssi = snmp_open(&session))) {
 		console_log("snmp error: error opening session to host %s\n", host);
 		return;
 	}
@@ -124,7 +138,7 @@ void snmp_start_read_rssi(char *host) {
 	pdu = snmp_pdu_create(SNMP_MSG_GET);
 	snmp_add_null_var(pdu, oid_rssi_ts1, oid_rssi_ts1_length);
 	snmp_add_null_var(pdu, oid_rssi_ts2, oid_rssi_ts2_length);
-	if (!snmp_send(new_session, pdu))
+	if (!snmp_send(snmp_session_rssi, pdu))
 		console_log("snmp error: error sending rssi request to host %s\n", host);
 	free(session.peername);
 	free(session.community);
@@ -251,6 +265,8 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 
 			if (dodbupdate)
 				remotedb_update_repeater(repeater);
+
+			snmp_repeaterinfo_received = 1;
 		} else
 			console_log(LOGLEVEL_DEBUG "snmp [%s]: repeater info read error\n", sp->peername);
     } else
@@ -263,10 +279,16 @@ void snmp_start_read_repeaterinfo(char *host) {
 	struct snmp_pdu *pdu;
 	struct snmp_session session;
 	const char *community = "public";
-	struct snmp_session *new_session = NULL;
 
 	if (oid_id_length == 0)
 		return;
+
+	snmp_repeaterinfo_received = 0;
+
+	if (snmp_session_repeaterinfo != NULL) {
+		snmp_close(snmp_session_repeaterinfo);
+		snmp_session_repeaterinfo = NULL;
+	}
 
 	snmp_sess_init(&session);
 	session.version = SNMP_VERSION_1;
@@ -274,7 +296,7 @@ void snmp_start_read_repeaterinfo(char *host) {
 	session.community = (unsigned char *)strdup(community);
 	session.community_len = strlen(community);
 	session.callback = snmp_get_repeaterinfo_cb;
-	if (!(new_session = snmp_open(&session))) {
+	if (!(snmp_session_repeaterinfo = snmp_open(&session))) {
 		console_log("snmp [%s]: error opening session\n", host);
 		return;
 	}
@@ -286,7 +308,7 @@ void snmp_start_read_repeaterinfo(char *host) {
 	snmp_add_null_var(pdu, oid_callsign, oid_callsign_length);
 	snmp_add_null_var(pdu, oid_dlfreq, oid_dlfreq_length);
 	snmp_add_null_var(pdu, oid_ulfreq, oid_ulfreq_length);
-	if (!snmp_send(new_session, pdu))
+	if (!snmp_send(snmp_session_repeaterinfo, pdu))
 		console_log("snmp [%s]: error sending repeater info request\n", host);
 	free(session.peername);
 	free(session.community);
@@ -298,9 +320,24 @@ void snmp_process(void) {
     fd_set fdset;
     struct timeval timeout;
 
+	if (snmp_repeaterinfo_received) {
+		snmp_repeaterinfo_received = 0;
+		if (snmp_session_repeaterinfo != NULL) {
+			snmp_close(snmp_session_repeaterinfo);
+			snmp_session_repeaterinfo = NULL;
+		}
+	}
+
+	if (snmp_rssi_received) {
+		snmp_rssi_received = 0;
+		if (snmp_session_rssi != NULL) {
+			snmp_close(snmp_session_rssi);
+			snmp_session_rssi = NULL;
+		}
+	}
+
 	FD_ZERO(&fdset);
-	snmp_select_info(&nfds, &fdset, &timeout, &block);
-	if (nfds < 0)
+	if (snmp_select_info(&nfds, &fdset, &timeout, &block) <= 0)
 		return;
 	// Timeout is handled by daemon-poll.
 	daemon_poll_setmaxtimeout(timeout.tv_sec*1000+timeout.tv_usec/1000);
@@ -350,4 +387,14 @@ void snmp_deinit(void) {
 	console_log("snmp: deinit\n");
 
 	iconv_close(conv_utf16_utf8);
+
+	if (snmp_session_repeaterinfo != NULL) {
+		snmp_close(snmp_session_repeaterinfo);
+		snmp_session_repeaterinfo = NULL;
+	}
+
+	if (snmp_session_rssi != NULL) {
+		snmp_close(snmp_session_rssi);
+		snmp_session_rssi = NULL;
+	}
 }
