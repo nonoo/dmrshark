@@ -132,9 +132,9 @@ flag_t dmrpacket_decode(struct udphdr *udp_packet, dmr_packet_t *dmr_packet) {
 }
 
 flag_t dmrpacket_heartbeat_decode(struct udphdr *udp_packet) {
-	uint8_t heartbeat[] = { 0x0a, 0x00, 0x00, 0x00, 0x14 };
+	uint8_t heartbeat[] = { 0x00, 0x00, 0x00, 0x14 };
 
-	if (memcmp((uint8_t *)udp_packet + sizeof(struct udphdr) + 4, heartbeat, sizeof(heartbeat)) == 0)
+	if (memcmp((uint8_t *)udp_packet + sizeof(struct udphdr) + 5, heartbeat, sizeof(heartbeat)) == 0)
 		return 1;
 	return 0;
 }
