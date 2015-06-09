@@ -277,6 +277,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 				repeater->slot[dmr_packet.timeslot-1].call_type = dmr_packet.call_type;
 				repeater->slot[dmr_packet.timeslot-1].dst_id = dmr_packet.dst_id;
 				repeater->slot[dmr_packet.timeslot-1].src_id = dmr_packet.src_id;
+				repeater->slot[dmr_packet.timeslot-1].rssi = repeater->slot[dmr_packet.timeslot-1].avg_rssi = 0;
 
 				if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
 					console_log(LOGLEVEL_COMM "comm [%s", comm_get_ip_str(&ip_packet->ip_src));

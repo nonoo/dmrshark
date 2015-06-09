@@ -35,10 +35,10 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "replace into `%slive` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, (case when `avgrssi` = 0 then %d else (`avgrssi`+%d)/2 end))",
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d)",
 		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
-		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].rssi);
+		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].avg_rssi);
 	free(tableprefix);
 
 	remotedb_query(query);

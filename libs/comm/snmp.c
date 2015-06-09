@@ -63,6 +63,10 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					else {
 						if (repeater != NULL) {
 							repeater->slot[0].rssi = value_num;
+							if (repeater->slot[0].avg_rssi == 0)
+								repeater->slot[0].avg_rssi = value_num;
+							else
+								repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+value_num)/2;
 							dodbupdate = 1;
 						}
 						console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
@@ -76,6 +80,10 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					else {
 						if (repeater != NULL) {
 							repeater->slot[1].rssi = value_num;
+							if (repeater->slot[1].avg_rssi == 0)
+								repeater->slot[1].avg_rssi = value_num;
+							else
+								repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+value_num)/2;
 							dodbupdate = 1;
 						}
 						console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
