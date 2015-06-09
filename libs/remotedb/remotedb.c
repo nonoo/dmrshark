@@ -28,6 +28,9 @@ static flag_t remotedb_thread_should_stop = 0;
 static pthread_mutex_t remotedb_mutex_querybuf;
 static remotedb_query_t remotedb_querybuf[REMOTEDB_QUERYBUFSIZE];
 
+static pthread_mutex_t remotedb_mutex_wakeup;
+static pthread_cond_t remotedb_cond_wakeup;
+
 static void remotedb_addquery(char *query) {
 	int i;
 
@@ -39,6 +42,11 @@ static void remotedb_addquery(char *query) {
 		if (remotedb_querybuf[i].query[0] == 0) {
 			strncpy(remotedb_querybuf[i].query, query, REMOTEDB_MAXQUERYSIZE);
 			//console_log(LOGLEVEL_REMOTEDB "remotedb: added query to buf entry #%u: %s\n", i, query);
+
+			// Waking up the thread if it's sleeping.
+			pthread_mutex_lock(&remotedb_mutex_wakeup);
+			pthread_cond_signal(&remotedb_cond_wakeup);
+			pthread_mutex_unlock(&remotedb_mutex_wakeup);
 			break;
 		}
 	}
@@ -198,12 +206,17 @@ static flag_t remotedb_thread_process(void) {
 static void *remotedb_thread_init(void *arg) {
 	int i;
 	unsigned int opt;
+	struct timespec ts;
 
 	pthread_mutex_init(&remotedb_mutex_thread_should_stop, NULL);
 	remotedb_thread_should_stop = 0;
+
 	pthread_mutex_init(&remotedb_mutex_querybuf, NULL);
 	for (i = 0; i < REMOTEDB_QUERYBUFSIZE; i++)
 		memset(remotedb_querybuf[i].query, 0, REMOTEDB_MAXQUERYSIZE);
+
+	pthread_mutex_init(&remotedb_mutex_wakeup, NULL);
+	pthread_cond_init(&remotedb_cond_wakeup, NULL);
 
 	remotedb_conn = mysql_init(NULL);
 	if (remotedb_conn == NULL)
@@ -226,8 +239,15 @@ static void *remotedb_thread_init(void *arg) {
 			}
 			pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
 
-			if (!remotedb_thread_process())
-				usleep(100000);
+			if (!remotedb_thread_process()) {
+				// If we don't have other queries in the buffer, we want for a condition for the given timeout.
+				clock_gettime(CLOCK_REALTIME, &ts);
+				ts.tv_sec += 1;
+
+				pthread_mutex_lock(&remotedb_mutex_wakeup);
+				pthread_cond_timedwait(&remotedb_cond_wakeup, &remotedb_mutex_wakeup, &ts);
+				pthread_mutex_unlock(&remotedb_mutex_wakeup);
+			}
 		}
 
 		mysql_close(remotedb_conn);
@@ -236,6 +256,8 @@ static void *remotedb_thread_init(void *arg) {
 
 	pthread_mutex_destroy(&remotedb_mutex_thread_should_stop);
 	pthread_mutex_destroy(&remotedb_mutex_querybuf);
+	pthread_mutex_destroy(&remotedb_mutex_wakeup);
+	pthread_cond_destroy(&remotedb_cond_wakeup);
 
 	pthread_exit((void*) 0);
 }
@@ -262,6 +284,11 @@ void remotedb_deinit(void) {
 	void *status = NULL;
 
 	console_log("remotedb: deinit\n");
+
+	// Waking up the thread if it's sleeping.
+	pthread_mutex_lock(&remotedb_mutex_wakeup);
+	pthread_cond_signal(&remotedb_cond_wakeup);
+	pthread_mutex_unlock(&remotedb_mutex_wakeup);
 
 	pthread_mutex_lock(&remotedb_mutex_thread_should_stop);
 	remotedb_thread_should_stop = 1;
