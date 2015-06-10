@@ -13,7 +13,7 @@ however, it can be run on a machine which only has a few (or one) repeater's pas
 
 Contact:
 
-- Norbert "Nonoo" Varga, HA2NON [nonoo@nonoo.hu](nonoo@nonoo.hu)
+- Norbert "Nonoo" Varga, HA2NON [nonoo@nonoo.hu](mailto:nonoo@nonoo.hu)
 - [nonoo.hu](http://nonoo.hu)
 - [ham-dmr.hu](http://ham-dmr.hu)
 
@@ -78,3 +78,5 @@ You can connect to a running process using the remote console, whether it's runn
 Use **-r** to have dmrshark connect to it's already running process' remote console server.
 
 If you are on the console, enter the command **help** or **h** to get the list of available commands.
+
+For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin).
