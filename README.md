@@ -79,4 +79,4 @@ Use **-r** to have dmrshark connect to it's already running process' remote cons
 
 If you are on the console, enter the command **help** or **h** to get the list of available commands.
 
-For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin).
+For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin). You can see a working example [here](http://ham-dmr.hu/elo-statusz/).
