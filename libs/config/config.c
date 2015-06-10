@@ -195,17 +195,17 @@ char *config_get_netdevicename(void) {
 	return value;
 }
 
-int config_get_snmpinfoupdateinsec(void) {
+int config_get_repeaterinfoupdateinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	int defaultvalue = 0;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 300;
-	value = g_key_file_get_integer(keyfile, "main", "snmpinfoupdateinsec", &error);
+	value = g_key_file_get_integer(keyfile, "main", "repeaterinfoupdateinsec", &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", "snmpinfoupdateinsec", value);
+		g_key_file_set_integer(keyfile, "main", "repeaterinfoupdateinsec", value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -472,7 +472,7 @@ void config_init(char *configfilename) {
 	config_get_ttyconsolebaudrate();
 	temp = config_get_netdevicename();
 	free(temp);
-	config_get_snmpinfoupdateinsec();
+	config_get_repeaterinfoupdateinsec();
 	config_get_repeaterinactivetimeoutinsec();
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();

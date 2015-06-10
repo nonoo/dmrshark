@@ -92,7 +92,7 @@ void repeaters_list(void) {
 			repeaters[i].id,
 			repeaters[i].callsign,
 			time(NULL)-repeaters[i].last_active_time,
-			time(NULL)-repeaters[i].last_snmpinfo_request_time,
+			time(NULL)-repeaters[i].last_repeaterinfo_request_time,
 			repeaters[i].type,
 			repeaters[i].fwversion,
 			repeaters[i].dlfreq,
@@ -116,10 +116,10 @@ void repeaters_process(void) {
 			continue;
 		}
 
-		if (!repeaters[i].snmpignored && config_get_snmpinfoupdateinsec() > 0 && time(NULL)-repeaters[i].last_snmpinfo_request_time > config_get_snmpinfoupdateinsec()) {
+		if (!repeaters[i].snmpignored && config_get_repeaterinfoupdateinsec() > 0 && time(NULL)-repeaters[i].last_repeaterinfo_request_time > config_get_repeaterinfoupdateinsec()) {
 			console_log(LOGLEVEL_DEBUG "repeaters [%s]: sending snmp info update request\n", comm_get_ip_str(&repeaters[i].ipaddr));
 			snmp_start_read_repeaterinfo(comm_get_ip_str(&repeaters[i].ipaddr));
-			repeaters[i].last_snmpinfo_request_time = time(NULL);
+			repeaters[i].last_repeaterinfo_request_time = time(NULL);
 		}
 
 		if (repeaters[i].slot[0].call_running && time(NULL)-repeaters[i].slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {

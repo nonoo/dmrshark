@@ -24,7 +24,7 @@ typedef struct {
 	struct in_addr ipaddr;
 	time_t last_active_time;
 	flag_t snmpignored;
-	time_t last_snmpinfo_request_time;
+	time_t last_repeaterinfo_request_time;
 	struct timeval last_rssi_request_time;
 	dmr_id_t id;
 	char type[25];
