@@ -116,7 +116,7 @@ void repeaters_process(void) {
 			continue;
 		}
 
-		if (!repeaters[i].snmpignored && time(NULL)-repeaters[i].last_snmpinfo_request_time > config_get_snmpinfoupdateinsec()) {
+		if (!repeaters[i].snmpignored && config_get_snmpinfoupdateinsec() > 0 && time(NULL)-repeaters[i].last_snmpinfo_request_time > config_get_snmpinfoupdateinsec()) {
 			console_log(LOGLEVEL_DEBUG "repeaters [%s]: sending snmp info update request\n", comm_get_ip_str(&repeaters[i].ipaddr));
 			snmp_start_read_repeaterinfo(comm_get_ip_str(&repeaters[i].ipaddr));
 			repeaters[i].last_snmpinfo_request_time = time(NULL);
@@ -140,11 +140,13 @@ void repeaters_process(void) {
 			if (!repeaters[i].slot[0].call_running && !repeaters[i].slot[1].call_running)
 				repeaters[i].auto_rssi_update_enabled_at = 0;
 			else {
-				gettimeofday(&currtime, NULL);
-				timersub(&currtime, &repeaters[i].last_rssi_request_time, &difftime);
-				if (difftime.tv_sec*1000+difftime.tv_usec/1000 > config_get_rssiupdateduringcallinmsec()) {
-					snmp_start_read_rssi(comm_get_ip_str(&repeaters[i].ipaddr));
-					repeaters[i].last_rssi_request_time = currtime;
+				if (config_get_rssiupdateduringcallinmsec() > 0) {
+					gettimeofday(&currtime, NULL);
+					timersub(&currtime, &repeaters[i].last_rssi_request_time, &difftime);
+					if (difftime.tv_sec*1000+difftime.tv_usec/1000 > config_get_rssiupdateduringcallinmsec()) {
+						snmp_start_read_rssi(comm_get_ip_str(&repeaters[i].ipaddr));
+						repeaters[i].last_rssi_request_time = currtime;
+					}
 				}
 			}
 		}
