@@ -29,6 +29,7 @@ char *config_get_remotedbtableprefix(void);
 int config_get_remotedbreconnecttrytimeoutinsec(void);
 int config_get_remotedbmaintenanceperiodinsec(void);
 int config_get_remotedbdeleteolderthansec(void);
+int config_get_updatestatstableenabled(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

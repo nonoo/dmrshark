@@ -302,6 +302,7 @@ static void comm_processpacket(const uint8_t *packet, uint16_t length) {
 				}
 
 				remotedb_update(repeater);
+				remotedb_update_stats_callend(repeater, dmr_packet.timeslot);
 			}
 
 			if (repeater->slot[dmr_packet.timeslot-1].call_running && dmr_packet.packet_type == DMRPACKET_PACKET_TYPE_VOICE)
