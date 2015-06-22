@@ -7,6 +7,7 @@ It can be used for:
 - Tracking calls, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
+- Decoding DMR SMS messages
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's passing by traffic.
