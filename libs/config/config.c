@@ -428,7 +428,7 @@ int config_get_remotedbmaintenanceperiodinsec(void) {
 	int defaultvalue = 0;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 3600;
+	defaultvalue = 60;
 	value = g_key_file_get_integer(keyfile, "main", "remotedbmaintenanceperiodinsec", &error);
 	if (error) {
 		value = defaultvalue;
@@ -450,6 +450,22 @@ int config_get_remotedbdeleteolderthansec(void) {
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "remotedbdeleteolderthansec", value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_updatestatstableenabled(void) {
+	GError *error = NULL;
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 1;
+	value = g_key_file_get_integer(keyfile, "main", "updatestatstableenabled", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "updatestatstableenabled", value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -524,6 +540,7 @@ void config_init(char *configfilename) {
 	free(temp);
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();
+	config_get_updatestatstableenabled();
 
 	config_writeconfigfile();
 }

@@ -129,6 +129,29 @@ void remotedb_update(repeater_t *repeater) {
 	remotedb_update_repeater_lastactive(repeater);
 }
 
+// Updates the stats table with the duration of the call.
+void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+	int talktime;
+
+	if (repeater == NULL || !config_get_updatestatstableenabled())
+		return;
+
+	talktime = repeater->slot[ts].call_ended_at-repeater->slot[ts].call_started_at;
+
+	if (talktime <= 0)
+		return;
+
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "insert into `%sstats` (`id`, `date`, `talktime`) "
+		"values (%u, now(), %u) on duplicate key update `talktime`=`talktime`+%u",
+		tableprefix, repeater->slot[ts-1].src_id, talktime, talktime);
+	free(tableprefix);
+
+	remotedb_addquery(query);
+}
+
 void remotedb_maintain(void) {
 	char *tableprefix = NULL;
 	char query[512] = {0,};
@@ -194,7 +217,7 @@ static flag_t remotedb_thread_process(void) {
 		lastconnecttriedat = time(NULL);
 	}
 
-	if (time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
+	if (config_get_remotedbmaintenanceperiodinsec() > 0 && time(NULL)-lastmaintenanceat > config_get_remotedbmaintenanceperiodinsec()) {
 		remotedb_maintain();
 		lastmaintenanceat = time(NULL);
 	}
