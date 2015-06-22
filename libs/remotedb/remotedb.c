@@ -146,7 +146,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%sstats` (`id`, `date`, `talktime`) "
 		"values (%u, now(), %u) on duplicate key update `talktime`=`talktime`+%u",
-		tableprefix, repeater->slot[ts-1].src_id, talktime, talktime);
+		tableprefix, repeater->slot[ts].src_id, talktime, talktime);
 	free(tableprefix);
 
 	remotedb_addquery(query);

@@ -423,8 +423,8 @@ static void comm_processpacket(struct ip *ip_packet, uint16_t length) {
 
 		// The packet is for us, or from a listed repeater?
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
-			if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING && (ipsc_packet.frame_type == IPSCPACKET_FRAME_TYPE_VOICE_SYNC ||
-				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_A ||
+			if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING &&
+				(ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_A ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_B ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_C ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_D ||
