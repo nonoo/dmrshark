@@ -1,3 +1,20 @@
+/*
+ * This file is part of dmrshark.
+ *
+ * dmrshark is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * dmrshark is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 #include <config/defaults.h>
 
 #include "base.h"
@@ -39,6 +56,17 @@ uint8_t base_hexdatatodata(char *hexdata) {
 			break;
 	}
 	return i;
+}
+
+uint8_t base_bitstobyte(flag_t bits[8]) {
+	uint8_t byteval = 0;
+	uint8_t i;
+
+	for (i = 0; i < 8; i++) {
+		if (bits[i] == 1)
+			byteval |= (1 << (7-i));
+	}
+	return byteval;
 }
 
 void base_process(void) {

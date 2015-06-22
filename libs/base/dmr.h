@@ -15,14 +15,18 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef TTYCONSOLE_H_
-#define TTYCONSOLE_H_
+#ifndef DMR_H_
+#define DMR_H_
 
-void ttyconsole_send(char *buffer, unsigned int buffer_length);
-void ttyconsole_print(const char *format, ...);
+#include "types.h"
 
-void ttyconsole_process(void);
-void ttyconsole_init(void);
-void ttyconsole_deinit(void);
+#define DMR_CALL_TYPE_PRIVATE					0x00
+#define DMR_CALL_TYPE_GROUP						0x01
+typedef uint8_t dmr_call_type_t;
+
+typedef uint8_t dmr_timeslot_t;
+typedef uint32_t dmr_id_t;
+
+char *dmr_get_readable_call_type(dmr_call_type_t call_type);
 
 #endif

@@ -6,3 +6,4 @@ Makefile.config.inc
 *.log
 *.cfg
 *.pid
+*.pcap

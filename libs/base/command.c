@@ -1,3 +1,20 @@
+/*
+ * This file is part of dmrshark.
+ *
+ * dmrshark is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * dmrshark is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 #include <config/defaults.h>
 
 #include "command.h"
@@ -10,6 +27,7 @@
 #include <libs/comm/snmp.h>
 #include <libs/comm/repeaters.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/comm/comm.h>
 
 #include <string.h>
 #include <errno.h>
@@ -33,6 +51,7 @@ void command_process(char *input_buffer) {
 		console_log("  replist                         - list repeaters\n");
 		console_log("  remotedbmaintain                - start db maintenance\n");
 		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
+		console_log("  loadpcap [pcapfile]             - reads and processes packets from pcap file\n");
 		return;
 	}
 
@@ -113,6 +132,16 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "remotedbreplistmaintain") == 0) {
 		remotedb_maintain_repeaterlist();
+		return;
+	}
+
+	if (strcmp(tok, "loadpcap") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		comm_pcapfile_open(tok);
 		return;
 	}
 

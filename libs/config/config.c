@@ -1,3 +1,20 @@
+/*
+ * This file is part of dmrshark.
+ *
+ * dmrshark is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * dmrshark is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 #include <config/defaults.h>
 
 #include "config.h"
@@ -249,11 +266,27 @@ int config_get_calltimeoutinsec(void) {
 	int defaultvalue = 0;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 5;
+	defaultvalue = 1;
 	value = g_key_file_get_integer(keyfile, "main", "calltimeoutinsec", &error);
 	if (error) {
 		value = defaultvalue;
 		g_key_file_set_integer(keyfile, "main", "calltimeoutinsec", value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_datatimeoutinsec(void) {
+	GError *error = NULL;
+	int value = 0;
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 3;
+	value = g_key_file_get_integer(keyfile, "main", "datatimeoutinsec", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", "datatimeoutinsec", value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -476,6 +509,7 @@ void config_init(char *configfilename) {
 	config_get_repeaterinactivetimeoutinsec();
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();
+	config_get_datatimeoutinsec();
 	temp = config_get_ignoredsnmprepeaterhosts();
 	free(temp);
 	temp = config_get_remotedbhost();

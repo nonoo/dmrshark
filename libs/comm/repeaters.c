@@ -1,3 +1,20 @@
+/*
+ * This file is part of dmrshark.
+ *
+ * dmrshark is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * dmrshark is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 #include <config/defaults.h>
 
 #include "repeaters.h"
@@ -14,6 +31,15 @@
 #include <stdlib.h>
 
 static repeater_t repeaters[MAX_REPEATER_COUNT];
+
+static char *repeaters_get_readable_slot_state(repeater_slot_state_t state) {
+	switch (state) {
+		case REPEATER_SLOT_STATE_IDLE: return "idle";
+		case REPEATER_SLOT_STATE_CALL_RUNNING: return "call running";
+		case REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING: return "data receive running";
+		default: return "unknown";
+	}
+}
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {
 	int i;
@@ -101,6 +127,13 @@ void repeaters_list(void) {
 	}
 }
 
+void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state) {
+	console_log(LOGLEVEL_COMM "repeaters [%s]: slot %u state change from %s to %s\n",
+		comm_get_ip_str(&repeater->ipaddr), timeslot+1, repeaters_get_readable_slot_state(repeater->slot[timeslot].state),
+		repeaters_get_readable_slot_state(new_state));
+	repeater->slot[timeslot].state = new_state;
+}
+
 void repeaters_process(void) {
 	int i;
 	struct timeval currtime = {0,};
@@ -122,22 +155,22 @@ void repeaters_process(void) {
 			repeaters[i].last_repeaterinfo_request_time = time(NULL);
 		}
 
-		if (repeaters[i].slot[0].call_running && time(NULL)-repeaters[i].slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {
+		if (repeaters[i].slot[0].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeaters[i].slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {
 			console_log(LOGLEVEL_COMM "repeaters [%s]: call timeout on ts1\n", comm_get_ip_str(&repeaters[i].ipaddr));
-			repeaters[i].slot[0].call_running = 0;
+			repeaters_state_change(&repeaters[i], 0, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[0].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
 		}
 
-		if (repeaters[i].slot[1].call_running && time(NULL)-repeaters[i].slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
+		if (repeaters[i].slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeaters[i].slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
 			console_log(LOGLEVEL_COMM "repeaters [%s]: call timeout on ts2\n", comm_get_ip_str(&repeaters[i].ipaddr));
-			repeaters[i].slot[1].call_running = 0;
+			repeaters_state_change(&repeaters[i], 1, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[1].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
 		}
 
 		if (repeaters[i].auto_rssi_update_enabled_at > 0 && repeaters[i].auto_rssi_update_enabled_at <= time(NULL)) {
-			if (!repeaters[i].slot[0].call_running && !repeaters[i].slot[1].call_running)
+			if (repeaters[i].slot[0].state != REPEATER_SLOT_STATE_CALL_RUNNING && repeaters[i].slot[1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
 				repeaters[i].auto_rssi_update_enabled_at = 0;
 			else {
 				if (config_get_rssiupdateduringcallinmsec() > 0) {
@@ -149,6 +182,16 @@ void repeaters_process(void) {
 					}
 				}
 			}
+		}
+
+		if (repeaters[i].slot[0].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeaters[i].slot[0].data_header_received_at > config_get_datatimeoutinsec()) {
+			console_log(LOGLEVEL_COMM "repeaters [%s]: data timeout on ts1\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			repeaters_state_change(&repeaters[i], 0, REPEATER_SLOT_STATE_IDLE);
+		}
+
+		if (repeaters[i].slot[1].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeaters[i].slot[1].data_header_received_at > config_get_datatimeoutinsec()) {
+			console_log(LOGLEVEL_COMM "repeaters [%s]: data timeout on ts2\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			repeaters_state_change(&repeaters[i], 1, REPEATER_SLOT_STATE_IDLE);
 		}
 	}
 }

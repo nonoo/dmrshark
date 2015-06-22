@@ -15,14 +15,18 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef TTYCONSOLE_H_
-#define TTYCONSOLE_H_
+#ifndef CRC_H_
+#define CRC_H_
 
-void ttyconsole_send(char *buffer, unsigned int buffer_length);
-void ttyconsole_print(const char *format, ...);
+#include "types.h"
 
-void ttyconsole_process(void);
-void ttyconsole_init(void);
-void ttyconsole_deinit(void);
+void crc_calc_crc16_ccitt(uint16_t *crc, uint8_t in);
+void crc_calc_crc16_ccitt_finish(uint16_t *crc);
+
+void crc_calc_crc9(uint16_t *crc, uint8_t in, uint8_t in_bitscount);
+void crc_calc_crc9_finish(uint16_t *crc, uint8_t out_bitscount);
+
+void crc_calc_crc32(uint32_t *crc, uint8_t in);
+void crc_calc_crc32_finish(uint32_t *crc);
 
 #endif

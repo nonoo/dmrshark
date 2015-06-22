@@ -1,23 +1,48 @@
+/*
+ * This file is part of dmrshark.
+ *
+ * dmrshark is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * dmrshark is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
+**/
+
 #ifndef REPEATERS_H_
 #define REPEATERS_H_
 
-#include "dmrpacket.h"
-
-#include <libs/base/types.h>
+#include <libs/base/dmr.h>
+#include <libs/dmrpacket/dmrpacket-data.h>
 
 #include <arpa/inet.h>
 #include <time.h>
 
+#define REPEATER_SLOT_STATE_IDLE					0
+#define REPEATER_SLOT_STATE_CALL_RUNNING			1
+#define REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING	2
+typedef uint8_t repeater_slot_state_t;
+
 typedef struct {
+	repeater_slot_state_t state;
 	int rssi;
 	int avg_rssi;
-	flag_t call_running;
 	time_t call_started_at;
 	time_t last_packet_received_at;
 	time_t call_ended_at;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
+	dmrpacket_data_header_t data_packet_header;
+	dmrpacket_data_block_t data_blocks[64];
+	int data_blocks_received;
+	time_t data_header_received_at;
 } repeater_slot_t;
 
 typedef struct {
@@ -39,6 +64,8 @@ typedef struct {
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
 repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
+
+void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
 
 void repeaters_process(void);
 void repeaters_init(void);
