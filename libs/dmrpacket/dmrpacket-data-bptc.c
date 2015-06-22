@@ -254,8 +254,8 @@ void dmrpacket_data_bptc_check_and_repair(dmrpacket_payload_info_bits_t *deinter
 }
 
 // Extracts the data bits from the given deinterleaved info bits array (discards BPTC bits).
-dmrpacket_payload_data_bits_t *dmrpacket_data_bptc_extractdata(dmrpacket_payload_info_bits_t *deinterleaved_info_bits) {
-	static dmrpacket_payload_data_bits_t data_bits;
+dmrpacket_payload_bptc_data_bits_t *dmrpacket_data_bptc_extractdata(dmrpacket_payload_info_bits_t *deinterleaved_info_bits) {
+	static dmrpacket_payload_bptc_data_bits_t data_bits;
 
 	if (deinterleaved_info_bits == NULL)
 		return NULL;

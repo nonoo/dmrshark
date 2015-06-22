@@ -22,10 +22,10 @@
 
 typedef struct {
 	flag_t bits[96];
-} dmrpacket_payload_data_bits_t;
+} dmrpacket_payload_bptc_data_bits_t;
 
 dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payload_info_bits_t *info_bits);
 void dmrpacket_data_bptc_check_and_repair(dmrpacket_payload_info_bits_t *deinterleaved_info_bits);
-dmrpacket_payload_data_bits_t *dmrpacket_data_bptc_extractdata(dmrpacket_payload_info_bits_t *deinterleaved_info_bits);
+dmrpacket_payload_bptc_data_bits_t *dmrpacket_data_bptc_extractdata(dmrpacket_payload_info_bits_t *deinterleaved_info_bits);
 
 #endif
