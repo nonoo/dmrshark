@@ -15,25 +15,13 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef COMM_H_
-#define COMM_H_
+#ifndef IPSC_H_
+#define IPSC_H_
 
 #include <libs/base/types.h>
 
-#include <netinet/ip.h>
 #include <netinet/udp.h>
 
-flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr);
-char *comm_get_ip_str(struct in_addr *ipaddr);
-char *comm_get_our_ipaddr(void);
-flag_t comm_is_our_ipaddr(struct in_addr *ipaddr);
-uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size);
-uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, struct udphdr *udpheader);
-
-void comm_pcapfile_open(char *filename);
-
-void comm_process(void);
-flag_t comm_init(void);
-void comm_deinit(void);
+void ipsc_processpacket(struct ip *ip_packet, uint16_t length);
 
 #endif

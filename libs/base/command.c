@@ -71,8 +71,8 @@ void command_process(char *input_buffer) {
 					loglevel.raw = 0;
 			} else if (strcmp(tok, "debug") == 0)
 				loglevel.flags.debug = !loglevel.flags.debug;
-			else if (strcmp(tok, "comm") == 0)
-				loglevel.flags.comm = !loglevel.flags.comm;
+			else if (strcmp(tok, "ipsc") == 0)
+				loglevel.flags.ipsc = !loglevel.flags.ipsc;
 			else if (strcmp(tok, "comm-ip") == 0)
 				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
 			else if (strcmp(tok, "comm-dmr") == 0)

@@ -22,8 +22,8 @@
 
 #define LOGLEVEL_DEBUG			"\x01"
 #define LOGLEVEL_DEBUG_VAL		0x01
-#define LOGLEVEL_COMM			"\x02"
-#define LOGLEVEL_COMM_VAL		0x02
+#define LOGLEVEL_IPSC			"\x02"
+#define LOGLEVEL_IPSC_VAL		0x02
 #define LOGLEVEL_COMM_IP		"\x03"
 #define LOGLEVEL_COMM_IP_VAL	0x03
 #define LOGLEVEL_COMM_DMR		"\x04"
@@ -42,7 +42,7 @@
 typedef union __attribute__((packed)) {
 	struct __attribute__((packed)) {
 		uint8_t debug			: 1;
-		uint8_t comm			: 1;
+		uint8_t ipsc			: 1;
 		uint8_t comm_ip			: 1;
 		uint8_t comm_dmr		: 1;
 		uint8_t snmp			: 1;

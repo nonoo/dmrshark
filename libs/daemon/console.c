@@ -199,8 +199,8 @@ void console_log(const char *format, ...) {
 				}
 			}
 			break;
-		case LOGLEVEL_COMM_VAL:
-			if (loglevel.flags.comm) {
+		case LOGLEVEL_IPSC_VAL:
+			if (loglevel.flags.ipsc) {
 				vsnprintf(buffer, sizeof(buffer), format+1, argptr);
 				buffer_length = strlen(buffer);
 

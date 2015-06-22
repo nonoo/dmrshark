@@ -33,8 +33,8 @@ void log_loglevel(loglevel_t *loglevel) {
 	else
 		console_log("off\n");
 
-	console_log("  comm ");
-	if (loglevel->flags.comm)
+	console_log("  ipsc ");
+	if (loglevel->flags.ipsc)
 		console_log("on\n");
 	else
 		console_log("off\n");
