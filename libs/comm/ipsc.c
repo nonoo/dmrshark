@@ -74,7 +74,7 @@ static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repea
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	dmrpacket_payload_data_bits_t *packet_payload_data_bits = NULL;
+	dmrpacket_payload_bptc_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 
@@ -85,8 +85,8 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
 	dmrpacket_data_bptc_check_and_repair(packet_payload_info_bits);
-	packet_payload_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
-	data_packet_header = dmrpacket_data_header_decode(packet_payload_data_bits, 0);
+	packet_payload_bptc_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
+	data_packet_header = dmrpacket_data_header_decode(packet_payload_bptc_data_bits, 0);
 
 	repeater->slot[ipsc_packet->timeslot-1].data_blocks_received = 0;
 	memset(repeater->slot[ipsc_packet->timeslot-1].data_blocks, 0, sizeof(dmrpacket_data_block_t)*sizeof(repeater->slot[ipsc_packet->timeslot-1].data_blocks));
@@ -159,7 +159,7 @@ static void ipsc_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	dmrpacket_payload_data_bits_t *packet_payload_data_bits = NULL;
+	dmrpacket_payload_bptc_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_block_bytes_t *data_block_bytes = NULL;
 	dmrpacket_data_block_t *data_block = NULL;
 
@@ -175,8 +175,8 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 		packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
 		packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
 		dmrpacket_data_bptc_check_and_repair(packet_payload_info_bits);
-		packet_payload_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
-		data_block_bytes = dmrpacket_data_convert_payload_data_bits_to_block_bytes(packet_payload_data_bits);
+		packet_payload_bptc_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
+		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(packet_payload_bptc_data_bits);
 		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
 		if (data_block) {

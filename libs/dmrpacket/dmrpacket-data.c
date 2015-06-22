@@ -69,7 +69,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpa
 	return &bytes;
 }
 
-dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_data_bits_to_block_bytes(dmrpacket_payload_bptc_data_bits_t *binary) {
+dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_payload_bptc_data_bits_t *binary) {
 	static dmrpacket_data_block_bytes_t bytes;
 	uint8_t i;
 
