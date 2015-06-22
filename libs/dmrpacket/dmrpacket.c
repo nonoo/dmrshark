@@ -19,6 +19,8 @@
 
 #include "dmrpacket.h"
 
+#include <libs/base/base.h>
+
 #include <string.h>
 
 // Extracts the info part of the payload (leaves out slot type and sync parts).
@@ -57,4 +59,62 @@ dmrpacket_payload_sync_bits_t *dmrpacket_extractsyncbits(dmrpacket_payload_bits_
 	memcpy(&sync_bits.bits, payload_bits->bits+98+10, sizeof(sync_bits.bits));
 
 	return &sync_bits;
+}
+
+char *dmrpacket_get_readable_sync_type(dmrpacket_sync_type_t sync_type) {
+	switch (sync_type) {
+		default:
+		case DMRPACKET_SYNC_TYPE_UNKNOWN: return "unknown";
+		case DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE: return "bs sourced voice";
+		case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA: return "bs sourced data";
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE: return "ms sourced voice";
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA: return "ms sourced data";
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC: return "ms sourced rc";
+		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1: return "direct voice ts1";
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1: return "direct data ts1";
+		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2: return "direct voice ts2";
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2: return "direct data ts2";
+	}
+}
+
+dmrpacket_sync_type_t dmrpacket_get_sync_type(dmrpacket_payload_sync_bits_t *sync_bits) {
+	uint8_t sync_bytes[6];
+	// See DMR AI spec. page 89.
+	static uint8_t sync_bs_sourced_voice[6] = { 0x75, 0x5F, 0xD7, 0xDF, 0x75, 0xF7 };
+	static uint8_t sync_bs_sourced_data[6] = { 0xDF, 0xF5, 0x7D, 0x75, 0xDF, 0x5D };
+	static uint8_t sync_ms_sourced_voice[6] = { 0x7F, 0x7D, 0x5D, 0xD5, 0x7D, 0xFD };
+	static uint8_t sync_ms_sourced_data[6] = { 0xD5, 0xD7, 0xF7, 0x7F, 0xD7, 0x57 };
+	static uint8_t sync_ms_sourced_rc[6] = { 0x77, 0xD5, 0x5F, 0x7D, 0xFD, 0x77 };
+	static uint8_t sync_direct_voice_ts1[6] = { 0x5D, 0x57, 0x7F, 0x77, 0x57, 0xFF };
+	static uint8_t sync_direct_data_ts1[6] = { 0xF7, 0xFD, 0xD5, 0xDD, 0xFD, 0x55 };
+	static uint8_t sync_direct_voice_ts2[6] = { 0x7D, 0xFF, 0xD5, 0xF5, 0x5D, 0x5F };
+	static uint8_t sync_direct_data_ts2[6] = { 0xD7, 0x55, 0x7F, 0x5F, 0xF7, 0xF5 };
+
+	base_bitstobytes(sync_bits->bits, sizeof(sync_bits->bits), sync_bytes, sizeof(sync_bytes));
+
+	if (memcmp(sync_bytes, sync_bs_sourced_voice, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE;
+	else if (memcmp(sync_bytes, sync_bs_sourced_data, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA;
+	else if (memcmp(sync_bytes, sync_ms_sourced_voice, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE;
+	else if (memcmp(sync_bytes, sync_ms_sourced_data, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA;
+	else if (memcmp(sync_bytes, sync_ms_sourced_rc, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_MS_SOURCED_RC;
+	else if (memcmp(sync_bytes, sync_direct_voice_ts1, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1;
+	else if (memcmp(sync_bytes, sync_direct_data_ts1, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1;
+	else if (memcmp(sync_bytes, sync_direct_voice_ts2, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2;
+	else if (memcmp(sync_bytes, sync_direct_data_ts2, sizeof(sync_bytes)) == 0)
+		return DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2;
+	else
+		return DMRPACKET_SYNC_TYPE_UNKNOWN;
+}
+
+dmrpacket_payload_slot_type_t *dmrpacket_decode_slot_type(dmrpacket_payload_slot_type_bits_t *slot_type_bits) {
+	// TODO
+	return NULL;
 }

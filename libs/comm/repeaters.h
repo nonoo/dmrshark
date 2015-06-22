@@ -19,7 +19,7 @@
 #define REPEATERS_H_
 
 #include <libs/base/dmr.h>
-#include <libs/dmrpacket/dmrpacket-data.h>
+#include <libs/dmrpacket/dmrpacket.h>
 
 #include <arpa/inet.h>
 #include <time.h>

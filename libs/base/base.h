@@ -22,6 +22,7 @@
 
 uint8_t base_hexdatatodata(char *hexdata);
 uint8_t base_bitstobyte(flag_t bits[8]);
+void base_bitstobytes(flag_t *bits, uint16_t bits_length, uint8_t *bytes, uint16_t bytes_length);
 
 void base_process(void);
 

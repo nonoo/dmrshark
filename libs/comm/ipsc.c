@@ -22,8 +22,7 @@
 
 #include <libs/base/log.h>
 #include <libs/remotedb/remotedb.h>
-#include <libs/dmrpacket/dmrpacket-data.h>
-#include <libs/dmrpacket/dmrpacket-data-34rate.h>
+#include <libs/dmrpacket/dmrpacket.h>
 
 #include <netinet/udp.h>
 #include <string.h>
@@ -143,7 +142,7 @@ static void ipsc_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 		packet_payload_tribits = dmrpacket_data_34rate_extract_tribits(packet_payload_constellationpoints);
 		data_binary = dmrpacket_data_34rate_extract_binary(packet_payload_tribits);
 		data_block_bytes = dmrpacket_data_convert_binary_to_block_bytes(data_binary);
-		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
+		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
 		if (data_block) {
 			// Storing the block if serialnr is in bounds.
@@ -177,7 +176,7 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 		dmrpacket_data_bptc_check_and_repair(packet_payload_info_bits);
 		packet_payload_bptc_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
 		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(packet_payload_bptc_data_bits);
-		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
+		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
 		if (data_block) {
 			// Storing the block if serialnr is in bounds.
@@ -196,6 +195,11 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	int ip_header_length = 0;
 	ipscpacket_t ipsc_packet = {0,};
 	repeater_t *repeater = NULL;
+	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
+	dmrpacket_payload_sync_bits_t *payload_sync_bits = NULL;
+	dmrpacket_sync_type_t payload_sync_type;
+	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
+	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -223,7 +227,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	}
 
 	if (ipscpacket_decode(udp_packet, &ipsc_packet)) {
-		console_log(LOGLEVEL_COMM_DMR "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+		console_log(LOGLEVEL_COMM_DMR "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
 		console_log(LOGLEVEL_COMM_DMR "->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
 			comm_get_ip_str(&ip_packet->ip_dst),
 			ipscpacket_get_readable_packet_type(ipsc_packet.packet_type), ipsc_packet.packet_type,
@@ -256,6 +260,33 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 
+			packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet.payload);
+			payload_sync_bits = dmrpacket_extractsyncbits(packet_payload_bits);
+			payload_sync_type = dmrpacket_get_sync_type(payload_sync_bits);
+			// The data header and voice burst A must contain a sync pattern, so we are looking for it.
+			// TODO: slot type determinator
+			switch (payload_sync_type) {
+				default:
+				case DMRPACKET_SYNC_TYPE_UNKNOWN:
+				case DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE:
+				case DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE:
+				case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1:
+				case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2:
+				case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
+					break;
+				case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
+				case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
+				case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
+				case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
+					console_log(LOGLEVEL_DEBUG "  sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
+					payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
+					payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
+					if (payload_slot_type != NULL) {
+						console_log(LOGLEVEL_DEBUG "  slot type: %s\n", dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+					}
+					break;
+			}
+
 			switch (ipsc_packet.slot_type) {
 				case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
 					ipsc_call_end(ip_packet, &ipsc_packet, repeater);
@@ -277,7 +308,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst)) {
-			console_log(LOGLEVEL_HEARTBEAT "comm [%s", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_HEARTBEAT "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
 			console_log(LOGLEVEL_HEARTBEAT "->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_dst));
 			repeater = repeaters_findbyip(&ip_packet->ip_src);
 			if (repeater == NULL)

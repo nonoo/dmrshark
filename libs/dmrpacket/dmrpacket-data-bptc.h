@@ -15,10 +15,12 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef DMRPACKET_BPTC_H_
-#define DMRPACKET_BPTC_H_
+#ifndef DMRPACKET_DATA_BPTC_H_
+#define DMRPACKET_DATA_BPTC_H_
 
 #include "dmrpacket.h"
+
+#include <libs/base/types.h>
 
 typedef struct {
 	flag_t bits[96];

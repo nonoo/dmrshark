@@ -17,7 +17,7 @@
 
 #include <config/defaults.h>
 
-#include "dmrpacket-data-bptc.h"
+#include "dmrpacket.h"
 
 #include <libs/daemon/console.h>
 

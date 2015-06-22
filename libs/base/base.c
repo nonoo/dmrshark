@@ -69,6 +69,13 @@ uint8_t base_bitstobyte(flag_t bits[8]) {
 	return byteval;
 }
 
+void base_bitstobytes(flag_t *bits, uint16_t bits_length, uint8_t *bytes, uint16_t bytes_length) {
+	uint16_t i;
+
+	for (i = 0; i < min(bits_length/8, bytes_length); i++)
+		bytes[i] = base_bitstobyte(&bits[i*8]);
+}
+
 void base_process(void) {
 }
 

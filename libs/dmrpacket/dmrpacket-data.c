@@ -17,7 +17,7 @@
 
 #include <config/defaults.h>
 
-#include "dmrpacket-data.h"
+#include "dmrpacket.h"
 
 #include <libs/base/crc.h>
 #include <libs/daemon/console.h>
@@ -25,19 +25,18 @@
 
 #include <string.h>
 
-static char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type) {
+char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type) {
 	switch (data_type) {
 		case DMRPACKET_DATA_TYPE_PI_HEADER: return "pi header";
 		case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER: return "voice lc header";
 		case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC: return "terminator with lc";
 		case DMRPACKET_DATA_TYPE_CSBK: return "csbk";
 		case DMRPACKET_DATA_TYPE_MBC_HEADER: return "mbc header";
-		case DMRPACKET_DATA_TYPE_MBC_CONTINUATION: return "mbc_continuation";
+		case DMRPACKET_DATA_TYPE_MBC_CONTINUATION: return "mbc continuation";
 		case DMRPACKET_DATA_TYPE_DATA_HEADER: return "data header";
-		case DMRPACKET_DATA_TYPE_RATE_12_DATA: return "rate 1/2 data";
-		case DMRPACKET_DATA_TYPE_RATE_34_DATA: return "rate 3/4 data";
+		case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: return "rate 1/2 data continuation";
+		case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION: return "rate 3/4 data continuation";
 		case DMRPACKET_DATA_TYPE_IDLE: return "idle";
-		case DMRPACKET_DATA_TYPE_RATE_1_DATA: return "rate 1 data";
 		default: return "unknown";
 	}
 }
@@ -113,9 +112,8 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 
 	if (confirmed) {
 		switch (data_type) {
-			case DMRPACKET_DATA_TYPE_RATE_12_DATA: data_block.data_length = 10; break;
-			case DMRPACKET_DATA_TYPE_RATE_34_DATA: data_block.data_length = 16; break;
-			case DMRPACKET_DATA_TYPE_RATE_1_DATA: data_block.data_length = 22; break;
+			case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: data_block.data_length = 10; break;
+			case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION: data_block.data_length = 16; break;
 			default:
 				console_log("dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
 				return NULL;
@@ -128,9 +126,8 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 		console_log(LOGLEVEL_DEBUG "  crc: %.4x\n", data_block.crc);
 	} else {
 		switch (data_type) {
-			case DMRPACKET_DATA_TYPE_RATE_12_DATA: data_block.data_length = 12; break;
-			case DMRPACKET_DATA_TYPE_RATE_34_DATA: data_block.data_length = 18; break;
-			case DMRPACKET_DATA_TYPE_RATE_1_DATA: data_block.data_length = 24; break;
+			case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: data_block.data_length = 12; break;
+			case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION: data_block.data_length = 18; break;
 			default:
 				console_log("dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
 				return NULL;

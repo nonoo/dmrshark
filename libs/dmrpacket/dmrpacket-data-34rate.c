@@ -17,7 +17,7 @@
 
 #include <config/defaults.h>
 
-#include "dmrpacket-data-34rate.h"
+#include "dmrpacket.h"
 
 #include <libs/daemon/console.h>
 

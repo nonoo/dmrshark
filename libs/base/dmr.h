@@ -26,6 +26,7 @@ typedef uint8_t dmr_call_type_t;
 
 typedef uint8_t dmr_timeslot_t;
 typedef uint32_t dmr_id_t;
+typedef uint8_t dmr_color_code_t;
 
 char *dmr_get_readable_call_type(dmr_call_type_t call_type);
 

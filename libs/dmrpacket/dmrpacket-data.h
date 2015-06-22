@@ -32,10 +32,9 @@
 #define DMRPACKET_DATA_TYPE_MBC_HEADER					0b0100
 #define DMRPACKET_DATA_TYPE_MBC_CONTINUATION			0b0101
 #define DMRPACKET_DATA_TYPE_DATA_HEADER					0b0110
-#define DMRPACKET_DATA_TYPE_RATE_12_DATA				0b0111
-#define DMRPACKET_DATA_TYPE_RATE_34_DATA				0b1000
+#define DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION	0b0111
+#define DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION	0b1000
 #define DMRPACKET_DATA_TYPE_IDLE						0b1001
-#define DMRPACKET_DATA_TYPE_RATE_1_DATA					0b1010
 typedef uint8_t dmrpacket_data_type_t;
 
 typedef struct {
@@ -60,6 +59,8 @@ typedef struct {
 	uint8_t bytes[DMRPACKET_MAX_FRAGMENTSIZE];
 	uint16_t bytes_stored;
 } dmrpacket_data_fragment_t;
+
+char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type);
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary);
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_payload_bptc_data_bits_t *binary);
