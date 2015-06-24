@@ -275,7 +275,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_15:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_16:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
-/*			insize = 0;
+/*			insize = 0; TODO
 			// Dropping the first 2 bytes.
 			for (i = 2; i < fragment->bytes_stored; i++) {
 				if (i % 2 == 0) { // Only dealing with every 2nd byte.

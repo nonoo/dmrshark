@@ -84,15 +84,17 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
 					else {
-						if (repeater != NULL) {
-							repeater->slot[0].rssi = value_num;
-							if (repeater->slot[0].avg_rssi == 0)
-								repeater->slot[0].avg_rssi = value_num;
-							else
-								repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+value_num)/2.0;
-							dodbupdate = 1;
+						if (value_num > -200) {
+							if (repeater != NULL) {
+								repeater->slot[0].rssi = value_num;
+								if (repeater->slot[0].avg_rssi == 0)
+									repeater->slot[0].avg_rssi = value_num;
+								else
+									repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+value_num)/2.0;
+								dodbupdate = 1;
+							}
+							console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
 						}
-						console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -101,15 +103,17 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					if (*endptr != 0 || errno != 0)
 						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
-						if (repeater != NULL) {
-							repeater->slot[1].rssi = value_num;
-							if (repeater->slot[1].avg_rssi == 0)
-								repeater->slot[1].avg_rssi = value_num;
-							else
-								repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+value_num)/2.0;
-							dodbupdate = 1;
+						if (value_num > -200) {
+							if (repeater != NULL) {
+								repeater->slot[1].rssi = value_num;
+								if (repeater->slot[1].avg_rssi == 0)
+									repeater->slot[1].avg_rssi = value_num;
+								else
+									repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+value_num)/2.0;
+								dodbupdate = 1;
+							}
+							console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
 						}
-						console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
 					}
 				}
 			}
