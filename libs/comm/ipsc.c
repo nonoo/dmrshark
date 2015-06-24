@@ -244,19 +244,16 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 
 		// The packet is for us, or from a listed repeater?
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
-			if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING &&
-				(ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_A ||
+			if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_A ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_B ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_C ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_D ||
-				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_E))
-					ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_E) {
+					if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
+						ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+					else if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
+						ipsc_call_end(ip_packet, &ipsc_packet, repeater);
 
-			if (repeater->slot[ipsc_packet.timeslot-1].state == REPEATER_SLOT_STATE_CALL_RUNNING) {
-				if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
-					ipsc_call_end(ip_packet, &ipsc_packet, repeater);
-
-				if (ipsc_packet.packet_type == IPSCPACKET_PACKET_TYPE_VOICE)
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 
