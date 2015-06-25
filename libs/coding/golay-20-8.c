@@ -58,7 +58,7 @@ static void golay_20_8_calculate_data_parity_syndromes(void) {
 	golay_20_8_parity_bits_t *parity_bits = NULL;
 	flag_t bits[8];
 
-	console_log("golay: calculating data parity syndromes\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "golay: calculating data parity syndromes\n");
 
 	for (i = 0; i < 256; i++) {
 		base_bytetobits(i, bits);
@@ -71,34 +71,34 @@ static void golay_20_8_print_bits(flag_t *bits, uint8_t count, flag_t leave_spac
 	uint8_t i;
 	loglevel_t loglevel = console_get_loglevel();
 
-	if (loglevel.flags.debug && loglevel.flags.comm_dmr) { // TODO
-		for (i = 0; i < count; i++) {
-			if (i == 8 && leave_space) // Leave out a space between 8 bit data and 12 bit parity fields.
-				console_log(" ");
-			console_log(LOGLEVEL_DEBUG "%u", bits[i]);
-		}
-		console_log(LOGLEVEL_DEBUG "\n");
+	if (!loglevel.flags.debug || !loglevel.flags.comm_dmr)
+		return;
+
+	for (i = 0; i < count; i++) {
+		if (i == 8 && leave_space) // Leave out a space between 8 bit data and 12 bit parity fields.
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR " ");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", bits[i]);
 	}
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
 }
 
 // Repairs the 8 data bits using a precalculated parity syndrome table.
 // Returns 1 if repair was successful or there were no erroneous bits detected.
 static flag_t golay_20_8_check_and_repair_data(flag_t bits[20]) {
-	loglevel_t loglevel = console_get_loglevel();
 	uint16_t col;
 	int16_t syndrome_location = -1;
 	golay_20_8_parity_bits_t *parity_bits = NULL;
 	flag_t error_vector_bits[8] = {0,};
 	golay_20_8_parity_bits_t syndrome;
 
-	console_log(LOGLEVEL_DEBUG "golay:                     trying to repair data\n");
+	console_log(LOGLEVEL_COMM_DMR "golay: checking data bits\n");
 
 	// Calculating the parity bits for the 8 bit data section.
 	parity_bits = golay_20_8_get_parity_bits(bits);
 	// Calculating the syndrome.
 	for (col = 0; col < 12; col++)
 		syndrome.bits[col] = (parity_bits->bits[col] + bits[col+8]) % 2;
-	console_log(LOGLEVEL_DEBUG "                 syndrome:          ");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                 syndrome:          ");
 	golay_20_8_print_bits(syndrome.bits, 12, 0);
 
 	// Searching for the given syndrome in the precalculated data parity syndrome buffer.
@@ -110,31 +110,30 @@ static flag_t golay_20_8_check_and_repair_data(flag_t bits[20]) {
 	}
 
 	if (syndrome_location == 0) {
-		console_log(LOGLEVEL_DEBUG "                           no data errors detected\n");
+		console_log(LOGLEVEL_COMM_DMR "  no data errors found\n");
 		return 1;
 	} else if (syndrome_location > 0 && syndrome_location < 256) {
-		console_log(LOGLEVEL_DEBUG "                           trying to repair data\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           trying to repair data\n");
 
 		base_bytetobits(syndrome_location, error_vector_bits); // Error vector is the location of the found syndrome.
 
-		if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-			console_log(LOGLEVEL_DEBUG "  error vector (pos. %.3u): ", syndrome_location);
-			golay_20_8_print_bits(error_vector_bits, 8, 1);
-		}
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  error vector (pos. %.3u): ", syndrome_location);
+		golay_20_8_print_bits(error_vector_bits, 8, 1);
 
 		for (col = 0; col < 8; col++) {
 			if (error_vector_bits[col]) // Flipping the bits in the input data which are set in the error vector.
 				bits[col] = !bits[col];
 		}
 
-		if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-			console_log(LOGLEVEL_DEBUG "     error corrected bits: ");
-			golay_20_8_print_bits(bits, 20, 1);
-		}
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "     error corrected bits: ");
+		golay_20_8_print_bits(bits, 20, 1);
+		console_log(LOGLEVEL_COMM_DMR "  data errors found and repaired\n");
 		return 1;
-	} else
-		console_log(LOGLEVEL_DEBUG "                           couldn't determine syndrome location, can't repair data errors\n");
+	} else {
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           couldn't determine syndrome location, can't repair data errors\n");
+		console_log(LOGLEVEL_COMM_DMR "  data errors found, but couldn't repair\n");
 		return 0;
+	}
 }
 
 static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
@@ -166,7 +165,6 @@ static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 	uint8_t weight = 0;
 	flag_t syndrome[20] = {0,};
 	flag_t syndrome2[20] = {0,};
-	loglevel_t loglevel = console_get_loglevel();
 	golay_20_8_parity_bits_t *parity_bits;
 
 	// Calculating the syndrome
@@ -177,18 +175,16 @@ static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 			weight++;
 	}
 
-	if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-		console_log(LOGLEVEL_DEBUG "golay:                     trying to repair parity bits\n");
-		console_log(LOGLEVEL_DEBUG "                 syndrome: ");
-		golay_20_8_print_bits(syndrome, 20, 1);
-		console_log(LOGLEVEL_DEBUG "                   weight: %u\n", weight);
-	}
+	console_log(LOGLEVEL_COMM_DMR "golay: trying to repair parity bits\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                 syndrome: ");
+	golay_20_8_print_bits(syndrome, 20, 1);
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                   weight: %u\n", weight);
 
 	if (weight == 0) {
-		console_log(LOGLEVEL_DEBUG "                           no bit errors detected\n");
+		console_log(LOGLEVEL_COMM_DMR "  no errors found\n");
 		return 1;
 	} else {
-		console_log(LOGLEVEL_DEBUG "                           searching for minimum weight\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           searching for minimum weight\n");
 		for (row = 0; row < 20; row++) {
 			weight = 0;
 			for (col = 0; col < 8; col++) {
@@ -198,8 +194,8 @@ static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 			}
 
 			if (weight <= 2) {
-				console_log(LOGLEVEL_DEBUG "                           minimum weight %u found in row %u\n", weight, row);
-				console_log(LOGLEVEL_DEBUG "  minimum weight syndrome: ");
+				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           minimum weight %u found in row %u\n", weight, row);
+				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  minimum weight syndrome: ");
 				golay_20_8_print_bits(syndrome2, 20, 1);
 
 //				for (col = 0; col < 8; col++)
@@ -207,13 +203,15 @@ static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 				if (row >= 8)
 					bits[row] = !bits[row];
 
-				console_log(LOGLEVEL_DEBUG "                    final: ");
+				console_log(LOGLEVEL_COMM_DMR "  parity errors found and repaired\n");
+				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                    final: ");
 				golay_20_8_print_bits(bits, 20, 1);
 				break;
 			}
 		}
 		if (row == 20) {
-			console_log(LOGLEVEL_DEBUG "                           minimum weight not found, can't correct the errors\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           minimum weight not found, can't correct the errors\n");
+			console_log(LOGLEVEL_COMM_DMR "  parity errors found, but couldn't repair\n");
 			return 0;
 		} else
 			return 1;
@@ -221,13 +219,10 @@ static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 }
 
 flag_t golay_20_8_check_and_repair(flag_t bits[20]) {
-	loglevel_t loglevel = console_get_loglevel();
 	uint8_t retries = 0;
 
-	if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-		console_log(LOGLEVEL_DEBUG "golay:         input bits: ");
-		golay_20_8_print_bits(bits, 20, 1);
-	}
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "golay:          input bits: ");
+	golay_20_8_print_bits(bits, 20, 1);
 
 	if (!golay_20_8_check_and_repair_data(bits)) {
 		while (retries++ < 3) {

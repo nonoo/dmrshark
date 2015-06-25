@@ -61,7 +61,7 @@ uint16_t console_get_bufferpos(void);
 void console_rxbuf_add(char inputchar, flag_t vt100supported);
 
 void console_addtologfile(char *msg, int msglen);
-void console_log(const char *format, ...);
+void console_log(char *format, ...);
 
 void console_process(void);
 void console_init(void);
