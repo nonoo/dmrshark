@@ -19,7 +19,7 @@
 
 #include "dmrpacket.h"
 
-#include <libs/base/crc.h>
+#include <libs/coding/crc.h>
 #include <libs/daemon/console.h>
 #include <libs/base/base.h>
 
@@ -39,6 +39,20 @@ char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type) {
 		case DMRPACKET_DATA_TYPE_IDLE: return "idle";
 		default: return "unknown";
 	}
+}
+
+// Deinterleaves given info bits according to the used BPTC(196,96) interleaving in the DMR standard (see DMR AI spec. page 120).
+dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payload_info_bits_t *info_bits) {
+	static dmrpacket_payload_info_bits_t deint_info_bits;
+	int i;
+
+	if (info_bits == NULL)
+		return NULL;
+
+	for (i = 0; i < sizeof(info_bits->bits); i++)
+		deint_info_bits.bits[i] = info_bits->bits[(i*181) % sizeof(info_bits->bits)];
+
+	return &deint_info_bits;
 }
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary) {
@@ -68,7 +82,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpa
 	return &bytes;
 }
 
-dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_payload_bptc_data_bits_t *binary) {
+dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(bptc_196_96_data_bits_t *binary) {
 	static dmrpacket_data_block_bytes_t bytes;
 	uint8_t i;
 

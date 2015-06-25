@@ -15,22 +15,16 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef BASE_H_
-#define BASE_H_
+#ifndef BPTC_196_96_H_
+#define BPTC_196_96_H_
 
-#include "types.h"
+#include <libs/base/types.h>
 
-uint8_t base_hexdatatodata(char *hexdata);
+typedef struct {
+	flag_t bits[96];
+} bptc_196_96_data_bits_t;
 
-uint8_t base_bitstobyte(flag_t bits[8]);
-void base_bitstobytes(flag_t *bits, uint16_t bits_length, uint8_t *bytes, uint16_t bytes_length);
-
-void base_bytetobits(uint8_t byte, flag_t *bits);
-void base_bytestobits(uint8_t *bytes, uint16_t bytes_length, flag_t *bits, uint16_t bits_length);
-
-void base_process(void);
-
-void base_init(void);
-void base_deinit(void);
+void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]);
+bptc_196_96_data_bits_t *bptc_196_96_extractdata(flag_t deinterleaved_bits[196]);
 
 #endif

@@ -39,7 +39,7 @@
 #define CONSOLELOGBUFFERSIZE	CONSOLE_INPUTBUFFERSIZE
 #define CONSOLE_NEWLINECHAR		'\n'
 
-static loglevel_t loglevel;
+static loglevel_t loglevel = { .raw = 0xff };
 static char console_buffer[CONSOLE_INPUTBUFFERSIZE] = {0,};
 static uint16_t console_buffer_pos = 0;
 static struct termios console_termios_save = {0,};

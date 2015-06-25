@@ -19,7 +19,7 @@
 
 #include "dmrpacket.h"
 
-#include <libs/base/crc.h>
+#include <libs/coding/crc.h>
 #include <libs/base/base.h>
 #include <libs/daemon/console.h>
 
@@ -114,7 +114,7 @@ static char *dmrpacket_data_header_get_readable_udt_format(dmrpacket_data_header
 	}
 }
 
-static uint16_t dmrpacket_data_header_crc_calc(dmrpacket_payload_bptc_data_bits_t *data_bits) {
+static uint16_t dmrpacket_data_header_crc_calc(bptc_196_96_data_bits_t *data_bits) {
 	int i;
 	// In true CRC16-CCITT, initial CRC value should be 0xffff, but DMR spec. uses 0.
 	// See DMR AI spec. page 139.
@@ -135,7 +135,7 @@ static uint16_t dmrpacket_data_header_crc_calc(dmrpacket_payload_bptc_data_bits_
 	return crcval;
 }
 
-dmrpacket_data_header_t *dmrpacket_data_header_decode(dmrpacket_payload_bptc_data_bits_t *data_bits, flag_t proprietary_header) {
+dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *data_bits, flag_t proprietary_header) {
 	static dmrpacket_data_header_t header;
 
 	if (data_bits == NULL)

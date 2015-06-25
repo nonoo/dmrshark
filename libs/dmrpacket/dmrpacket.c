@@ -20,6 +20,7 @@
 #include "dmrpacket.h"
 
 #include <libs/base/base.h>
+#include <libs/coding/golay-20-8.h>
 
 #include <string.h>
 
@@ -115,6 +116,13 @@ dmrpacket_sync_type_t dmrpacket_get_sync_type(dmrpacket_payload_sync_bits_t *syn
 }
 
 dmrpacket_payload_slot_type_t *dmrpacket_decode_slot_type(dmrpacket_payload_slot_type_bits_t *slot_type_bits) {
-	// TODO
-	return NULL;
+	static dmrpacket_payload_slot_type_t slot_type;
+
+	if (!golay_20_8_check_and_repair(slot_type_bits->bits))
+		return NULL;
+
+	slot_type.cc = slot_type_bits->bits[0] | slot_type_bits->bits[1] | slot_type_bits->bits[2] | slot_type_bits->bits[3];
+	slot_type.data_type = slot_type_bits->bits[4] | slot_type_bits->bits[5] | slot_type_bits->bits[6] | slot_type_bits->bits[7];
+
+	return &slot_type;
 }

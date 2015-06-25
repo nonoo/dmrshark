@@ -15,22 +15,14 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef BASE_H_
-#define BASE_H_
+#include <config/defaults.h>
 
-#include "types.h"
+#include "golay-20-8.h"
 
-uint8_t base_hexdatatodata(char *hexdata);
+#include <libs/daemon/console.h>
 
-uint8_t base_bitstobyte(flag_t bits[8]);
-void base_bitstobytes(flag_t *bits, uint16_t bits_length, uint8_t *bytes, uint16_t bytes_length);
+void coding_init(void) {
+	console_log("coding: init\n");
 
-void base_bytetobits(uint8_t byte, flag_t *bits);
-void base_bytestobits(uint8_t *bytes, uint16_t bytes_length, flag_t *bits, uint16_t bits_length);
-
-void base_process(void);
-
-void base_init(void);
-void base_deinit(void);
-
-#endif
+	golay_20_8_init();
+}

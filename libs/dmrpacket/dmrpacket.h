@@ -54,7 +54,6 @@ typedef uint8_t dmrpacket_sync_type_t;
 
 #include "dmrpacket-data.h"
 #include "dmrpacket-data-header.h"
-#include "dmrpacket-data-bptc.h"
 #include "dmrpacket-data-34rate.h"
 
 typedef struct {

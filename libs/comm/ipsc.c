@@ -23,6 +23,7 @@
 #include <libs/base/log.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/dmrpacket/dmrpacket.h>
+#include <libs/coding/bptc-196-96.h>
 
 #include <netinet/udp.h>
 #include <string.h>
@@ -73,7 +74,7 @@ static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repea
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	dmrpacket_payload_bptc_data_bits_t *packet_payload_bptc_data_bits = NULL;
+	bptc_196_96_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 
@@ -83,8 +84,8 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
 	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-	dmrpacket_data_bptc_check_and_repair(packet_payload_info_bits);
-	packet_payload_bptc_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
+	bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
+	packet_payload_bptc_data_bits = bptc_196_96_extractdata(packet_payload_info_bits->bits);
 	data_packet_header = dmrpacket_data_header_decode(packet_payload_bptc_data_bits, 0);
 
 	repeater->slot[ipsc_packet->timeslot-1].data_blocks_received = 0;
@@ -158,7 +159,7 @@ static void ipsc_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	dmrpacket_payload_bptc_data_bits_t *packet_payload_bptc_data_bits = NULL;
+	bptc_196_96_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_block_bytes_t *data_block_bytes = NULL;
 	dmrpacket_data_block_t *data_block = NULL;
 
@@ -173,8 +174,8 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 		packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
 		packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
 		packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-		dmrpacket_data_bptc_check_and_repair(packet_payload_info_bits);
-		packet_payload_bptc_data_bits = dmrpacket_data_bptc_extractdata(packet_payload_info_bits);
+		bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
+		packet_payload_bptc_data_bits = bptc_196_96_extractdata(packet_payload_info_bits->bits);
 		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(packet_payload_bptc_data_bits);
 		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
@@ -257,31 +258,29 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 
+			// The data header and voice burst A must contain a sync pattern, so we are looking for it.
 			packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet.payload);
 			payload_sync_bits = dmrpacket_extractsyncbits(packet_payload_bits);
 			payload_sync_type = dmrpacket_get_sync_type(payload_sync_bits);
-			// The data header and voice burst A must contain a sync pattern, so we are looking for it.
-			// TODO: slot type determinator
-			switch (payload_sync_type) {
-				default:
-				case DMRPACKET_SYNC_TYPE_UNKNOWN:
-				case DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE:
-				case DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE:
-				case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1:
-				case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2:
-				case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
-					break;
-				case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
-				case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
-				case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
-				case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
-					console_log(LOGLEVEL_DEBUG "  sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
-					payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
-					payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
-					if (payload_slot_type != NULL) {
-						console_log(LOGLEVEL_DEBUG "  slot type: %s\n", dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
-					}
-					break;
+			if (payload_sync_type != DMRPACKET_SYNC_TYPE_UNKNOWN) {
+				console_log(LOGLEVEL_DEBUG "  packet has sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
+
+				switch (payload_sync_type) {
+					default:
+						break;
+					case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
+					case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
+					case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
+					case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
+					case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
+						// A packet with a data or control sync pattern also has a slot type field.
+						payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
+						payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
+						if (payload_slot_type != NULL) {
+							console_log(LOGLEVEL_DEBUG "  slot type: %s\n", dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+							// TODO
+						}
+				}
 			}
 
 			switch (ipsc_packet.slot_type) {

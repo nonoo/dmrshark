@@ -18,7 +18,7 @@
 #ifndef DMRPACKET_DATA_HEADER_H_
 #define DMRPACKET_DATA_HEADER_H_
 
-#include "dmrpacket-data-bptc.h"
+#include <libs/coding/bptc-196-96.h>
 
 #define DMRPACKET_DATA_HEADER_DPF_UDT							0b0000
 #define DMRPACKET_DATA_HEADER_DPF_RESPONSE						0b0001
@@ -163,7 +163,7 @@ typedef struct {
 char *dmrpacket_data_header_get_readable_response_type(dmrpacket_data_header_responsetype_t response_type);
 char *dmrpacket_data_header_get_readable_dd_format(dmrpacket_data_header_dd_format_t dd_format);
 
-dmrpacket_data_header_t *dmrpacket_data_header_decode(dmrpacket_payload_bptc_data_bits_t *data_bits, flag_t proprietary_header);
+dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *data_bits, flag_t proprietary_header);
 dmrpacket_data_header_responsetype_t dmrpacket_data_header_decode_response(dmrpacket_data_header_t *header);
 
 #endif

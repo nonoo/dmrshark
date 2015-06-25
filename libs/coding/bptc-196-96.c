@@ -17,7 +17,7 @@
 
 #include <config/defaults.h>
 
-#include "dmrpacket.h"
+#include "bptc-196-96.h"
 
 #include <libs/daemon/console.h>
 
@@ -28,21 +28,6 @@ typedef struct {
 	flag_t bits[4];
 } hamming_error_vector_t;
 
-// Deinterleaves given info bits according to the used BPTC(196,96) interleaving in the DMR standard (see DMR AI spec. page 120).
-dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payload_info_bits_t *info_bits) {
-	static dmrpacket_payload_info_bits_t deint_info_bits;
-	int i;
-
-	if (info_bits == NULL)
-		return NULL;
-
-	for (i = 0; i < sizeof(info_bits->bits); i++)
-		deint_info_bits.bits[i] = info_bits->bits[(i*181) % sizeof(info_bits->bits)];
-
-	return &deint_info_bits;
-}
-
-
 // Hamming(15, 11, 3) checking of a matrix row (15 total bits, 11 data bits, min. distance: 3)
 // See page 135 of the DMR Air Interface protocol specification for the generator matrix.
 // A generator matrix looks like this: G = [Ik | P]. The parity check matrix is: H = [-P^T|In-k]
@@ -51,7 +36,7 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payloa
 // of the parity check matrix, then xor each resulting row bits together with the corresponding
 // parity check bit. The xor result (error vector) should be 0, if it's not, it can be used
 // to determine the location of the erroneous bit using the generator matrix (P).
-static flag_t dmrpacket_data_bptc_hamming_15_11_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
+static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return 0;
 
@@ -66,7 +51,7 @@ static flag_t dmrpacket_data_bptc_hamming_15_11_3_errorcheck(flag_t *data_bits, 
 		error_vector->bits[3] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "dmrpacket data bptc hamming(15,11) error vector: %u%u%u%u\n",
+	console_log(LOGLEVEL_DEBUG "bptc (196,96): hamming(15,11) error vector: %u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -76,7 +61,7 @@ static flag_t dmrpacket_data_bptc_hamming_15_11_3_errorcheck(flag_t *data_bits, 
 }
 
 // Hamming(13, 9, 3) checking of a matrix column (13 total bits, 9 data bits, min. distance: 3)
-static flag_t dmrpacket_data_bptc_hamming_13_9_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
+static flag_t bptc_196_96_hamming_13_9_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return 0;
 
@@ -91,7 +76,7 @@ static flag_t dmrpacket_data_bptc_hamming_13_9_3_errorcheck(flag_t *data_bits, h
 		error_vector->bits[3] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "dmrpacket data bptc hamming(13,9) error vector: %u%u%u%u\n",
+	console_log(LOGLEVEL_DEBUG "bptc (196,96): hamming(13,9) error vector: %u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -100,24 +85,24 @@ static flag_t dmrpacket_data_bptc_hamming_13_9_3_errorcheck(flag_t *data_bits, h
 	return 0;
 }
 
-static void dmrpacket_data_bptc_display_data_matrix(dmrpacket_payload_info_bits_t *deinterleaved_info_bits) {
+static void bptc_196_96_display_data_matrix(flag_t deinterleaved_bits[196]) {
 	loglevel_t loglevel = console_get_loglevel();
 	uint8_t row, col;
 
 	if (!loglevel.flags.debug && !loglevel.flags.comm_dmr)
 		return;
 
-	console_log(LOGLEVEL_DEBUG "dmrpacket data bptc matrix:\n");
+	console_log(LOGLEVEL_DEBUG "bptc (196,96) matrix:\n");
 	for (row = 0; row < 13; row++) {
 		console_log(LOGLEVEL_DEBUG "  #%.2u ", row);
 		for (col = 0; col < 11; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_info_bits->bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_bits[col+row*15+1]);
 		}
 		console_log(LOGLEVEL_DEBUG " ");
 		for (; col < 15; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_info_bits->bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_bits[col+row*15+1]);
 		}
 		console_log(LOGLEVEL_DEBUG "\n");
 		if (row == 8)
@@ -127,7 +112,7 @@ static void dmrpacket_data_bptc_display_data_matrix(dmrpacket_payload_info_bits_
 
 // Searches for the given error vector in the generator matrix.
 // Returns the erroneous bit number if the error vector is found, otherwise it returns -1.
-static int dmrpacket_data_bptc_find_hamming_15_11_3_error_position(hamming_error_vector_t *error_vector) {
+static int bptc_196_96_find_hamming_15_11_3_error_position(hamming_error_vector_t *error_vector) {
 	static flag_t hamming_15_11_generator_matrix[] = {
 		1, 0, 0, 1,
 		1, 1, 0, 1,
@@ -161,7 +146,7 @@ static int dmrpacket_data_bptc_find_hamming_15_11_3_error_position(hamming_error
 
 // Searches for the given error vector in the generator matrix.
 // Returns the erroneous bit number if the error vector is found, otherwise it returns -1.
-static int dmrpacket_data_bptc_find_hamming_13_9_3_error_position(hamming_error_vector_t *error_vector) {
+static int bptc_196_96_find_hamming_13_9_3_error_position(hamming_error_vector_t *error_vector) {
 	static flag_t hamming_13_9_generator_matrix[] = {
 		1, 1, 1, 1,
 		1, 1, 1, 0,
@@ -192,83 +177,83 @@ static int dmrpacket_data_bptc_find_hamming_13_9_3_error_position(hamming_error_
 }
 
 // Checks data for errors and tries to repair them.
-void dmrpacket_data_bptc_check_and_repair(dmrpacket_payload_info_bits_t *deinterleaved_info_bits) {
+void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 	hamming_error_vector_t hamming_error_vector;
 	flag_t column_bits[13] = {0,};
 	uint8_t row, col;
 	int wrongbitnr = -1;
 
-	if (deinterleaved_info_bits == NULL)
+	if (deinterleaved_bits == NULL)
 		return;
 
-	dmrpacket_data_bptc_display_data_matrix(deinterleaved_info_bits);
+	bptc_196_96_display_data_matrix(deinterleaved_bits);
 
 	for (col = 0; col < 15; col++) {
 		for (row = 0; row < 13; row++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			column_bits[row] = deinterleaved_info_bits->bits[col+row*15+1];
+			column_bits[row] = deinterleaved_bits[col+row*15+1];
 		}
 
-		if (!dmrpacket_data_bptc_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
+		if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
 			// Error check failed, checking if we can determine the location of the bit error.
-			wrongbitnr = dmrpacket_data_bptc_find_hamming_13_9_3_error_position(&hamming_error_vector);
+			wrongbitnr = bptc_196_96_find_hamming_13_9_3_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0)
-				console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(13,9) check error, can't repair column #%u\n", col);
+				console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(13,9) check error, can't repair column #%u\n", col);
 			else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
-				console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(13,9) check error, fixing bit row #%u col #%u\n", wrongbitnr, col);
-				deinterleaved_info_bits->bits[col+wrongbitnr*15+1] = !deinterleaved_info_bits->bits[col+wrongbitnr*15+1];
+				console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(13,9) check error, fixing bit row #%u col #%u\n", wrongbitnr, col);
+				deinterleaved_bits[col+wrongbitnr*15+1] = !deinterleaved_bits[col+wrongbitnr*15+1];
 
-				dmrpacket_data_bptc_display_data_matrix(deinterleaved_info_bits);
+				bptc_196_96_display_data_matrix(deinterleaved_bits);
 
 				for (row = 0; row < 13; row++) {
 					// +1 because the first bit is R(3) and it's not used so we can ignore that.
-					column_bits[row] = deinterleaved_info_bits->bits[col+row*15+1];
+					column_bits[row] = deinterleaved_bits[col+row*15+1];
 				}
 
-				if (!dmrpacket_data_bptc_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector))
-					console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(13,9) check error, couldn't repair column #%u\n", col);
+				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector))
+					console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(13,9) check error, couldn't repair column #%u\n", col);
 			}
 		}
 	}
 
 	for (row = 0; row < 9; row++) {
 		// +1 because the first bit is R(3) and it's not used so we can ignore that.
-		if (!dmrpacket_data_bptc_hamming_15_11_3_errorcheck(&deinterleaved_info_bits->bits[row*15+1], &hamming_error_vector)) {
+		if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
 			// Error check failed, checking if we can determine the location of the bit error.
-			wrongbitnr = dmrpacket_data_bptc_find_hamming_15_11_3_error_position(&hamming_error_vector);
+			wrongbitnr = bptc_196_96_find_hamming_15_11_3_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0)
-				console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(15,11) check error in row %u, can't repair\n", row);
+				console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(15,11) check error in row %u, can't repair\n", row);
 			else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
-				console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(15,11) check error, fixing bit row #%u col #%u\n", row, wrongbitnr);
-				deinterleaved_info_bits->bits[row*15+wrongbitnr+1] = !deinterleaved_info_bits->bits[row*15+wrongbitnr+1];
+				console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(15,11) check error, fixing bit row #%u col #%u\n", row, wrongbitnr);
+				deinterleaved_bits[row*15+wrongbitnr+1] = !deinterleaved_bits[row*15+wrongbitnr+1];
 
-				dmrpacket_data_bptc_display_data_matrix(deinterleaved_info_bits);
+				bptc_196_96_display_data_matrix(deinterleaved_bits);
 
-				if (!dmrpacket_data_bptc_hamming_15_11_3_errorcheck(&deinterleaved_info_bits->bits[row*15+1], &hamming_error_vector))
-					console_log(LOGLEVEL_COMM_DMR "dmrpacket data bptc: hamming(15,11) check error, couldn't repair row #%u\n", row);
+				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector))
+					console_log(LOGLEVEL_COMM_DMR "bptc (196,96): hamming(15,11) check error, couldn't repair row #%u\n", row);
 			}
 		}
 	}
 }
 
 // Extracts the data bits from the given deinterleaved info bits array (discards BPTC bits).
-dmrpacket_payload_bptc_data_bits_t *dmrpacket_data_bptc_extractdata(dmrpacket_payload_info_bits_t *deinterleaved_info_bits) {
-	static dmrpacket_payload_bptc_data_bits_t data_bits;
+bptc_196_96_data_bits_t *bptc_196_96_extractdata(flag_t deinterleaved_bits[196]) {
+	static bptc_196_96_data_bits_t data_bits;
 
-	if (deinterleaved_info_bits == NULL)
+	if (deinterleaved_bits == NULL)
 		return NULL;
 
-	memcpy(&data_bits.bits[0], deinterleaved_info_bits->bits+4, 8);
-	memcpy(&data_bits.bits[8], deinterleaved_info_bits->bits+16, 11);
-	memcpy(&data_bits.bits[19], deinterleaved_info_bits->bits+31, 11);
-	memcpy(&data_bits.bits[30], deinterleaved_info_bits->bits+46, 11);
-	memcpy(&data_bits.bits[41], deinterleaved_info_bits->bits+61, 11);
-	memcpy(&data_bits.bits[52], deinterleaved_info_bits->bits+76, 11);
-	memcpy(&data_bits.bits[63], deinterleaved_info_bits->bits+91, 11);
-	memcpy(&data_bits.bits[74], deinterleaved_info_bits->bits+106, 11);
-	memcpy(&data_bits.bits[85], deinterleaved_info_bits->bits+121, 11);
+	memcpy(&data_bits.bits[0], &deinterleaved_bits[4], 8);
+	memcpy(&data_bits.bits[8], &deinterleaved_bits[16], 11);
+	memcpy(&data_bits.bits[19], &deinterleaved_bits[31], 11);
+	memcpy(&data_bits.bits[30], &deinterleaved_bits[46], 11);
+	memcpy(&data_bits.bits[41], &deinterleaved_bits[61], 11);
+	memcpy(&data_bits.bits[52], &deinterleaved_bits[76], 11);
+	memcpy(&data_bits.bits[63], &deinterleaved_bits[91], 11);
+	memcpy(&data_bits.bits[74], &deinterleaved_bits[106], 11);
+	memcpy(&data_bits.bits[85], &deinterleaved_bits[121], 11);
 
 	return &data_bits;
 }

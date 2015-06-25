@@ -24,6 +24,7 @@
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/coding/coding.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -98,6 +99,7 @@ int main(int argc, char *argv[]) {
 	if (!daemon_is_consoleclient()) {
 		base_init();
 		remotedb_init();
+		coding_init();
 		if (!comm_init()) {
 			daemon_deinit();
 			return 1;

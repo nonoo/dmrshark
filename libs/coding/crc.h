@@ -18,7 +18,7 @@
 #ifndef CRC_H_
 #define CRC_H_
 
-#include "types.h"
+#include <libs/base/types.h>
 
 void crc_calc_crc16_ccitt(uint16_t *crc, uint8_t in);
 void crc_calc_crc16_ccitt_finish(uint16_t *crc);
