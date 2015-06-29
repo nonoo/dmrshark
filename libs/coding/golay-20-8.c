@@ -161,7 +161,7 @@ static void golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 
 	if (weight == 0) {
 		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  no errors found\n");
-		return 1;
+		return;
 	}
 
 	for (col = 0; col < 12; col++)
