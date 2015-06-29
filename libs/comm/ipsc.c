@@ -277,7 +277,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 						payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
 						payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
 						if (payload_slot_type != NULL) {
-							console_log(LOGLEVEL_COMM_DMR "  slot type: %s\n", dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+							console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %s\n", payload_slot_type->cc, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
 							// TODO
 						}
 				}
