@@ -74,10 +74,17 @@ static void ipsc_call_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, rep
 	remotedb_update(repeater);
 }
 
+static bptc_196_96_data_bits_t *ipscpacket_get_bptc_data(dmrpacket_payload_bits_t *packet_payload_bits) {
+	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
+
+	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
+	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
+	bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
+	return bptc_196_96_extractdata(packet_payload_info_bits->bits);
+}
+
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
-	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	bptc_196_96_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 
@@ -85,11 +92,7 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	console_log(LOGLEVEL_IPSC "->%s]: got data header\n", comm_get_ip_str(&ip_packet->ip_dst));
 
 	packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
-	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
-	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-	bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
-	packet_payload_bptc_data_bits = bptc_196_96_extractdata(packet_payload_info_bits->bits);
-	data_packet_header = dmrpacket_data_header_decode(packet_payload_bptc_data_bits, 0);
+	data_packet_header = dmrpacket_data_header_decode(ipscpacket_get_bptc_data(packet_payload_bits), 0);
 
 	repeater->slot[ipsc_packet->timeslot-1].data_blocks_received = 0;
 	memset(repeater->slot[ipsc_packet->timeslot-1].data_blocks, 0, sizeof(dmrpacket_data_block_t)*sizeof(repeater->slot[ipsc_packet->timeslot-1].data_blocks));
@@ -161,8 +164,6 @@ static void ipsc_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 
 static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
-	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	bptc_196_96_data_bits_t *packet_payload_bptc_data_bits = NULL;
 	dmrpacket_data_block_bytes_t *data_block_bytes = NULL;
 	dmrpacket_data_block_t *data_block = NULL;
 
@@ -175,11 +176,7 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 			repeater->slot[ipsc_packet->timeslot-1].data_blocks_received+1, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
 
 		packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
-		packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
-		packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-		bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
-		packet_payload_bptc_data_bits = bptc_196_96_extractdata(packet_payload_info_bits->bits);
-		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(packet_payload_bptc_data_bits);
+		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(ipscpacket_get_bptc_data(packet_payload_bits));
 		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
 		if (data_block) {
@@ -193,6 +190,49 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	}
 }
 
+static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_type, dmrpacket_payload_bits_t *packet_payload_bits) {
+	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
+	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
+	union {
+		dmrpacket_control_full_lc_t *full_lc;
+	} control_packet;
+
+	switch (payload_sync_type) {
+		default:
+			break;
+		case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
+			// A packet with a data or control sync pattern also has a slot type field.
+			payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
+			payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
+			if (payload_slot_type != NULL) {
+				console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %s\n", payload_slot_type->cc, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+
+				switch (payload_slot_type->data_type) {
+					case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER:
+						control_packet.full_lc = dmrpacket_control_decode_full_lc(ipscpacket_get_bptc_data(packet_payload_bits));
+						break;
+					case DMRPACKET_DATA_TYPE_PI_HEADER:
+					case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC:
+					case DMRPACKET_DATA_TYPE_CSBK:
+					case DMRPACKET_DATA_TYPE_MBC_HEADER:
+					case DMRPACKET_DATA_TYPE_MBC_CONTINUATION:
+					case DMRPACKET_DATA_TYPE_DATA_HEADER:
+					case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION:
+						// TODO
+						break;
+					case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION:
+					case DMRPACKET_DATA_TYPE_IDLE:
+					default:
+						break;
+				}
+			}
+	}
+}
+
 void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	uint8_t *packet = (uint8_t *)ip_packet;
 	struct udphdr *udp_packet = NULL;
@@ -202,8 +242,6 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_sync_bits_t *payload_sync_bits = NULL;
 	dmrpacket_sync_type_t payload_sync_type;
-	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
-	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -275,23 +313,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 			payload_sync_type = dmrpacket_get_sync_type(payload_sync_bits);
 			if (payload_sync_type != DMRPACKET_SYNC_TYPE_UNKNOWN) {
 				console_log(LOGLEVEL_COMM_DMR "  packet has sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
-
-				switch (payload_sync_type) {
-					default:
-						break;
-					case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
-					case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
-					case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
-					case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
-					case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
-						// A packet with a data or control sync pattern also has a slot type field.
-						payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
-						payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
-						if (payload_slot_type != NULL) {
-							console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %s\n", payload_slot_type->cc, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
-							// TODO
-						}
-				}
+				ipscpacket_handle_control_packet(payload_sync_type, packet_payload_bits);
 			}
 
 			switch (ipsc_packet.slot_type) {
