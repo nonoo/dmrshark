@@ -79,7 +79,6 @@ char *dmrpacket_get_readable_sync_type(dmrpacket_sync_type_t sync_type) {
 }
 
 dmrpacket_sync_type_t dmrpacket_get_sync_type(dmrpacket_payload_sync_bits_t *sync_bits) {
-	uint8_t sync_bytes[6];
 	// See DMR AI spec. page 89.
 	static uint8_t sync_bs_sourced_voice[6] = { 0x75, 0x5F, 0xD7, 0xDF, 0x75, 0xF7 };
 	static uint8_t sync_bs_sourced_data[6] = { 0xDF, 0xF5, 0x7D, 0x75, 0xDF, 0x5D };
@@ -90,6 +89,7 @@ dmrpacket_sync_type_t dmrpacket_get_sync_type(dmrpacket_payload_sync_bits_t *syn
 	static uint8_t sync_direct_data_ts1[6] = { 0xF7, 0xFD, 0xD5, 0xDD, 0xFD, 0x55 };
 	static uint8_t sync_direct_voice_ts2[6] = { 0x7D, 0xFF, 0xD5, 0xF5, 0x5D, 0x5F };
 	static uint8_t sync_direct_data_ts2[6] = { 0xD7, 0x55, 0x7F, 0x5F, 0xF7, 0xF5 };
+	uint8_t sync_bytes[6];
 
 	base_bitstobytes(sync_bits->bits, sizeof(sync_bits->bits), sync_bytes, sizeof(sync_bytes));
 

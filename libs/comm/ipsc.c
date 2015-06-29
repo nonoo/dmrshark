@@ -30,27 +30,6 @@
 
 #define HEARTBEAT_PERIOD_IN_SEC 6
 
-static void ipsc_call_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
-	console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-	console_log(LOGLEVEL_IPSC "->%s]: %s call start on ts %u src id %u dst id %u\n",
-		comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(ipsc_packet->call_type), ipsc_packet->timeslot, ipsc_packet->src_id, ipsc_packet->dst_id);
-	repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_CALL_RUNNING);
-	repeater->slot[ipsc_packet->timeslot-1].call_started_at = time(NULL);
-	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = 0;
-	repeater->slot[ipsc_packet->timeslot-1].call_type = ipsc_packet->call_type;
-	repeater->slot[ipsc_packet->timeslot-1].dst_id = ipsc_packet->dst_id;
-	repeater->slot[ipsc_packet->timeslot-1].src_id = ipsc_packet->src_id;
-	repeater->slot[ipsc_packet->timeslot-1].rssi = repeater->slot[ipsc_packet->timeslot-1].avg_rssi = 0;
-
-	if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
-		console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-		repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
-	}
-
-	remotedb_update(repeater);
-}
-
 static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	if (repeater->slot[ipsc_packet->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
 		return;
@@ -69,6 +48,30 @@ static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repea
 
 	remotedb_update(repeater);
 	remotedb_update_stats_callend(repeater, ipsc_packet->timeslot-1);
+}
+
+static void ipsc_call_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
+	if (repeater->slot[ipsc_packet->timeslot-1].state == REPEATER_SLOT_STATE_CALL_RUNNING)
+		ipsc_call_end(ip_packet, ipsc_packet, repeater);
+
+	console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
+	console_log(LOGLEVEL_IPSC "->%s]: %s call start on ts %u src id %u dst id %u\n",
+		comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(ipsc_packet->call_type), ipsc_packet->timeslot, ipsc_packet->src_id, ipsc_packet->dst_id);
+	repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_CALL_RUNNING);
+	repeater->slot[ipsc_packet->timeslot-1].call_started_at = time(NULL);
+	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = 0;
+	repeater->slot[ipsc_packet->timeslot-1].call_type = ipsc_packet->call_type;
+	repeater->slot[ipsc_packet->timeslot-1].dst_id = ipsc_packet->dst_id;
+	repeater->slot[ipsc_packet->timeslot-1].src_id = ipsc_packet->src_id;
+	repeater->slot[ipsc_packet->timeslot-1].rssi = repeater->slot[ipsc_packet->timeslot-1].avg_rssi = 0;
+
+	if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
+		console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
+		console_log(LOGLEVEL_IPSC "->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
+		repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
+	}
+
+	remotedb_update(repeater);
 }
 
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
@@ -252,8 +255,16 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_E) {
 					if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
 						ipsc_call_start(ip_packet, &ipsc_packet, repeater);
-					else if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
-						ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+					else { // Call running?
+						if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
+							ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+						else { // Another call started suddenly?
+							if (ipsc_packet.src_id != repeater->slot[ipsc_packet.timeslot-1].src_id ||
+								ipsc_packet.dst_id != repeater->slot[ipsc_packet.timeslot-1].dst_id ||
+								ipsc_packet.call_type != repeater->slot[ipsc_packet.timeslot-1].call_type)
+									ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+						}
+					}
 
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
