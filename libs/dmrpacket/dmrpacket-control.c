@@ -33,6 +33,13 @@ dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_b
 
 	console_log(LOGLEVEL_COMM_DMR "dmrpacket control: decoding full lc header\n");
 
+	if (data_bits->bits[6] == 1 && data_bits->bits[7] == 1)
+		full_lc.call_type = DMR_CALL_TYPE_PRIVATE;
+	else
+		full_lc.call_type = DMR_CALL_TYPE_GROUP;
+
+	console_log(LOGLEVEL_COMM_DMR "  call type: %s\n", dmr_get_readable_call_type(full_lc. call_type));
+
 	base_bitstobytes(data_bits->bits, 72, bytes, 9);
 	full_lc.dst_id = bytes[3] << 16 | bytes[4] << 8 | bytes[5];
 	console_log(LOGLEVEL_COMM_DMR "  dst id: %u\n", full_lc.dst_id);

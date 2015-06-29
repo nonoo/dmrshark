@@ -24,6 +24,7 @@
 #include <libs/base/dmr.h>
 
 typedef struct {
+	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
 } dmrpacket_control_full_lc_t;
