@@ -136,100 +136,74 @@ static flag_t golay_20_8_check_and_repair_data(flag_t bits[20]) {
 	}
 }
 
-static flag_t golay_20_8_check_and_repair_parity(flag_t bits[20]) {
-	static flag_t golay_20_8_parity_check_matrix[] = {
-		1, 0, 0, 0, 0, 0, 0, 0,
-		0, 1, 0, 0, 0, 0, 0, 0,
-		0, 0, 1, 0, 0, 0, 0, 0,
-		0, 0, 0, 1, 0, 0, 0, 0,
-		0, 0, 0, 0, 1, 0, 0, 0,
-		0, 0, 0, 0, 0, 1, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0, 0, 0, 0, 0, 0, 0, 1,
-
-		0, 1, 0, 0, 1, 1, 1, 1,
-		0, 1, 1, 0, 1, 0, 0, 0,
-		1, 0, 1, 1, 0, 1, 0, 0,
-		1, 1, 0, 1, 1, 0, 1, 0,
-		1, 1, 1, 0, 1, 1, 0, 1,
-		1, 0, 1, 1, 1, 0, 0, 1,
-		0, 0, 0, 1, 0, 0, 1, 1,
-		1, 1, 0, 0, 0, 1, 1, 0,
-		1, 1, 1, 0, 0, 0, 1, 1,
-		0, 0, 1, 1, 1, 1, 1, 0,
-		1, 0, 0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 0, 1, 0, 1
-	};
-	uint8_t row;
+static void golay_20_8_check_and_repair_parity(flag_t bits[20]) {
+	uint16_t row;
 	uint8_t col;
 	uint8_t weight = 0;
-	flag_t syndrome[20] = {0,};
-	flag_t syndrome2[20] = {0,};
+	uint8_t minweight = 0xff;
+	uint16_t minweightrow = 0;
+	golay_20_8_parity_bits_t syndrome;
+	golay_20_8_parity_bits_t error_vector;
 	golay_20_8_parity_bits_t *parity_bits;
 
 	// Calculating the syndrome
 	parity_bits = golay_20_8_get_parity_bits(bits);
-	for (col = 0; col < 20; col++) {
-		syndrome[col] = (parity_bits->bits[col] + bits[col]) % 2;
-		if (syndrome[col])
+	for (col = 0; col < 12; col++) {
+		syndrome.bits[col] = (parity_bits->bits[col] + bits[col+8]) % 2;
+		if (syndrome.bits[col])
 			weight++;
 	}
 
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "golay: trying to repair parity bits\n");
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                 syndrome: ");
-	golay_20_8_print_bits(syndrome, 20, 1);
+	golay_20_8_print_bits(syndrome.bits, 12, 0);
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                   weight: %u\n", weight);
 
 	if (weight == 0) {
 		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  no errors found\n");
 		return 1;
-	} else {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           searching for minimum weight\n");
-		for (row = 0; row < 20; row++) {
-			weight = 0;
-			for (col = 0; col < 8; col++) {
-				syndrome2[col] = (golay_20_8_parity_check_matrix[row*8+col] + syndrome[col+8]) % 2;
-				if (syndrome2[col])
-					weight++;
-			}
-
-			if (weight <= 2) {
-				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           minimum weight %u found in row %u\n", weight, row);
-				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  minimum weight syndrome: ");
-				golay_20_8_print_bits(syndrome2, 20, 1);
-
-//				for (col = 0; col < 8; col++)
-//					bits[col] = (syndrome2[col] + bits[col]) % 2;
-				if (row >= 8)
-					bits[row] = !bits[row];
-
-				console_log(LOGLEVEL_COMM_DMR "golay: parity errors found and repaired\n");
-				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                    final: ");
-				golay_20_8_print_bits(bits, 20, 1);
-				break;
-			}
-		}
-		if (row == 20) {
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           minimum weight not found, can't correct the errors\n");
-			console_log(LOGLEVEL_COMM_DMR "golay: parity errors found, but couldn't repair\n");
-			return 0;
-		} else
-			return 1;
 	}
+
+	for (col = 0; col < 12; col++)
+		error_vector.bits[col] = (bits[col+8] + syndrome.bits[col]) % 2;
+
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "             error vector: ");
+	golay_20_8_print_bits(error_vector.bits, 12, 0);
+
+	// Searching for the minimum weight data parity syndrome in the precalculated data parity syndrome list.
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           searching for minimum weight\n");
+	for (row = 0; row < 256; row++) {
+		weight = 0;
+		for (col = 0; col < 12; col++) {
+			if (golay_20_8_data_parity_syndromes[row].bits[col] != error_vector.bits[col])
+				weight++;
+		}
+
+		if (weight < minweight) {
+			minweight = weight;
+			minweightrow = row;
+		}
+	}
+
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                           minimum weight %u found in row %u\n", minweight, minweightrow);
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    minimum weight parity: ");
+	golay_20_8_print_bits(error_vector.bits, 12, 0);
+
+	memcpy(&bits[8], golay_20_8_data_parity_syndromes[minweightrow].bits, 12);
+
+	console_log(LOGLEVEL_COMM_DMR "golay: parity errors found and repaired\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                    final: ");
+	golay_20_8_print_bits(bits, 20, 1);
 }
 
 flag_t golay_20_8_check_and_repair(flag_t bits[20]) {
-	uint8_t retries = 0;
-
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "golay:         input bits: ");
 	golay_20_8_print_bits(bits, 20, 1);
 
 	if (!golay_20_8_check_and_repair_data(bits)) {
-		while (retries++ < 3) {
-			golay_20_8_check_and_repair_parity(bits);
-			if (golay_20_8_check_and_repair_data(bits))
-				return 1;
-		}
+		golay_20_8_check_and_repair_parity(bits);
+		if (golay_20_8_check_and_repair_data(bits))
+			return 1;
 	} else
 		return 1;
 	return 0;
