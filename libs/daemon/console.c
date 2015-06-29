@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #define CONSOLELOGBUFFERSIZE	CONSOLE_INPUTBUFFERSIZE
 #define CONSOLE_NEWLINECHAR		'\n'
@@ -44,6 +45,7 @@ static char console_buffer[CONSOLE_INPUTBUFFERSIZE] = {0,};
 static uint16_t console_buffer_pos = 0;
 static struct termios console_termios_save = {0,};
 static flag_t console_termios_saved = 0;
+static pthread_mutex_t console_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 loglevel_t console_get_loglevel(void) {
 	return loglevel;
@@ -212,6 +214,7 @@ static void console_log_display(char *text, va_list *argptr) {
 	char buffer[CONSOLELOGBUFFERSIZE];
 	size_t buffer_length = 0;
 
+	pthread_mutex_lock(&console_mutex);
 	vsnprintf(buffer, sizeof(buffer), text, *argptr);
 	buffer_length = strlen(buffer);
 
@@ -220,15 +223,17 @@ static void console_log_display(char *text, va_list *argptr) {
 		daemon_consoleserver_sendbroadcast(buffer, buffer_length);
 		ttyconsole_send(buffer, buffer_length);
 	}
+	pthread_mutex_unlock(&console_mutex);
 }
 
 void console_log(char *format, ...) {
-    va_list argptr;
-    uint8_t first_non_format_char_pos = 0;
+	va_list argptr;
+    uint8_t first_non_format_char_pos;
     uint8_t i;
 
     va_start(argptr, format);
 
+	first_non_format_char_pos = 0;
 	while (console_isloglevelchar(format[first_non_format_char_pos]))
 		first_non_format_char_pos++;
 
@@ -288,4 +293,5 @@ void console_deinit(void) {
 		if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &console_termios_save) < 0)
 			console_log("console error: can't restore console settings\n");
 	}
+	pthread_mutex_destroy(&console_mutex);
 }

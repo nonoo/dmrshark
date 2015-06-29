@@ -27,7 +27,7 @@
 #include <string.h>
 #include <pthread.h>
 
-static pthread_mutex_t config_mutex;
+static pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
 static GKeyFile *keyfile = NULL;
 static GKeyFileFlags flags;
 static char *config_configfilename = NULL;
@@ -475,8 +475,6 @@ void config_init(char *configfilename) {
 	GError *error = NULL;
 
 	console_log("config: init\n");
-
-	pthread_mutex_init(&config_mutex, NULL);
 
 	if (configfilename != NULL)
 		config_configfilename = configfilename;

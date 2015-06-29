@@ -39,13 +39,13 @@ typedef struct {
 static MYSQL *remotedb_conn = NULL;
 static pthread_t remotedb_thread;
 
-static pthread_mutex_t remotedb_mutex_thread_should_stop;
+static pthread_mutex_t remotedb_mutex_thread_should_stop = PTHREAD_MUTEX_INITIALIZER;
 static flag_t remotedb_thread_should_stop = 0;
 
-static pthread_mutex_t remotedb_mutex_querybuf;
+static pthread_mutex_t remotedb_mutex_querybuf = PTHREAD_MUTEX_INITIALIZER;
 static remotedb_query_t remotedb_querybuf[REMOTEDB_QUERYBUFSIZE];
 
-static pthread_mutex_t remotedb_mutex_wakeup;
+static pthread_mutex_t remotedb_mutex_wakeup = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t remotedb_cond_wakeup;
 
 static void remotedb_addquery(char *query) {
@@ -248,14 +248,11 @@ static void *remotedb_thread_init(void *arg) {
 	unsigned int opt;
 	struct timespec ts;
 
-	pthread_mutex_init(&remotedb_mutex_thread_should_stop, NULL);
 	remotedb_thread_should_stop = 0;
 
-	pthread_mutex_init(&remotedb_mutex_querybuf, NULL);
 	for (i = 0; i < REMOTEDB_QUERYBUFSIZE; i++)
 		memset(remotedb_querybuf[i].query, 0, REMOTEDB_MAXQUERYSIZE);
 
-	pthread_mutex_init(&remotedb_mutex_wakeup, NULL);
 	pthread_cond_init(&remotedb_cond_wakeup, NULL);
 
 	remotedb_conn = mysql_init(NULL);
