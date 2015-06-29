@@ -56,7 +56,8 @@ The file has the following configuration variables:
 - **repeaterinfoupdateinsec**: Interval in seconds to update repeater info (ul/dl freqs, type, fw version etc.) using SNMP. Enter 0 here to disable this feature.
 - **repeaterinactivetimeoutinsec**: If no heartbeat is received within this period, the repeater will be considered offline.
 - **rssiupdateduringcallinmsec**: Period in msec to update repeater timeslot RSSI info using SNMP. Enter 0 here to disable this feature.
-- **calltimeoutinsec**: 
+- **calltimeoutinsec**: If the voice call terminating packet is missing, dmrshark will time out the call after the last voice packet received plus this many seconds.
+- **datatimeoutinsec**: Max. time of a data transmission. Timeout counting starts when the first packet (header) is received.
 - **ignoredsnmprepeaterhosts**: You can enter the host names or IP addresses of repeaters which should not be queried using SNMP.
   If dmrshark is not running on the server where the master software is running, the master software will show up as a repeater in
   the repeater list. To avoid starting SNMP queries to the master software's machine, add it's host/IP here. Separate each entry
@@ -69,6 +70,8 @@ The file has the following configuration variables:
 - **remotedbreconnecttrytimeoutinsec**: If the remote database connection gets lost, dmrshark will try to reconnect in this interval.
 - **remotedbdeleteolderthansec**: Clear remote database log entries older than this many seconds.
 - **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
+- **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
+- **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 
