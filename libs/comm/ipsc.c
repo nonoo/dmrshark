@@ -42,7 +42,7 @@ static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repea
 	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = time(NULL);
 
 	remotedb_update(repeater);
-	remotedb_update_stats_callend(repeater, ipsc_packet->timeslot-1);
+	remotedb_update_stats_callend(repeater, ipsc_packet->timeslot);
 }
 
 static void ipsc_call_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {

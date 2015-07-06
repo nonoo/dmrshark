@@ -26,7 +26,7 @@ void remotedb_update_repeater(repeater_t *repeater);
 void remotedb_update_repeater_lastactive(repeater_t *repeater);
 
 void remotedb_update(repeater_t *repeater);
-void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts);
+void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot);
 void remotedb_maintain(void);
 void remotedb_maintain_repeaterlist(void);
 

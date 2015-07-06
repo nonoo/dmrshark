@@ -167,7 +167,7 @@ void repeaters_process(void) {
 			repeaters_state_change(&repeaters[i], 0, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[0].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
-			remotedb_update_stats_callend(&repeaters[i], 0);
+			remotedb_update_stats_callend(&repeaters[i], 1);
 		}
 
 		if (repeaters[i].slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeaters[i].slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
@@ -175,7 +175,7 @@ void repeaters_process(void) {
 			repeaters_state_change(&repeaters[i], 1, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[1].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
-			remotedb_update_stats_callend(&repeaters[i], 1);
+			remotedb_update_stats_callend(&repeaters[i], 2);
 		}
 
 		if (repeaters[i].auto_rssi_update_enabled_at > 0 && repeaters[i].auto_rssi_update_enabled_at <= time(NULL)) {

@@ -60,11 +60,13 @@ static void remotedb_addquery(char *query) {
 			strncpy(remotedb_querybuf[i].query, query, REMOTEDB_MAXQUERYSIZE);
 			//console_log(LOGLEVEL_REMOTEDB "remotedb: added query to buf entry #%u: %s\n", i, query);
 
+			pthread_mutex_unlock(&remotedb_mutex_querybuf);
+
 			// Waking up the thread if it's sleeping.
 			pthread_mutex_lock(&remotedb_mutex_wakeup);
 			pthread_cond_signal(&remotedb_cond_wakeup);
 			pthread_mutex_unlock(&remotedb_mutex_wakeup);
-			break;
+			return;
 		}
 	}
 	pthread_mutex_unlock(&remotedb_mutex_querybuf);
@@ -74,7 +76,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 	char *tableprefix = NULL;
 	char query[512] = {0,};
 
-	if (repeater == NULL || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
+	if (repeater == NULL || timeslot > 2 || timeslot < 1 || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
 		return;
 
 	if (remotedb_conn == NULL)
@@ -130,15 +132,15 @@ void remotedb_update(repeater_t *repeater) {
 }
 
 // Updates the stats table with the duration of the call.
-void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
+void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tableprefix = NULL;
 	char query[512] = {0,};
 	int talktime;
 
-	if (repeater == NULL || !config_get_updatestatstableenabled() || ts >= 2)
+	if (repeater == NULL || !config_get_updatestatstableenabled() || timeslot > 2 || timeslot < 1)
 		return;
 
-	talktime = repeater->slot[ts].call_ended_at-repeater->slot[ts].call_started_at;
+	talktime = repeater->slot[timeslot-1].call_ended_at-repeater->slot[timeslot-1].call_started_at;
 
 	if (talktime <= 0)
 		return;
@@ -146,7 +148,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%sstats` (`id`, `date`, `talktime`) "
 		"values (%u, now(), %u) on duplicate key update `talktime`=`talktime`+%u",
-		tableprefix, repeater->slot[ts].src_id, talktime, talktime);
+		tableprefix, repeater->slot[timeslot-1].src_id, talktime, talktime);
 	free(tableprefix);
 
 	remotedb_addquery(query);
@@ -237,6 +239,7 @@ static flag_t remotedb_thread_process(void) {
 		// Shifting the query buffer.
 		for (i = 1; i < REMOTEDB_QUERYBUFSIZE-1; i++)
 			strncpy(remotedb_querybuf[i-1].query, remotedb_querybuf[i].query, REMOTEDB_MAXQUERYSIZE);
+		remotedb_querybuf[REMOTEDB_QUERYBUFSIZE-1].query[0] = 0;
 	}
 	pthread_mutex_unlock(&remotedb_mutex_querybuf);
 
