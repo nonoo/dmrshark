@@ -109,10 +109,10 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 
 	loglevel = console_get_loglevel();
 	if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-		console_log(LOGLEVEL_DEBUG "ipscpacket: decoding: ");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "ipscpacket: decoding: ");
 		for (i = 0; i < ipscpacket_raw_length; i++)
-			console_log(LOGLEVEL_DEBUG "%.2x ", *((uint8_t *)ipscpacket_raw+i));
-		console_log(LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%.2x ", *((uint8_t *)ipscpacket_raw+i));
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
 	}
 
 	/*if (ipscpacket_raw->delimiter != 0x1111) {

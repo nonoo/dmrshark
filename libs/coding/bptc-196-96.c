@@ -92,21 +92,21 @@ static void bptc_196_96_display_data_matrix(flag_t deinterleaved_bits[196]) {
 	if (!loglevel.flags.debug && !loglevel.flags.comm_dmr)
 		return;
 
-	console_log(LOGLEVEL_DEBUG "bptc (196,96) matrix:\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "bptc (196,96) matrix:\n");
 	for (row = 0; row < 13; row++) {
-		console_log(LOGLEVEL_DEBUG "  #%.2u ", row);
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "  #%.2u ", row);
 		for (col = 0; col < 11; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", deinterleaved_bits[col+row*15+1]);
 		}
-		console_log(LOGLEVEL_DEBUG " ");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR " ");
 		for (; col < 15; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG "%u", deinterleaved_bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", deinterleaved_bits[col+row*15+1]);
 		}
-		console_log(LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
 		if (row == 8)
-			console_log(LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
 	}
 }
 

@@ -245,10 +245,10 @@ static void comm_log_packet(uint8_t *packet, uint16_t length) {
 	loglevel_t loglevel = console_get_loglevel();
 
 	if (loglevel.flags.debug && loglevel.flags.comm_ip) {
-		console_log(LOGLEVEL_DEBUG "comm ip packet: ");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_IP "comm ip packet: ");
 		for (i = 0; i < length; i++)
-			console_log(LOGLEVEL_DEBUG "%.2x ", packet[i]);
-		console_log(LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_IP "%.2x ", packet[i]);
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_IP "\n");
 	}
 }
 
