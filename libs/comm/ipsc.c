@@ -36,15 +36,10 @@ static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repea
 
 	console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_IPSC "->%s]: %s call end on ts %u src id %u dst id %u\n",
-	comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(ipsc_packet->call_type), ipsc_packet->timeslot, ipsc_packet->src_id, ipsc_packet->dst_id);
+	comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(repeater->slot[ipsc_packet->timeslot-1].call_type),
+		ipsc_packet->timeslot, repeater->slot[ipsc_packet->timeslot-1].src_id, repeater->slot[ipsc_packet->timeslot-1].dst_id);
 	repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_IDLE);
 	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = time(NULL);
-
-	if (repeater->auto_rssi_update_enabled_at != 0) {
-		console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: stopping auto rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-		repeater->auto_rssi_update_enabled_at = 0;
-	}
 
 	remotedb_update(repeater);
 	remotedb_update_stats_callend(repeater, ipsc_packet->timeslot-1);

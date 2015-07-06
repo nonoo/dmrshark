@@ -135,7 +135,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
 	char query[512] = {0,};
 	int talktime;
 
-	if (repeater == NULL || !config_get_updatestatstableenabled())
+	if (repeater == NULL || !config_get_updatestatstableenabled() || ts >= 2)
 		return;
 
 	talktime = repeater->slot[ts].call_ended_at-repeater->slot[ts].call_started_at;
