@@ -51,7 +51,8 @@ typedef struct __attribute__((packed)) {
 	uint8_t src_id_raw3;
 } ipscpacket_raw_t;
 
-#define IPSC_PACKET_SIZE 72
+#define IPSC_PACKET_SIZE1 72
+#define IPSC_PACKET_SIZE2 103
 
 char *ipscpacket_get_readable_packet_type(ipscpacket_type_t packet_type) {
 	switch (packet_type) {
@@ -102,8 +103,9 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
 	ipscpacket_raw_length = ntohs(udppacket->len)-sizeof(struct udphdr);
-	if (ipscpacket_raw_length != IPSC_PACKET_SIZE) {
-		//console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, packet size not %u bytes.\n", DMR_PACKET_SIZE);
+	if (ipscpacket_raw_length != IPSC_PACKET_SIZE1 && ipscpacket_raw_length != IPSC_PACKET_SIZE2) {
+		//console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, packet size is %u not %u or %u bytes.\n",
+		//	ipscpacket_raw_length, IPSC_PACKET_SIZE1, IPSC_PACKET_SIZE2);
 		return 0;
 	}
 
