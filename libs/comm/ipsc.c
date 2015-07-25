@@ -24,11 +24,36 @@
 #include <libs/remotedb/remotedb.h>
 #include <libs/dmrpacket/dmrpacket.h>
 #include <libs/coding/bptc-196-96.h>
+#include <libs/config/config.h>
 
 #include <netinet/udp.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define HEARTBEAT_PERIOD_IN_SEC 6
+
+static flag_t ipsc_isignoredip(struct in_addr *ipaddr) {
+	char *ignoredhosts = config_get_ignoredhosts();
+	char *tok = NULL;
+	struct in_addr ignoredaddr;
+
+	tok = strtok(ignoredhosts, ",");
+	if (tok) {
+		do {
+			if (comm_hostname_to_ip(tok, &ignoredaddr)) {
+				if (memcmp(&ignoredaddr, ipaddr, sizeof(struct in_addr)) == 0) {
+					free(ignoredhosts);
+					return 1;
+				}
+			} else
+				console_log(LOGLEVEL_DEBUG "repeaters: can't resolve hostname %s\n", tok);
+
+			tok = strtok(NULL, ",");
+		} while (tok != NULL);
+	}
+	free(ignoredhosts);
+	return 0;
+}
 
 static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	if (repeater->slot[ipsc_packet->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
@@ -240,6 +265,10 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
+	if (ipsc_isignoredip(&ip_packet->ip_src)) {
+		console_log(LOGLEVEL_COMM_IP "  src ip ignored, dropping\n");
+		return;
+	}
 	ip_header_length = ip_packet->ip_hl*4; // http://www.governmentsecurity.org/forum/topic/16447-calculate-ip-size/
 	console_log(LOGLEVEL_COMM_IP "  ip header length: %u\n", ip_header_length);
 	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet, ip_header_length)) {

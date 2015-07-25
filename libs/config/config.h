@@ -39,6 +39,7 @@ int config_get_rssiupdateduringcallinmsec(void);
 int config_get_calltimeoutinsec(void);
 int config_get_datatimeoutinsec(void);
 char *config_get_ignoredsnmprepeaterhosts(void);
+char *config_get_ignoredhosts(void);
 char *config_get_remotedbhost(void);
 char *config_get_remotedbuser(void);
 char *config_get_remotedbpass(void);

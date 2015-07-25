@@ -311,6 +311,25 @@ char *config_get_ignoredsnmprepeaterhosts(void) {
 	return value;
 }
 
+char *config_get_ignoredhosts(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, "main", "ignoredhosts", &error);
+	if (error || value == NULL) {
+		value = (char *)malloc(strlen(defaultvalue)+1);
+		if (value) {
+			strcpy(value, defaultvalue);
+			g_key_file_set_string(keyfile, "main", "ignoredhosts", value);
+		}
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 char *config_get_remotedbhost(void) {
 	GError *error = NULL;
 	char *defaultvalue = NULL;
@@ -525,6 +544,8 @@ void config_init(char *configfilename) {
 	config_get_calltimeoutinsec();
 	config_get_datatimeoutinsec();
 	temp = config_get_ignoredsnmprepeaterhosts();
+	free(temp);
+	temp = config_get_ignoredhosts();
 	free(temp);
 	temp = config_get_remotedbhost();
 	free(temp);

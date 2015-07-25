@@ -34,6 +34,8 @@
 // Cut the leftmost bit and convert it to a 16 bit hex number: 0x1021
 // Algorithm source: http://srecord.sourceforge.net/crc16-ccitt.html
 // *crc initial value should be 0xffff.
+//
+// For other polynomials see: http://reveng.sourceforge.net/crc-catalogue/all.htm
 void crc_calc_crc16_ccitt(uint16_t *crc, uint8_t in) {
 	uint8_t v;
 	flag_t xor_flag;
