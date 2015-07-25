@@ -129,7 +129,7 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 	else if (ipscpacket_raw->timeslot_raw == 0x2222)
 		ipscpacket->timeslot = 2;
 	else {
-		console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid timeslot (%.4x)\n", ipscpacket_raw->timeslot_raw);
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "ipscpacket: decode failed, invalid timeslot (%.4x)\n", ipscpacket_raw->timeslot_raw);
 		return 0;
 	}
 

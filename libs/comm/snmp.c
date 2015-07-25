@@ -82,7 +82,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
+						console_log(LOGLEVEL_DEBUG LOGLEVEL_SNMP "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
 					else {
 						if (value_num > -200) {
 							if (repeater != NULL) {
@@ -93,7 +93,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 									repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+value_num)/2.0;
 								dodbupdate = 1;
 							}
-							console_log("snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
+							console_log(LOGLEVEL_SNMP "snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
 						}
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
@@ -101,7 +101,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
+						console_log(LOGLEVEL_DEBUG LOGLEVEL_SNMP "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
 						if (value_num > -200) {
 							if (repeater != NULL) {
@@ -112,7 +112,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 									repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+value_num)/2.0;
 								dodbupdate = 1;
 							}
-							console_log("snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
+							console_log(LOGLEVEL_SNMP "snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
 						}
 					}
 				}
