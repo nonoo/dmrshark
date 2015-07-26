@@ -58,7 +58,7 @@ static void golay_20_8_calculate_data_parity_syndromes(void) {
 	golay_20_8_parity_bits_t *parity_bits = NULL;
 	flag_t bits[8];
 
-	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    golay: calculating data parity syndromes\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "golay: calculating data parity syndromes\n");
 
 	for (i = 0; i < 256; i++) {
 		base_bytetobits(i, bits);

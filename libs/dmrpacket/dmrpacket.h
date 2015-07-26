@@ -56,6 +56,7 @@ typedef uint8_t dmrpacket_sync_type_t;
 #include "dmrpacket-data-header.h"
 #include "dmrpacket-data-34rate.h"
 #include "dmrpacket-control.h"
+#include "dmrpacket-emb.h"
 
 typedef struct {
 	dmr_color_code_t cc;

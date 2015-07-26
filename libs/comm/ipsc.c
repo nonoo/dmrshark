@@ -267,6 +267,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_payload_sync_bits_t *payload_sync_bits = NULL;
 	dmrpacket_sync_type_t payload_sync_type;
+	dmrpacket_emb_t *emb = NULL;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -352,6 +353,12 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 			if (payload_sync_type != DMRPACKET_SYNC_TYPE_UNKNOWN) {
 				console_log(LOGLEVEL_COMM_DMR "  packet has sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
 				ipscpacket_handle_control_packet(payload_sync_type, packet_payload_bits);
+			} else {
+				// Trying to search for an EMB field.
+				emb = dmrpacket_emb_decode_emb(dmrpacket_emb_extract_from_sync(payload_sync_bits));
+				if (emb != NULL) { // Found an EMB field.
+					// TODO
+				}
 			}
 
 			switch (ipsc_packet.slot_type) {

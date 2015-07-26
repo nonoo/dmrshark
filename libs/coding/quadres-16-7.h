@@ -15,16 +15,18 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include <config/defaults.h>
+#ifndef QUADRES_16_7_H_
+#define QUADRES_16_7_H_
 
-#include "golay-20-8.h"
-#include "quadres-16-7.h"
+#include <libs/base/types.h>
 
-#include <libs/daemon/console.h>
+typedef struct {
+	flag_t data[7];
+	flag_t parity[9];
+} quadres_16_7_codeword_t;
 
-void coding_init(void) {
-	console_log("coding: init\n");
+flag_t quadres_16_7_check(quadres_16_7_codeword_t *codeword);
 
-	golay_20_8_init();
-	quadres_16_7_init();
-}
+void quadres_16_7_init(void);
+
+#endif
