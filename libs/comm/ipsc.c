@@ -299,23 +299,23 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	}
 
 	if (ipscpacket_decode(udp_packet, &ipsc_packet)) {
-		console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
-			comm_get_ip_str(&ip_packet->ip_dst),
-			ipscpacket_get_readable_packet_type(ipsc_packet.packet_type), ipsc_packet.packet_type,
-			ipsc_packet.timeslot,
-			ipscpacket_get_readable_slot_type(ipsc_packet.slot_type), ipsc_packet.slot_type,
-			ipscpacket_get_readable_frame_type(ipsc_packet.frame_type), ipsc_packet.frame_type,
-			dmr_get_readable_call_type(ipsc_packet.call_type), ipsc_packet.call_type,
-			ipsc_packet.dst_id,
-			ipsc_packet.src_id);
-
 		// The packet is for us?
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst))
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 		// The packet is for us, or from a listed repeater?
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
+			console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_IPSC "->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
+				comm_get_ip_str(&ip_packet->ip_dst),
+				ipscpacket_get_readable_packet_type(ipsc_packet.packet_type), ipsc_packet.packet_type,
+				ipsc_packet.timeslot,
+				ipscpacket_get_readable_slot_type(ipsc_packet.slot_type), ipsc_packet.slot_type,
+				ipscpacket_get_readable_frame_type(ipsc_packet.frame_type), ipsc_packet.frame_type,
+				dmr_get_readable_call_type(ipsc_packet.call_type), ipsc_packet.call_type,
+				ipsc_packet.dst_id,
+				ipsc_packet.src_id);
+
 			if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_A ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_B ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_C ||
