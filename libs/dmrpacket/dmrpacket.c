@@ -121,8 +121,8 @@ dmrpacket_payload_slot_type_t *dmrpacket_decode_slot_type(dmrpacket_payload_slot
 	if (!golay_20_8_check_and_repair(slot_type_bits->bits))
 		return NULL;
 
-	slot_type.cc = slot_type_bits->bits[0] | slot_type_bits->bits[1] | slot_type_bits->bits[2] | slot_type_bits->bits[3];
-	slot_type.data_type = slot_type_bits->bits[4] | slot_type_bits->bits[5] | slot_type_bits->bits[6] | slot_type_bits->bits[7];
+	slot_type.cc = slot_type_bits->bits[0] << 3 | slot_type_bits->bits[1] << 2 | slot_type_bits->bits[2] << 1 | slot_type_bits->bits[3];
+	slot_type.data_type = slot_type_bits->bits[4] << 3 | slot_type_bits->bits[5] << 2 | slot_type_bits->bits[6] << 1 | slot_type_bits->bits[7];
 
 	return &slot_type;
 }
