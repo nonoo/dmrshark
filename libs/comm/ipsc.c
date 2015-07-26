@@ -315,16 +315,25 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_C ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_D ||
 				ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_VOICE_DATA_E) {
-					if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
+					if (repeater->slot[ipsc_packet.timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
+						// Checking if this call is already running on another repeater. This can happen if dmrshark is running
+						// on a server which has multiple repeaters' traffic running through it.
+						if (repeaters_get_active(ipsc_packet.src_id, ipsc_packet.dst_id, ipsc_packet.call_type) != NULL)
+							return;
 						ipsc_call_start(ip_packet, &ipsc_packet, repeater);
-					else { // Call running?
+					} else { // Call running?
 						if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
 							ipsc_call_end(ip_packet, &ipsc_packet, repeater);
 						else { // Another call started suddenly?
 							if (ipsc_packet.src_id != repeater->slot[ipsc_packet.timeslot-1].src_id ||
 								ipsc_packet.dst_id != repeater->slot[ipsc_packet.timeslot-1].dst_id ||
-								ipsc_packet.call_type != repeater->slot[ipsc_packet.timeslot-1].call_type)
+								ipsc_packet.call_type != repeater->slot[ipsc_packet.timeslot-1].call_type) {
+									// Checking if this call is already running on another repeater. This can happen if dmrshark is running
+									// on a server which has multiple repeaters' traffic running through it.
+									if (repeaters_get_active(ipsc_packet.src_id, ipsc_packet.dst_id, ipsc_packet.call_type) != NULL)
+										return;
 									ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+								}
 						}
 					}
 

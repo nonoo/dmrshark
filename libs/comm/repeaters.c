@@ -51,6 +51,17 @@ repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {
 	return NULL;
 }
 
+repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type) {
+	int i;
+
+	for (i = 0; i < MAX_REPEATER_COUNT; i++) {
+		if ((repeaters[i].slot[0].state != REPEATER_SLOT_STATE_IDLE && repeaters[i].slot[0].src_id == src_id && repeaters[i].slot[0].dst_id == dst_id && repeaters[i].slot[0].call_type == call_type) ||
+			(repeaters[i].slot[1].state != REPEATER_SLOT_STATE_IDLE && repeaters[i].slot[1].src_id == src_id && repeaters[i].slot[1].dst_id == dst_id && repeaters[i].slot[1].call_type == call_type))
+				return &repeaters[i];
+	}
+	return NULL;
+}
+
 static repeater_t *repeaters_findfirstemptyslot(void) {
 	int i;
 
