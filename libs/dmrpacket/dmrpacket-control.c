@@ -25,31 +25,21 @@
 
 #include <stdlib.h>
 
-dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_bits_t *data_bits) {
+static dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(uint8_t bytes[12]) {
 	static dmrpacket_control_full_lc_t full_lc;
-	uint8_t bytes[12];
 	rs_12_9_poly_t syndrome;
 	uint8_t errors_found;
 	rs_12_9_correct_errors_result_t result = RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND;
 
-	if (data_bits == NULL)
+	if (bytes == NULL)
 		return NULL;
-
-	console_log(LOGLEVEL_COMM_DMR "dmrpacket control: decoding full lc header\n");
-
-	base_bitstobytes(data_bits->bits, 96, bytes, 12);
-
-	// Applying CRC mask to the checksum. See DMR AI. spec. page 143.
-	bytes[9] ^= 0x96;
-	bytes[10] ^= 0x96;
-	bytes[11] ^= 0x96;
 
 	rs_12_9_calc_syndrome((rs_12_9_codeword_t *)bytes, &syndrome);
 
 	if (rs_12_9_check_syndrome(&syndrome) != 0)
 		result = rs_12_9_correct_errors((rs_12_9_codeword_t *)bytes, &syndrome, &errors_found);
 
-	if (data_bits->bits[6] == 1 && data_bits->bits[7] == 1)
+	if (bytes[0] & 0b1100000)
 		full_lc.call_type = DMR_CALL_TYPE_PRIVATE;
 	else
 		full_lc.call_type = DMR_CALL_TYPE_GROUP;
@@ -66,7 +56,7 @@ dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_b
 	switch (result) {
 		default:
 		case RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND:
-			console_log(LOGLEVEL_COMM_DMR "ok)");
+			console_log(LOGLEVEL_COMM_DMR "ok)\n");
 			break;
 		case RS_12_9_CORRECT_ERRORS_RESULT_ERRORS_CORRECTED:
 			console_log(LOGLEVEL_COMM_DMR "%u byte errors found and corrected)\n", errors_found);
@@ -77,4 +67,34 @@ dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_b
 	}
 
 	return &full_lc;
+}
+
+dmrpacket_control_full_lc_t *dmrpacket_control_decode_voice_lc_header(bptc_196_96_data_bits_t *data_bits) {
+	uint8_t bytes[12];
+
+	console_log(LOGLEVEL_COMM_DMR "dmrpacket control: decoding voice lc header\n");
+
+	base_bitstobytes(data_bits->bits, 96, bytes, 12);
+
+	// Applying CRC mask to the checksum. See DMR AI. spec. page 143.
+	bytes[9] ^= 0x96;
+	bytes[10] ^= 0x96;
+	bytes[11] ^= 0x96;
+
+	return dmrpacket_control_decode_full_lc(bytes);
+}
+
+dmrpacket_control_full_lc_t *dmrpacket_control_decode_terminator_with_lc(bptc_196_96_data_bits_t *data_bits) {
+	uint8_t bytes[12];
+
+	console_log(LOGLEVEL_COMM_DMR "dmrpacket control: decoding terminator with lc\n");
+
+	base_bitstobytes(data_bits->bits, 96, bytes, 12);
+
+	// Applying CRC mask to the checksum. See DMR AI. spec. page 143.
+	bytes[9] ^= 0x99;
+	bytes[10] ^= 0x99;
+	bytes[11] ^= 0x99;
+
+	return dmrpacket_control_decode_full_lc(bytes);
 }

@@ -214,7 +214,8 @@ static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_
 	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
 	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
 	union {
-		dmrpacket_control_full_lc_t *full_lc;
+		dmrpacket_control_full_lc_t *voice_lc_header;
+		dmrpacket_control_full_lc_t *terminator_with_lc;
 	} control_packet;
 
 	switch (payload_sync_type) {
@@ -229,14 +230,18 @@ static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_
 			payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
 			payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
 			if (payload_slot_type != NULL) {
-				console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %s\n", payload_slot_type->cc, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+				console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %.2x (%s)\n", payload_slot_type->cc, payload_slot_type->data_type, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
 
 				switch (payload_slot_type->data_type) {
 					case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER:
-						control_packet.full_lc = dmrpacket_control_decode_full_lc(ipscpacket_get_bptc_data(packet_payload_bits));
+						control_packet.voice_lc_header = dmrpacket_control_decode_voice_lc_header(ipscpacket_get_bptc_data(packet_payload_bits));
 						break;
 					case DMRPACKET_DATA_TYPE_PI_HEADER:
+						console_log(LOGLEVEL_COMM_DMR "  ignoring PI header\n");
+						break;
 					case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC:
+						control_packet.terminator_with_lc = dmrpacket_control_decode_terminator_with_lc(ipscpacket_get_bptc_data(packet_payload_bits));
+						break;
 					case DMRPACKET_DATA_TYPE_CSBK:
 					case DMRPACKET_DATA_TYPE_MBC_HEADER:
 					case DMRPACKET_DATA_TYPE_MBC_CONTINUATION:
