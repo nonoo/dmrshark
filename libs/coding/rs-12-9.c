@@ -223,7 +223,7 @@ static rs_12_9_roots_t *rs_12_9_find_roots(rs_12_9_poly_t *error_locator_poly) {
 void rs_12_9_calc_syndrome(rs_12_9_codeword_t *codeword, rs_12_9_poly_t *syndrome) {
 	uint8_t i, j;
 
-	syndrome->data[0] = syndrome->data[1] = syndrome->data[2];
+	syndrome->data[0] = syndrome->data[1] = syndrome->data[2] = 0;
 
 	for (j = 0; j < 3;  j++) {
 		for (i = 0; i < sizeof(rs_12_9_codeword_t); i++)
