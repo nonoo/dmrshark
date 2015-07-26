@@ -20,7 +20,7 @@
 #include "dmrpacket-control.h"
 
 #include <libs/base/base.h>
-#include <libs/coding/crc.h>
+#include <libs/coding/rs-12-9.h>
 #include <libs/daemon/console.h>
 
 #include <stdlib.h>
@@ -28,11 +28,26 @@
 dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_bits_t *data_bits) {
 	static dmrpacket_control_full_lc_t full_lc;
 	uint8_t bytes[12];
+	rs_12_9_poly_t syndrome;
+	uint8_t errors_found;
+	rs_12_9_correct_errors_result_t result = RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND;
 
 	if (data_bits == NULL)
 		return NULL;
 
 	console_log(LOGLEVEL_COMM_DMR "dmrpacket control: decoding full lc header\n");
+
+	base_bitstobytes(data_bits->bits, 96, bytes, 12);
+
+	// Applying CRC mask to the checksum. See DMR AI. spec. page 143.
+	bytes[9] ^= 0x96;
+	bytes[10] ^= 0x96;
+	bytes[11] ^= 0x96;
+
+	rs_12_9_calc_syndrome((rs_12_9_codeword_t *)bytes, &syndrome);
+
+	if (rs_12_9_check_syndrome(&syndrome) != 0)
+		result = rs_12_9_correct_errors((rs_12_9_codeword_t *)bytes, &syndrome, &errors_found);
 
 	if (data_bits->bits[6] == 1 && data_bits->bits[7] == 1)
 		full_lc.call_type = DMR_CALL_TYPE_PRIVATE;
@@ -41,13 +56,25 @@ dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(bptc_196_96_data_b
 
 	console_log(LOGLEVEL_COMM_DMR "  call type: %s\n", dmr_get_readable_call_type(full_lc.call_type));
 
-	base_bitstobytes(data_bits->bits, 96, bytes, 12);
 	full_lc.dst_id = bytes[3] << 16 | bytes[4] << 8 | bytes[5];
 	console_log(LOGLEVEL_COMM_DMR "  dst id: %u\n", full_lc.dst_id);
 	full_lc.src_id = bytes[6] << 16 | bytes[7] << 8 | bytes[8];
 	console_log(LOGLEVEL_COMM_DMR "  src id: %u\n", full_lc.src_id);
 	full_lc.checksum = bytes[9] << 16 | bytes[10] << 8 | bytes[11];
-	console_log(LOGLEVEL_COMM_DMR "  checksum: %.6x\n", full_lc.checksum);
-	// TODO: reed solomon error checking
+	console_log(LOGLEVEL_COMM_DMR "  reed-solomon checksum: %.6x (", full_lc.checksum);
+
+	switch (result) {
+		default:
+		case RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND:
+			console_log(LOGLEVEL_COMM_DMR "ok)");
+			break;
+		case RS_12_9_CORRECT_ERRORS_RESULT_ERRORS_CORRECTED:
+			console_log(LOGLEVEL_COMM_DMR "%u byte errors found and corrected)\n", errors_found);
+			break;
+		case RS_12_9_CORRECT_ERRORS_RESULT_ERRORS_CANT_BE_CORRECTED:
+			console_log(LOGLEVEL_COMM_DMR "%u byte errors found - can't correct)\n", errors_found);
+			return NULL;
+	}
+
 	return &full_lc;
 }
