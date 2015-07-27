@@ -25,7 +25,7 @@
 
 #include <stdlib.h>
 
-static dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(uint8_t bytes[12]) {
+dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(uint8_t bytes[12]) {
 	static dmrpacket_control_full_lc_t full_lc;
 	rs_12_9_poly_t syndrome;
 	uint8_t errors_found;
@@ -44,29 +44,49 @@ static dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(uint8_t byt
 	else
 		full_lc.call_type = DMR_CALL_TYPE_GROUP;
 
-	console_log(LOGLEVEL_COMM_DMR "  call type: %s\n", dmr_get_readable_call_type(full_lc.call_type));
+	console_log(LOGLEVEL_COMM_DMR "    call type: %s\n", dmr_get_readable_call_type(full_lc.call_type));
 
 	full_lc.dst_id = bytes[3] << 16 | bytes[4] << 8 | bytes[5];
-	console_log(LOGLEVEL_COMM_DMR "  dst id: %u\n", full_lc.dst_id);
+	console_log(LOGLEVEL_COMM_DMR "    dst id: %u\n", full_lc.dst_id);
 	full_lc.src_id = bytes[6] << 16 | bytes[7] << 8 | bytes[8];
-	console_log(LOGLEVEL_COMM_DMR "  src id: %u\n", full_lc.src_id);
+	console_log(LOGLEVEL_COMM_DMR "    src id: %u\n", full_lc.src_id);
 	full_lc.checksum = bytes[9] << 16 | bytes[10] << 8 | bytes[11];
-	console_log(LOGLEVEL_COMM_DMR "  reed-solomon checksum: %.6x (", full_lc.checksum);
-
+	console_log(LOGLEVEL_COMM_DMR "    reed-solomon checksum: %.6x (", full_lc.checksum);
 	switch (result) {
 		default:
 		case RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND:
 			console_log(LOGLEVEL_COMM_DMR "ok)\n");
-			break;
+			return &full_lc;
 		case RS_12_9_CORRECT_ERRORS_RESULT_ERRORS_CORRECTED:
 			console_log(LOGLEVEL_COMM_DMR "%u byte errors found and corrected)\n", errors_found);
-			break;
+			return &full_lc;
 		case RS_12_9_CORRECT_ERRORS_RESULT_ERRORS_CANT_BE_CORRECTED:
 			console_log(LOGLEVEL_COMM_DMR "%u byte errors found - can't correct)\n", errors_found);
 			return NULL;
 	}
+}
 
-	return &full_lc;
+dmrpacket_control_emb_lc_t *dmrpacket_control_decode_emb_lc(uint8_t bytes[9]) {
+	static dmrpacket_control_emb_lc_t emb_lc;
+
+	if (bytes == NULL)
+		return NULL;
+
+	// Embedded LC structure is the same as the full LC's, the only difference is that it doesn't
+	// have a Reed-Solomon checksum field.
+	if (bytes[0] & 0b1100000)
+		emb_lc.call_type = DMR_CALL_TYPE_PRIVATE;
+	else
+		emb_lc.call_type = DMR_CALL_TYPE_GROUP;
+
+	console_log(LOGLEVEL_COMM_DMR "    call type: %s\n", dmr_get_readable_call_type(emb_lc.call_type));
+
+	emb_lc.dst_id = bytes[3] << 16 | bytes[4] << 8 | bytes[5];
+	console_log(LOGLEVEL_COMM_DMR "    dst id: %u\n", emb_lc.dst_id);
+	emb_lc.src_id = bytes[6] << 16 | bytes[7] << 8 | bytes[8];
+	console_log(LOGLEVEL_COMM_DMR "    src id: %u\n", emb_lc.src_id);
+
+	return &emb_lc;
 }
 
 dmrpacket_control_full_lc_t *dmrpacket_control_decode_voice_lc_header(bptc_196_96_data_bits_t *data_bits) {

@@ -30,6 +30,15 @@ typedef struct {
 	uint32_t checksum; // Only 24 bits are used.
 } dmrpacket_control_full_lc_t;
 
+typedef struct {
+	dmr_call_type_t call_type;
+	dmr_id_t dst_id;
+	dmr_id_t src_id;
+} dmrpacket_control_emb_lc_t;
+
+dmrpacket_control_full_lc_t *dmrpacket_control_decode_full_lc(uint8_t bytes[12]);
+dmrpacket_control_emb_lc_t *dmrpacket_control_decode_emb_lc(uint8_t bytes[9]);
+
 dmrpacket_control_full_lc_t *dmrpacket_control_decode_voice_lc_header(bptc_196_96_data_bits_t *data_bits);
 dmrpacket_control_full_lc_t *dmrpacket_control_decode_terminator_with_lc(bptc_196_96_data_bits_t *data_bits);
 

@@ -20,6 +20,7 @@
 
 #include <libs/base/dmr.h>
 #include <libs/dmrpacket/dmrpacket.h>
+#include <libs/coding/vbptc-16-11.h>
 
 #include <arpa/inet.h>
 #include <time.h>
@@ -43,6 +44,7 @@ typedef struct {
 	dmrpacket_data_block_t data_blocks[64];
 	int data_blocks_received;
 	time_t data_header_received_at;
+	vbptc_16_11_t emb_sig_lc_vbptc_storage; // This is where we store received embedded signalling LC fragments.
 } repeater_slot_t;
 
 typedef struct {

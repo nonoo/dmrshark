@@ -24,6 +24,7 @@
 #include <libs/remotedb/remotedb.h>
 #include <libs/dmrpacket/dmrpacket.h>
 #include <libs/coding/bptc-196-96.h>
+#include <libs/coding/vbptc-16-11.h>
 #include <libs/config/config.h>
 
 #include <netinet/udp.h>
@@ -235,12 +236,14 @@ static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_
 				switch (payload_slot_type->data_type) {
 					case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER:
 						control_packet.voice_lc_header = dmrpacket_control_decode_voice_lc_header(ipscpacket_get_bptc_data(packet_payload_bits));
+						// TODO: doing something with the LC
 						break;
 					case DMRPACKET_DATA_TYPE_PI_HEADER:
 						console_log(LOGLEVEL_COMM_DMR "  ignoring PI header\n");
 						break;
 					case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC:
 						control_packet.terminator_with_lc = dmrpacket_control_decode_terminator_with_lc(ipscpacket_get_bptc_data(packet_payload_bits));
+						// TODO: doing something with the LC
 						break;
 					case DMRPACKET_DATA_TYPE_CSBK:
 					case DMRPACKET_DATA_TYPE_MBC_HEADER:
@@ -268,6 +271,12 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	dmrpacket_payload_sync_bits_t *payload_sync_bits = NULL;
 	dmrpacket_sync_type_t payload_sync_type;
 	dmrpacket_emb_t *emb = NULL;
+
+	dmrpacket_emb_signalling_binary_fragment_t *emb_signalling_binary_fragment = NULL;
+	dmrpacket_emb_signalling_lc_t emb_signalling_lc;
+	dmrpacket_emb_signalling_lc_t *deinterleaved_emb_signalling_lc = NULL;
+	uint8_t emb_signalling_lc_bytes[9];
+	dmrpacket_control_emb_lc_t *emb_lc = NULL;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -357,7 +366,29 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 				// Trying to search for an EMB field.
 				emb = dmrpacket_emb_decode_emb(dmrpacket_emb_extract_from_sync(payload_sync_bits));
 				if (emb != NULL) { // Found an EMB field.
-					// TODO
+					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT) {
+						vbptc_16_11_free(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
+						// Expecting 8 rows of variable length BPTC coded embedded LC data.
+						vbptc_16_11_init(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, 8);
+					}
+
+					emb_signalling_binary_fragment = dmrpacket_emb_signalling_extract_from_sync(payload_sync_bits);
+					if (emb_signalling_binary_fragment != NULL)
+						vbptc_16_11_add_burst(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, emb_signalling_binary_fragment->bits, 32);
+
+					if (emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
+						vbptc_16_11_print_matrix(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
+						vbptc_16_11_get_data_bits(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
+						console_log(LOGLEVEL_COMM_DMR "  decoding embedded lc:\n");
+						deinterleaved_emb_signalling_lc = dmrpacket_emb_deinterleave_lc(&emb_signalling_lc);
+						if (dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc)) {
+							base_bitstobytes(deinterleaved_emb_signalling_lc->bits, 72, emb_signalling_lc_bytes, 9);
+							emb_lc = dmrpacket_control_decode_emb_lc(emb_signalling_lc_bytes);
+							// TODO: doing something with the emb_lc
+						}
+
+						vbptc_16_11_free(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
+					}
 				}
 			}
 

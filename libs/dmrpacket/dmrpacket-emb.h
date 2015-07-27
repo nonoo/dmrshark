@@ -30,6 +30,15 @@
 typedef uint8_t dmr_lcss_t;
 
 typedef struct {
+	flag_t bits[72];
+	flag_t checksum[5];
+} dmrpacket_emb_signalling_lc_t;
+
+typedef struct {
+	flag_t bits[32];
+} dmrpacket_emb_signalling_binary_fragment_t;
+
+typedef struct {
 	dmr_color_code_t cc;
 	flag_t pi; // Privacy Indicator
 	dmr_lcss_t lcss;
@@ -38,6 +47,11 @@ typedef struct {
 typedef struct {
 	flag_t bits[16];
 } dmrpacket_emb_binary_t;
+
+dmrpacket_emb_signalling_lc_t *dmrpacket_emb_deinterleave_lc(dmrpacket_emb_signalling_lc_t *emb_signalling_lc);
+flag_t dmrpacket_emb_check_checksum(dmrpacket_emb_signalling_lc_t *emb_signalling_lc);
+
+dmrpacket_emb_signalling_binary_fragment_t *dmrpacket_emb_signalling_extract_from_sync(dmrpacket_payload_sync_bits_t *sync_bits);
 
 dmrpacket_emb_t *dmrpacket_emb_decode_emb(dmrpacket_emb_binary_t *emb_binary);
 dmrpacket_emb_binary_t *dmrpacket_emb_extract_from_sync(dmrpacket_payload_sync_bits_t *sync_bits);
