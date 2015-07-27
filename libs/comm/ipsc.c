@@ -100,8 +100,9 @@ static bptc_196_96_data_bits_t *ipscpacket_get_bptc_data(dmrpacket_payload_bits_
 
 	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-	bptc_196_96_check_and_repair(packet_payload_info_bits->bits);
-	return bptc_196_96_extractdata(packet_payload_info_bits->bits);
+	if (bptc_196_96_check_and_repair(packet_payload_info_bits->bits))
+		return bptc_196_96_extractdata(packet_payload_info_bits->bits);
+	return NULL;
 }
 
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
@@ -114,6 +115,9 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 
 	packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
 	data_packet_header = dmrpacket_data_header_decode(ipscpacket_get_bptc_data(packet_payload_bits), 0);
+
+	if (data_packet_header == NULL)
+		return;
 
 	repeater->slot[ipsc_packet->timeslot-1].data_blocks_received = 0;
 	memset(repeater->slot[ipsc_packet->timeslot-1].data_blocks, 0, sizeof(dmrpacket_data_block_t)*sizeof(repeater->slot[ipsc_packet->timeslot-1].data_blocks));

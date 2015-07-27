@@ -24,7 +24,7 @@ typedef struct {
 	flag_t bits[96];
 } bptc_196_96_data_bits_t;
 
-void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]);
+flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]);
 bptc_196_96_data_bits_t *bptc_196_96_extractdata(flag_t deinterleaved_bits[196]);
 
 #endif

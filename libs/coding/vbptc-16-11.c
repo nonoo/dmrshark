@@ -119,7 +119,7 @@ static flag_t vbptc_16_11_check_row(flag_t *data_bits, hamming_error_vector_t *e
 		error_vector->bits[4] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "    vbptc (16,11): error vector: %u%u%u%u%u\n",
+	console_log(LOGLEVEL_DEBUG "    vbptc (16,11): hamming(16,11) error vector: %u%u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -188,16 +188,16 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 			// Error check failed, checking if we can determine the location of the bit error.
 			wrongbitnr = vbptc_16_11_find_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0) {
-				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): check error, can't repair row #%u\n", row);
+				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, can't repair row #%u\n", row);
 				result = 0;
 			} else {
-				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): check error, fixing bit pos. #%u in row #%u\n", wrongbitnr, row);
+				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, fixing bit pos. #%u in row #%u\n", wrongbitnr, row);
 				vbptc->matrix[row*16+wrongbitnr] = !vbptc->matrix[row*16+wrongbitnr];
 
 				vbptc_16_11_print_matrix(vbptc);
 
 				if (!vbptc_16_11_check_row(vbptc->matrix+row*16, &hamming_error_vector)) {
-					console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): check error, couldn't repair row #%u\n", row);
+					console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, couldn't repair row #%u\n", row);
 					result = 0;
 				}
 			}

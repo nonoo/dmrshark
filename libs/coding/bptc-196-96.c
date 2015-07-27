@@ -180,14 +180,16 @@ static int bptc_196_96_find_hamming_13_9_3_error_position(hamming_error_vector_t
 }
 
 // Checks data for errors and tries to repair them.
-void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
+flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 	hamming_error_vector_t hamming_error_vector;
 	flag_t column_bits[13] = {0,};
 	uint8_t row, col;
-	int wrongbitnr = -1;
+	int8_t wrongbitnr = -1;
+	flag_t errors_found = 0;
+	flag_t result = 1;
 
 	if (deinterleaved_bits == NULL)
-		return;
+		return 0;
 
 	bptc_196_96_display_data_matrix(deinterleaved_bits);
 
@@ -198,11 +200,13 @@ void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 		}
 
 		if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
+			errors_found = 1;
 			// Error check failed, checking if we can determine the location of the bit error.
 			wrongbitnr = bptc_196_96_find_hamming_13_9_3_error_position(&hamming_error_vector);
-			if (wrongbitnr < 0)
+			if (wrongbitnr < 0) {
+				result = 0;
 				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, can't repair column #%u\n", col);
-			else {
+			} else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
 				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, fixing bit row #%u col #%u\n", wrongbitnr, col);
 				deinterleaved_bits[col+wrongbitnr*15+1] = !deinterleaved_bits[col+wrongbitnr*15+1];
@@ -214,8 +218,10 @@ void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 					column_bits[row] = deinterleaved_bits[col+row*15+1];
 				}
 
-				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector))
+				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
+					result = 0;
 					console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, couldn't repair column #%u\n", col);
+				}
 			}
 		}
 	}
@@ -223,22 +229,35 @@ void bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 	for (row = 0; row < 9; row++) {
 		// +1 because the first bit is R(3) and it's not used so we can ignore that.
 		if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
+			errors_found = 1;
 			// Error check failed, checking if we can determine the location of the bit error.
 			wrongbitnr = bptc_196_96_find_hamming_15_11_3_error_position(&hamming_error_vector);
-			if (wrongbitnr < 0)
+			if (wrongbitnr < 0) {
+				result = 0;
 				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error in row %u, can't repair\n", row);
-			else {
+			} else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
 				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error, fixing bit row #%u col #%u\n", row, wrongbitnr);
 				deinterleaved_bits[row*15+wrongbitnr+1] = !deinterleaved_bits[row*15+wrongbitnr+1];
 
 				bptc_196_96_display_data_matrix(deinterleaved_bits);
 
-				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector))
+				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
+					result = 0;
 					console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error, couldn't repair row #%u\n", row);
+				}
 			}
 		}
 	}
+
+	if (result && !errors_found)
+		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data was error free\n");
+	else if (result && errors_found)
+		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data had errors which were corrected\n");
+	else if (!result)
+		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data had errors which couldn't be corrected\n");
+
+	return result;
 }
 
 // Extracts the data bits from the given deinterleaved info bits array (discards BPTC bits).

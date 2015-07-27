@@ -1,2 +1,4 @@
+- moving every dmr packet decoding related stuff out of ipsc.c
+
 - CACH decoding including variable length BPTC for CACH signalling
 - reverse channel handling including variable length BPTC for reverse channel decoding
