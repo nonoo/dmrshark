@@ -372,19 +372,24 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 						vbptc_16_11_init(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, 8);
 					}
 
-					emb_signalling_binary_fragment = dmrpacket_emb_signalling_extract_from_sync(payload_sync_bits);
-					if (emb_signalling_binary_fragment != NULL)
-						vbptc_16_11_add_burst(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, emb_signalling_binary_fragment->bits, 32);
+					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT ||
+						emb->lcss == DMRPACKET_EMB_LCSS_CONTINUATION ||
+						emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) { // Not handling single fragment here.
+						emb_signalling_binary_fragment = dmrpacket_emb_signalling_extract_from_sync(payload_sync_bits);
+						if (emb_signalling_binary_fragment != NULL)
+							vbptc_16_11_add_burst(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, emb_signalling_binary_fragment->bits, 32);
+					}
 
 					if (emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
-						vbptc_16_11_print_matrix(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
-						vbptc_16_11_get_data_bits(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
-						console_log(LOGLEVEL_COMM_DMR "  decoding embedded lc:\n");
-						deinterleaved_emb_signalling_lc = dmrpacket_emb_deinterleave_lc(&emb_signalling_lc);
-						if (dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc)) {
-							base_bitstobytes(deinterleaved_emb_signalling_lc->bits, 72, emb_signalling_lc_bytes, 9);
-							emb_lc = dmrpacket_control_decode_emb_lc(emb_signalling_lc_bytes);
-							// TODO: doing something with the emb_lc
+						if (vbptc_16_11_check_and_repair(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage)) {
+							vbptc_16_11_get_data_bits(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
+							console_log(LOGLEVEL_COMM_DMR "  decoding embedded lc:\n");
+							deinterleaved_emb_signalling_lc = dmrpacket_emb_deinterleave_lc(&emb_signalling_lc);
+							if (dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc)) {
+								base_bitstobytes(deinterleaved_emb_signalling_lc->bits, 72, emb_signalling_lc_bytes, 9);
+								emb_lc = dmrpacket_control_decode_emb_lc(emb_signalling_lc_bytes);
+								// TODO: doing something with the emb_lc
+							}
 						}
 
 						vbptc_16_11_free(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);

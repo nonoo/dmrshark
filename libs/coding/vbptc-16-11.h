@@ -22,15 +22,14 @@
 
 typedef struct {
 	flag_t *matrix;
-	flag_t *data; // Data extracted from the completed matrix is stored here.
 	uint8_t current_row;
 	uint8_t current_col;
 	uint8_t expected_rows;
 } vbptc_16_11_t;
 
-void vbptc_16_11_print_matrix(vbptc_16_11_t *vbptc);
-
 flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t burst_data_length);
+
+flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc);
 void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size);
 
 void vbptc_16_11_free(vbptc_16_11_t *vbptc);

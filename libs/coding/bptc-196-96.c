@@ -165,6 +165,9 @@ static int bptc_196_96_find_hamming_13_9_3_error_position(hamming_error_vector_t
 	};
 	uint8_t row;
 
+	if (error_vector == NULL)
+		return -1;
+
 	for (row = 0; row < 13; row++) {
 		if (hamming_13_9_generator_matrix[row*4] == error_vector->bits[0] &&
 			hamming_13_9_generator_matrix[row*4+1] == error_vector->bits[1] &&
