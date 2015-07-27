@@ -225,7 +225,7 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 	return result;
 }
 
-// Extracts data bits (discarding parity check bits) from the vbptc matrix.
+// Extracts data bits (discarding Hamming (16,11) and parity check bits) from the vbptc matrix.
 void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size) {
 	uint8_t row;
 	uint8_t col;
@@ -242,8 +242,6 @@ void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits
 		}
 	}
 }
-
-// TODO: error correction
 
 void vbptc_16_11_free(vbptc_16_11_t *vbptc) {
 	if (vbptc == NULL)

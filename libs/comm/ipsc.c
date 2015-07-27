@@ -128,6 +128,7 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 		console_log("  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
 	}
 	if (data_packet_header->common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED) { // Now we only care about short data packets.
+		// TODO: handling other data types
 		memcpy(&repeater->slot[ipsc_packet->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));
 		repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING);
 	}
