@@ -132,24 +132,25 @@ static flag_t vbptc_16_11_check_row(flag_t *data_bits, hamming_error_vector_t *e
 // Searches for the given error vector in the generator matrix.
 // Returns the erroneous bit number if the error vector is found, otherwise it returns -1.
 static int8_t vbptc_16_11_find_error_position(hamming_error_vector_t *error_vector) {
+	// See page 136 of the DMR AI. spec. for the generator matrix.
 	static flag_t hamming_16_11_generator_matrix[] = {
-		1, 0, 0, 1, 1,
-		1, 1, 0, 1, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 0, 0,
-		0, 1, 1, 1, 0,
-		1, 0, 1, 0, 1,
-		0, 1, 0, 1, 1,
-		1, 0, 1, 1, 0,
-		1, 1, 0, 0, 1,
-		0, 1, 1, 0, 1,
-		0, 0, 1, 1, 1,
+		1,	0,	0,	1,	1,
+		1,	1,	0,	1,	0,
+		1,	1,	1,	1,	1,
+		1,	1,	1,	0,	0,
+		0,	1,	1,	1,	0,
+		1,	0,	1,	0,	1,
+		0,	1,	0,	1,	1,
+		1,	0,	1,	1,	0,
+		1,	1,	0,	0,	1,
+		0,	1,	1,	0,	1,
+		0,	0,	1,	1,	1,
 
-		1, 0, 0, 0,	0, // These are used to determine errors in the Hamming checksum bits.
-		0, 1, 0, 0,	0,
-		0, 0, 1, 0,	0,
-		0, 0, 0, 1,	0,
-		0, 0, 0, 0,	1
+		1,	0,	0,	0,	0, // These are used to determine errors in the Hamming checksum bits.
+		0,	1,	0,	0,	0,
+		0,	0,	1,	0,	0,
+		0,	0,	0,	1,	0,
+		0,	0,	0,	0,	1
 	};
 	uint8_t row;
 
