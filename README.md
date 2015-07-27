@@ -72,6 +72,7 @@ The file has the following configuration variables:
 - **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
+- **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 
