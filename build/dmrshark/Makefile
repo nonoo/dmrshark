@@ -15,6 +15,9 @@ test: all kill
 	@sudo ./`ls -1 -t | grep build | head -n1`
 	@sudo ./`ls -1 -t | grep build | head -n1` -r
 
+valgrind: all kill
+	@sudo valgrind --leak-check=full --show-leak-kinds=all ./`ls -1 -t | grep build | head -n1` -f
+
 instest: install kill
 	@cd /opt/dmrshark; sudo ./`ls -1 -t | grep build | head -n1`; sudo ./`ls -1 -t | grep build | head -n1` -r
 
