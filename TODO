@@ -1,8 +1,8 @@
-- moving every DMR packet decoding related stuff out of ipsc.c
+- moving every DMR packet decoding related stuff out of ipsc.c and relying only on
+  the decoded DMR packet data when processing call starts and ends
 - Idle message handling
 - CSBK and Multi Block Control (MBC) message decoding
 - checking if CACH data is present in Hytera IPSC packets
-- relying only on the decoded DMR packet data when processing call starts and ends
 - fixing SMS decoding
 - handling other DPF data types
 - inserting decoded SMS messages into a database table
