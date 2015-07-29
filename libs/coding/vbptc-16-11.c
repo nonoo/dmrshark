@@ -254,17 +254,26 @@ void vbptc_16_11_free(vbptc_16_11_t *vbptc) {
 	memset(vbptc, 0, sizeof(vbptc_16_11_t));
 }
 
+void vbptc_16_11_clear(vbptc_16_11_t *vbptc) {
+	if (vbptc == NULL)
+		return;
+
+	vbptc->current_row = vbptc->current_col = 0;
+	memset(vbptc->matrix, 0, vbptc->expected_rows*16);
+}
+
 // Allocates memory for the given number of expected bits.
-void vbptc_16_11_init(vbptc_16_11_t *vbptc, uint8_t expected_rows) {
+flag_t vbptc_16_11_init(vbptc_16_11_t *vbptc, uint8_t expected_rows) {
 	uint16_t bytes_to_allocate = expected_rows*16;
 
 	if (vbptc == NULL)
-		return;
+		return 0;
 
 	vbptc->matrix = (flag_t *)calloc(bytes_to_allocate, 1);
 	if (vbptc->matrix == NULL) {
 		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    vbptc (16,11): can't allocate %u bytes for the vbptc matrix\n", bytes_to_allocate);
-		return;
+		return 0;
 	}
 	vbptc->expected_rows = expected_rows;
+	return 1;
 }

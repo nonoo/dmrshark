@@ -371,13 +371,8 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 				// Trying to search for an EMB field.
 				emb = dmrpacket_emb_decode_emb(dmrpacket_emb_extract_from_sync(payload_sync_bits));
 				if (emb != NULL) { // Found an EMB field.
-					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT) {
-						vbptc_16_11_free(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
-						// Expecting 8 rows of variable length BPTC coded embedded LC data.
-						// It will contain 77 data bits (without the Hamming (16,11) checksums
-						// and the last row of parity bits).
-						vbptc_16_11_init(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, 8);
-					}
+					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT)
+						vbptc_16_11_clear(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
 
 					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT ||
 						emb->lcss == DMRPACKET_EMB_LCSS_CONTINUATION ||
@@ -399,7 +394,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 							}
 						}
 
-						vbptc_16_11_free(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
+						vbptc_16_11_clear(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
 					}
 				}
 			}

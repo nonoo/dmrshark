@@ -25,6 +25,7 @@
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/coding/vbptc-16-11.h>
 
 #include <string.h>
 #include <sys/time.h>
@@ -95,6 +96,13 @@ static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
 	return 0;
 }
 
+static void repeaters_remove(repeater_t *repeater) {
+	console_log("repeaters [%s]: removing\n", comm_get_ip_str(&repeater->ipaddr));
+	vbptc_16_11_free(&repeater->slot[0].emb_sig_lc_vbptc_storage);
+	vbptc_16_11_free(&repeater->slot[1].emb_sig_lc_vbptc_storage);
+	memset(repeater, 0, sizeof(repeater_t));
+}
+
 repeater_t *repeaters_add(struct in_addr *ipaddr) {
 	repeater_t *repeater = repeaters_findbyip(ipaddr);
 
@@ -108,6 +116,17 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 		memcpy(&repeater->ipaddr, ipaddr, sizeof(struct in_addr));
 		if (repeaters_issnmpignoredforip(ipaddr))
 			repeater->snmpignored = 1;
+
+		// Expecting 8 rows of variable length BPTC coded embedded LC data.
+		// It will contain 77 data bits (without the Hamming (16,11) checksums
+		// and the last row of parity bits).
+		if (!vbptc_16_11_init(&repeater->slot[0].emb_sig_lc_vbptc_storage, 8) ||
+			!vbptc_16_11_init(&repeater->slot[1].emb_sig_lc_vbptc_storage, 8)) {
+				console_log("repeaters [%s]: can't add, not enough memory for embedded signalling LC storage\n", comm_get_ip_str(ipaddr));
+				repeaters_remove(repeater);
+				return NULL;
+		}
+
 		console_log("repeaters [%s]: added (snmp ignored: %u)\n", comm_get_ip_str(ipaddr), repeater->snmpignored);
 	}
 	repeater->last_active_time = time(NULL);
@@ -162,8 +181,8 @@ void repeaters_process(void) {
 			continue;
 
 		if (time(NULL)-repeaters[i].last_active_time > config_get_repeaterinactivetimeoutinsec()) {
-			console_log("repeaters [%s]: timed out, removing\n", comm_get_ip_str(&repeaters[i].ipaddr));
-			memset(&repeaters[i], 0, sizeof(repeater_t));
+			console_log("repeaters [%s]: timed out\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			repeaters_remove(&repeaters[i]);
 			continue;
 		}
 

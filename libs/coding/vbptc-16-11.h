@@ -33,6 +33,7 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc);
 void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size);
 
 void vbptc_16_11_free(vbptc_16_11_t *vbptc);
-void vbptc_16_11_init(vbptc_16_11_t *vbptc, uint8_t expected_rows);
+void vbptc_16_11_clear(vbptc_16_11_t *vbptc);
+flag_t vbptc_16_11_init(vbptc_16_11_t *vbptc, uint8_t expected_rows);
 
 #endif
