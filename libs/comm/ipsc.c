@@ -226,6 +226,13 @@ static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_
 
 	switch (payload_sync_type) {
 		default:
+		case DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE:
+		case DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE:
+		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1:
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
+		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2:
+		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
+			// TODO
 			break;
 		case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
 		case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
@@ -255,10 +262,10 @@ static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_
 					case DMRPACKET_DATA_TYPE_MBC_CONTINUATION:
 					case DMRPACKET_DATA_TYPE_DATA_HEADER:
 					case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION:
+					case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION:
 						// TODO
 						break;
-					case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION:
-					case DMRPACKET_DATA_TYPE_IDLE:
+					case DMRPACKET_DATA_TYPE_IDLE: // Ignoring.
 					default:
 						break;
 				}
@@ -360,7 +367,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 
-			// The data header and voice burst A must contain a sync pattern, so we are looking for it.
+			// Checking if the packet has a sync pattern.
 			packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet.payload);
 			payload_sync_bits = dmrpacket_extractsyncbits(packet_payload_bits);
 			payload_sync_type = dmrpacket_get_sync_type(payload_sync_bits);
