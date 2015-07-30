@@ -1,15 +1,14 @@
-- moving every DMR packet decoding related stuff out of ipsc.c
+- Moving every DMR packet decoding related stuff out of ipsc.c
+- Relying only on the decoded DMR packet data when processing call starts and ends
 - Idle message handling
 - CSBK and Multi Block Control (MBC) message decoding
-- checking if CACH data is present in Hytera IPSC packets
-- relying only on the decoded DMR packet data when processing call starts and ends
-- fixing SMS decoding
-- handling other DPF data types
-- inserting decoded SMS messages into a database table
+- Handling other DPF data types
+- Inserting decoded SMS messages into a database table
 - GPS position data decoding
 - SMS sending
-- serving raw and decoded voice data using a built-in websocket server
-- voice sending
+- Serving raw and decoded voice data using a built-in websocket server
+- Voice sending
 
-- CACH decoding including variable length BPTC for CACH signalling
-- reverse channel handling including variable length BPTC for reverse channel decoding
+- CACH decoding including variable length BPTC for CACH signalling.
+  As IPSC packets don't contain CACH fields this can only be done using an SDR receiver.
+- Reverse channel handling including variable length BPTC for reverse channel decoding
