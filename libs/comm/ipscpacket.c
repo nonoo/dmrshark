@@ -166,13 +166,7 @@ dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_pa
 	// Swapping the bytes.
 	for (i = 0; i < IPSCPACKET_PAYLOAD_SIZE-1; i += 2) {
 		swapped_bytes[i] = *(ipscpacket_payload + i + 1);
-		swapped_bytes[i+1] = *(ipscpacket_payload +i);
-	}
-	swapped_bytes[IPSCPACKET_PAYLOAD_SIZE-1] = *(ipscpacket_payload + IPSCPACKET_PAYLOAD_SIZE);
-
-	for (i = 0; i < sizeof(payload_bits.bits)/8; i++) {
-		for (j = 0; j < 8; j++)
-			payload_bits.bits[(7-j) + (8 * i)] = (swapped_bytes[i] >> j) & 1;
+		swapped_bytes[i+1] = *(ipscpacket_payload + i);
 	}
 
 	return &payload_bits;

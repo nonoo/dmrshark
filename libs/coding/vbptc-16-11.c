@@ -119,7 +119,7 @@ static flag_t vbptc_16_11_check_row(flag_t *data_bits, hamming_error_vector_t *e
 		error_vector->bits[4] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "    vbptc (16,11): hamming(16,11) error vector: %u%u%u%u%u\n",
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) error vector: %u%u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
