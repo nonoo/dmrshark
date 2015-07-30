@@ -245,18 +245,9 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 
 	console_log("dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
 
-	insize = 0;
-	// Dropping the first 2 bytes.
-	for (i = 2; i < fragment->bytes_stored; i += 2) {
-		// Swapping the bytes and putting them to inbuf.
-		if (i+1 < fragment->bytes_stored)
-			inbuf[insize++] = fragment->bytes[i+1];
-		inbuf[insize++] = fragment->bytes[i];
-	}
-	inbuf[insize] = 0;
-
 	switch (dd_format) {
 		default:
+		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16BE:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
@@ -266,13 +257,6 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_BINARY:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_BCD:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_7BIT_CHAR:
-			outsize = 0;
-			for (i = 0; i < insize; i++) {
-				if (i % 2 == 1) // Only dealing with every 2nd byte.
-					outbuf[outsize++] = inbuf[i];
-			}
-			outbuf[outsize] = 0;
-			return outbuf;
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_1:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_2:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_3:
@@ -288,15 +272,14 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_14:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_15:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_16:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
-/*			insize = 0; TODO
-			// Dropping the first 2 bytes.
+			insize = 0;
+			// Dropping the first 2 bytes. TODO: not all formats may work this way.
 			for (i = 2; i < fragment->bytes_stored; i++) {
 				if (i % 2 == 0) { // Only dealing with every 2nd byte.
 					inbuf[insize] = fragment->bytes[i];
 					insize++;
 				}
-			}*/
+			}
 			break;
 	}
 
