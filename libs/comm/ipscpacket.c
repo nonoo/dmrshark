@@ -19,6 +19,7 @@
 
 #include "ipscpacket.h"
 
+#include <libs/base/base.h>
 #include <libs/daemon/console.h>
 
 #include <stdio.h>
@@ -158,7 +159,7 @@ flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket) {
 dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload) {
 	static dmrpacket_payload_bits_t payload_bits;
 	uint8_t swapped_bytes[IPSCPACKET_PAYLOAD_SIZE] = {0,};
-	int i, j;
+	uint8_t i;
 
 	if (ipscpacket_payload == NULL)
 		return NULL;
@@ -166,14 +167,10 @@ dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_pa
 	// Swapping the bytes.
 	for (i = 0; i < IPSCPACKET_PAYLOAD_SIZE-1; i += 2) {
 		swapped_bytes[i] = *(ipscpacket_payload + i + 1);
-		swapped_bytes[i+1] = *(ipscpacket_payload +i);
+		swapped_bytes[i+1] = *(ipscpacket_payload + i);
 	}
-	swapped_bytes[IPSCPACKET_PAYLOAD_SIZE-1] = *(ipscpacket_payload + IPSCPACKET_PAYLOAD_SIZE);
 
-	for (i = 0; i < sizeof(payload_bits.bits)/8; i++) {
-		for (j = 0; j < 8; j++)
-			payload_bits.bits[(7-j) + (8 * i)] = (swapped_bytes[i] >> j) & 1;
-	}
+	base_bytestobits(swapped_bytes, IPSCPACKET_PAYLOAD_SIZE-1, payload_bits.bits, sizeof(payload_bits.bits));
 
 	return &payload_bits;
 }
