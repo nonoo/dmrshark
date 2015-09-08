@@ -174,3 +174,46 @@ dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_pa
 
 	return &payload_bits;
 }
+
+void ipscpacket_handle_slot_type(dmrpacket_payload_bits_t *packet_payload_bits) {
+	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
+	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
+	/*union {
+		dmrpacket_control_full_lc_t *voice_lc_header;
+		dmrpacket_control_full_lc_t *terminator_with_lc;
+	} control_packet;*/
+
+	payload_slot_type_bits = dmrpacket_extract_slot_type_bits(packet_payload_bits);
+	payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
+	if (payload_slot_type == NULL) // Didn't find a valid slot type?
+		return;
+
+	console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %.2x (%s)\n", payload_slot_type->cc, payload_slot_type->data_type, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+
+	switch (payload_slot_type->data_type) {
+		case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER:
+			//control_packet.voice_lc_header = dmrpacket_control_decode_voice_lc_header(dmrpacket_data_extract_and_repair_bptc_data(packet_payload_bits));
+			// TODO: doing something with the LC
+			break;
+		case DMRPACKET_DATA_TYPE_PI_HEADER:
+			console_log(LOGLEVEL_COMM_DMR "  ignoring PI header\n"); // We don't care about encryption.
+			break;
+		case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC:
+			//control_packet.terminator_with_lc = dmrpacket_control_decode_terminator_with_lc(dmrpacket_data_extract_and_repair_bptc_data(packet_payload_bits));
+			// TODO: doing something with the LC
+			break;
+		case DMRPACKET_DATA_TYPE_CSBK:
+		case DMRPACKET_DATA_TYPE_MBC_HEADER:
+		case DMRPACKET_DATA_TYPE_MBC_CONTINUATION:
+			// TODO: implement CSBK/MBC decoding
+			break;
+		case DMRPACKET_DATA_TYPE_DATA_HEADER:
+		case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION:
+		case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION:
+			// These are handled in ipsc_processpacket() now.
+			break;
+		case DMRPACKET_DATA_TYPE_IDLE: // Ignoring.
+		default:
+			break;
+	}
+}

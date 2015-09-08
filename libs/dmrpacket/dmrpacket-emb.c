@@ -86,13 +86,13 @@ flag_t dmrpacket_emb_check_checksum(dmrpacket_emb_signalling_lc_t *emb_signallin
 		return 1;
 }
 
-dmrpacket_emb_signalling_binary_fragment_t *dmrpacket_emb_signalling_extract_from_sync(dmrpacket_payload_sync_bits_t *sync_bits) {
+dmrpacket_emb_signalling_binary_fragment_t *dmrpacket_emb_signalling_extract_from_sync_field(dmrpacket_payload_sync_field_bits_t *sync_field_bits) {
 	static dmrpacket_emb_signalling_binary_fragment_t emb_signalling_binary_fragment;
 
-	if (sync_bits == NULL)
+	if (sync_field_bits == NULL)
 		return NULL;
 
-	memcpy(emb_signalling_binary_fragment.bits, &sync_bits->bits[8], 32);
+	memcpy(emb_signalling_binary_fragment.bits, &sync_field_bits->bits[8], 32);
 
 	return &emb_signalling_binary_fragment;
 }
@@ -115,14 +115,14 @@ dmrpacket_emb_t *dmrpacket_emb_decode_emb(dmrpacket_emb_binary_t *emb_binary) {
 	return &emb;
 }
 
-dmrpacket_emb_binary_t *dmrpacket_emb_extract_from_sync(dmrpacket_payload_sync_bits_t *sync_bits) {
+dmrpacket_emb_binary_t *dmrpacket_emb_extract_from_sync_field(dmrpacket_payload_sync_field_bits_t *sync_field_bits) {
 	static dmrpacket_emb_binary_t emb_binary;
 
-	if (sync_bits == NULL)
+	if (sync_field_bits == NULL)
 		return NULL;
 
-	memcpy(emb_binary.bits, sync_bits->bits, 8);
-	memcpy(&emb_binary.bits[8], &sync_bits->bits[40], 8);
+	memcpy(emb_binary.bits, sync_field_bits->bits, 8);
+	memcpy(&emb_binary.bits[8], &sync_field_bits->bits[40], 8);
 
 	return &emb_binary;
 }

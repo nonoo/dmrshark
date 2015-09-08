@@ -72,4 +72,6 @@ flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
 dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload);
 
+void ipscpacket_handle_slot_type(dmrpacket_payload_bits_t *packet_payload_bits);
+
 #endif

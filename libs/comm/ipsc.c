@@ -21,6 +21,8 @@
 #include "comm.h"
 
 #include <libs/base/log.h>
+#include <libs/base/base.h>
+#include <libs/base/dmrlog.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/dmrpacket/dmrpacket.h>
 #include <libs/coding/bptc-196-96.h>
@@ -56,55 +58,6 @@ static flag_t ipsc_isignoredip(struct in_addr *ipaddr) {
 	return 0;
 }
 
-static void ipsc_call_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
-	if (repeater->slot[ipsc_packet->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
-		return;
-
-	console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-	console_log(LOGLEVEL_IPSC "->%s]: %s call end on ts %u src id %u dst id %u\n",
-	comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(repeater->slot[ipsc_packet->timeslot-1].call_type),
-		ipsc_packet->timeslot, repeater->slot[ipsc_packet->timeslot-1].src_id, repeater->slot[ipsc_packet->timeslot-1].dst_id);
-	repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_IDLE);
-	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = time(NULL);
-
-	remotedb_update(repeater);
-	remotedb_update_stats_callend(repeater, ipsc_packet->timeslot);
-}
-
-static void ipsc_call_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
-	if (repeater->slot[ipsc_packet->timeslot-1].state == REPEATER_SLOT_STATE_CALL_RUNNING)
-		ipsc_call_end(ip_packet, ipsc_packet, repeater);
-
-	console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-	console_log(LOGLEVEL_IPSC "->%s]: %s call start on ts %u src id %u dst id %u\n",
-		comm_get_ip_str(&ip_packet->ip_dst), dmr_get_readable_call_type(ipsc_packet->call_type), ipsc_packet->timeslot, ipsc_packet->src_id, ipsc_packet->dst_id);
-	repeaters_state_change(repeater, ipsc_packet->timeslot-1, REPEATER_SLOT_STATE_CALL_RUNNING);
-	repeater->slot[ipsc_packet->timeslot-1].call_started_at = time(NULL);
-	repeater->slot[ipsc_packet->timeslot-1].call_ended_at = 0;
-	repeater->slot[ipsc_packet->timeslot-1].call_type = ipsc_packet->call_type;
-	repeater->slot[ipsc_packet->timeslot-1].dst_id = ipsc_packet->dst_id;
-	repeater->slot[ipsc_packet->timeslot-1].src_id = ipsc_packet->src_id;
-	repeater->slot[ipsc_packet->timeslot-1].rssi = repeater->slot[ipsc_packet->timeslot-1].avg_rssi = 0;
-
-	if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
-		console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: starting auto snmp rssi update\n", comm_get_ip_str(&ip_packet->ip_dst));
-		repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
-	}
-
-	remotedb_update(repeater);
-}
-
-static bptc_196_96_data_bits_t *ipscpacket_get_bptc_data(dmrpacket_payload_bits_t *packet_payload_bits) {
-	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-
-	packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
-	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
-	if (bptc_196_96_check_and_repair(packet_payload_info_bits->bits))
-		return bptc_196_96_extractdata(packet_payload_info_bits->bits);
-	return NULL;
-}
-
 static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
 	dmrpacket_data_header_t *data_packet_header = NULL;
@@ -114,7 +67,7 @@ static void ipsc_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	console_log(LOGLEVEL_IPSC "->%s]: got data header\n", comm_get_ip_str(&ip_packet->ip_dst));
 
 	packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
-	data_packet_header = dmrpacket_data_header_decode(ipscpacket_get_bptc_data(packet_payload_bits), 0);
+	data_packet_header = dmrpacket_data_header_decode(dmrpacket_data_extract_and_repair_bptc_data(packet_payload_bits), 0);
 
 	if (data_packet_header == NULL)
 		return;
@@ -145,7 +98,7 @@ static void ipsc_handle_data_fragment_assembly_for_short_data_defined(ipscpacket
 			min(sizeof(repeater->slot[ipsc_packet->timeslot-1].data_blocks)/sizeof(repeater->slot[ipsc_packet->timeslot-1].data_blocks[0]), repeater->slot[ipsc_packet->timeslot-1].data_blocks_received));
 		msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.short_data_defined.dd_format);
 		if (msg)
-			console_log("  decoded message: %s\n", msg);
+			console_log("  decoded message: %s\n", msg); // TODO: upload decoded message to remotedb
 	}
 }
 
@@ -168,7 +121,7 @@ static void ipsc_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 			repeater->slot[ipsc_packet->timeslot-1].data_blocks_received+1, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
 
 		packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
-		packet_payload_info_bits = dmrpacket_extractinfobits(packet_payload_bits);
+		packet_payload_info_bits = dmrpacket_extract_info_bits(packet_payload_bits);
 		packet_payload_dibits = dmrpacket_data_34rate_extract_dibits(packet_payload_info_bits);
 		packet_payload_dibits = dmrpacket_data_34rate_deinterleave_dibits(packet_payload_dibits);
 		packet_payload_constellationpoints = dmrpacket_data_34rate_getconstellationpoints(packet_payload_dibits);
@@ -202,7 +155,7 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 			repeater->slot[ipsc_packet->timeslot-1].data_blocks_received+1, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
 
 		packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet->payload);
-		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(ipscpacket_get_bptc_data(packet_payload_bits));
+		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_data_extract_and_repair_bptc_data(packet_payload_bits));
 		data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION, repeater->slot[ipsc_packet->timeslot-1].data_packet_header.common.response_requested);
 
 		if (data_block) {
@@ -216,60 +169,72 @@ static void ipsc_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipsc_pac
 	}
 }
 
-static void ipscpacket_handle_control_packet(dmrpacket_sync_type_t payload_sync_type, dmrpacket_payload_bits_t *packet_payload_bits) {
-	dmrpacket_payload_slot_type_bits_t *payload_slot_type_bits = NULL;
-	dmrpacket_payload_slot_type_t *payload_slot_type = NULL;
-	union {
-		dmrpacket_control_full_lc_t *voice_lc_header;
-		dmrpacket_control_full_lc_t *terminator_with_lc;
-	} control_packet;
+static void ipscpacket_handle_sync_field(dmrpacket_payload_bits_t *packet_payload_bits, repeater_t *repeater, dmr_timeslot_t timeslot) {
+	dmrpacket_payload_sync_field_bits_t *payload_sync_field_bits = NULL;
+	dmrpacket_sync_pattern_type_t payload_sync_pattern_type;
 
-	switch (payload_sync_type) {
+	dmrpacket_emb_t *emb = NULL;
+	dmrpacket_emb_signalling_binary_fragment_t *emb_signalling_binary_fragment = NULL;
+	dmrpacket_emb_signalling_lc_t emb_signalling_lc;
+	dmrpacket_emb_signalling_lc_t *deinterleaved_emb_signalling_lc = NULL;
+	uint8_t emb_signalling_lc_bytes[9];
+	//dmrpacket_control_emb_lc_t *emb_lc = NULL;
+
+	payload_sync_field_bits = dmrpacket_extract_sync_field_bits(packet_payload_bits);
+	payload_sync_pattern_type = dmrpacket_get_sync_pattern_type(payload_sync_field_bits);
+	if (payload_sync_pattern_type != DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN)
+		console_log(LOGLEVEL_COMM_DMR "  packet has sync pattern: %s\n", dmrpacket_get_readable_sync_pattern_type(payload_sync_pattern_type));
+
+	switch (payload_sync_pattern_type) {
 		default:
-		case DMRPACKET_SYNC_TYPE_BS_SOURCED_VOICE:
-		case DMRPACKET_SYNC_TYPE_MS_SOURCED_VOICE:
-		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS1:
-		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
-		case DMRPACKET_SYNC_TYPE_DIRECT_VOICE_TS2:
-		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
-			// TODO
+		case DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE:
+		case DMRPACKET_SYNC_PATTERN_TYPE_MS_SOURCED_VOICE:
+		case DMRPACKET_SYNC_PATTERN_TYPE_DIRECT_VOICE_TS1:
+		case DMRPACKET_SYNC_PATTERN_TYPE_DIRECT_VOICE_TS2:
+			// TODO: doing something with the detected sync pattern.
 			break;
-		case DMRPACKET_SYNC_TYPE_BS_SOURCED_DATA:
-		case DMRPACKET_SYNC_TYPE_MS_SOURCED_DATA:
-		case DMRPACKET_SYNC_TYPE_MS_SOURCED_RC:
-		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS1:
-		case DMRPACKET_SYNC_TYPE_DIRECT_DATA_TS2:
-			// A packet with a data or control sync pattern also has a slot type field.
-			payload_slot_type_bits = dmrpacket_extractslottypebits(packet_payload_bits);
-			payload_slot_type = dmrpacket_decode_slot_type(payload_slot_type_bits);
-			if (payload_slot_type != NULL) {
-				console_log(LOGLEVEL_COMM_DMR "  cc: %u slot type: %.2x (%s)\n", payload_slot_type->cc, payload_slot_type->data_type, dmrpacket_data_get_readable_data_type(payload_slot_type->data_type));
+		case DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA:
+		case DMRPACKET_SYNC_PATTERN_TYPE_MS_SOURCED_DATA:
+		case DMRPACKET_SYNC_PATTERN_TYPE_MS_SOURCED_RC:
+		case DMRPACKET_SYNC_PATTERN_TYPE_DIRECT_DATA_TS1:
+		case DMRPACKET_SYNC_PATTERN_TYPE_DIRECT_DATA_TS2:
+			// TODO: doing something with the detected sync pattern.
+			break;
+	}
 
-				switch (payload_slot_type->data_type) {
-					case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER:
-						control_packet.voice_lc_header = dmrpacket_control_decode_voice_lc_header(ipscpacket_get_bptc_data(packet_payload_bits));
-						// TODO: doing something with the LC
-						break;
-					case DMRPACKET_DATA_TYPE_PI_HEADER:
-						console_log(LOGLEVEL_COMM_DMR "  ignoring PI header\n");
-						break;
-					case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC:
-						control_packet.terminator_with_lc = dmrpacket_control_decode_terminator_with_lc(ipscpacket_get_bptc_data(packet_payload_bits));
-						// TODO: doing something with the LC
-						break;
-					case DMRPACKET_DATA_TYPE_CSBK:
-					case DMRPACKET_DATA_TYPE_MBC_HEADER:
-					case DMRPACKET_DATA_TYPE_MBC_CONTINUATION:
-					case DMRPACKET_DATA_TYPE_DATA_HEADER:
-					case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION:
-					case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION:
-						// TODO
-						break;
-					case DMRPACKET_DATA_TYPE_IDLE: // Ignoring.
-					default:
-						break;
-				}
+	if (payload_sync_pattern_type != DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN)
+		return;
+
+	// If the packet doesn't have a sync pattern, we try to search for an EMB field in the sync part.
+	emb = dmrpacket_emb_decode_emb(dmrpacket_emb_extract_from_sync_field(payload_sync_field_bits));
+	if (emb == NULL)
+		return;
+
+	// Now we have found an EMB field.
+	if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT)
+		vbptc_16_11_clear(&repeater->slot[timeslot-1].emb_sig_lc_vbptc_storage);
+
+	if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT ||
+		emb->lcss == DMRPACKET_EMB_LCSS_CONTINUATION ||
+		emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) { // Not handling single fragment here.
+		emb_signalling_binary_fragment = dmrpacket_emb_signalling_extract_from_sync_field(payload_sync_field_bits);
+		if (emb_signalling_binary_fragment != NULL)
+			vbptc_16_11_add_burst(&repeater->slot[timeslot-1].emb_sig_lc_vbptc_storage, emb_signalling_binary_fragment->bits, 32);
+	}
+
+	if (emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
+		if (vbptc_16_11_check_and_repair(&repeater->slot[timeslot-1].emb_sig_lc_vbptc_storage)) {
+			vbptc_16_11_get_data_bits(&repeater->slot[timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
+			console_log(LOGLEVEL_COMM_DMR "  decoding embedded lc:\n");
+			deinterleaved_emb_signalling_lc = dmrpacket_emb_deinterleave_lc(&emb_signalling_lc);
+			if (dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc)) {
+				base_bitstobytes(deinterleaved_emb_signalling_lc->bits, 72, emb_signalling_lc_bytes, 9);
+				//emb_lc = dmrpacket_control_decode_emb_lc(emb_signalling_lc_bytes);
+				// TODO: doing something with the emb_lc
 			}
+		}
+
+		vbptc_16_11_clear(&repeater->slot[timeslot-1].emb_sig_lc_vbptc_storage);
 	}
 }
 
@@ -280,15 +245,6 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	ipscpacket_t ipsc_packet = {0,};
 	repeater_t *repeater = NULL;
 	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
-	dmrpacket_payload_sync_bits_t *payload_sync_bits = NULL;
-	dmrpacket_sync_type_t payload_sync_type;
-	dmrpacket_emb_t *emb = NULL;
-
-	dmrpacket_emb_signalling_binary_fragment_t *emb_signalling_binary_fragment = NULL;
-	dmrpacket_emb_signalling_lc_t emb_signalling_lc;
-	dmrpacket_emb_signalling_lc_t *deinterleaved_emb_signalling_lc = NULL;
-	uint8_t emb_signalling_lc_bytes[9];
-	dmrpacket_control_emb_lc_t *emb_lc = NULL;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -347,10 +303,10 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 						// on a server which has multiple repeaters' traffic running through it.
 						if (repeaters_get_active(ipsc_packet.src_id, ipsc_packet.dst_id, ipsc_packet.call_type) != NULL)
 							return;
-						ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+						dmrlog_voicecall_start(ip_packet, &ipsc_packet, repeater);
 					} else { // Call running?
 						if (ipsc_packet.slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
-							ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+							dmrlog_voicecall_end(ip_packet, &ipsc_packet, repeater);
 						else { // Another call started suddenly?
 							if (ipsc_packet.src_id != repeater->slot[ipsc_packet.timeslot-1].src_id ||
 								ipsc_packet.dst_id != repeater->slot[ipsc_packet.timeslot-1].dst_id ||
@@ -359,7 +315,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 									// on a server which has multiple repeaters' traffic running through it.
 									if (repeaters_get_active(ipsc_packet.src_id, ipsc_packet.dst_id, ipsc_packet.call_type) != NULL)
 										return;
-									ipsc_call_start(ip_packet, &ipsc_packet, repeater);
+									dmrlog_voicecall_start(ip_packet, &ipsc_packet, repeater);
 								}
 						}
 					}
@@ -367,56 +323,23 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 					repeater->slot[ipsc_packet.timeslot-1].last_packet_received_at = time(NULL);
 			}
 
-			// Checking if the packet has a sync pattern.
 			packet_payload_bits = ipscpacket_convertpayloadtobits(ipsc_packet.payload);
-			payload_sync_bits = dmrpacket_extractsyncbits(packet_payload_bits);
-			payload_sync_type = dmrpacket_get_sync_type(payload_sync_bits);
-			if (payload_sync_type != DMRPACKET_SYNC_TYPE_UNKNOWN) {
-				console_log(LOGLEVEL_COMM_DMR "  packet has sync: %s\n", dmrpacket_get_readable_sync_type(payload_sync_type));
-				ipscpacket_handle_control_packet(payload_sync_type, packet_payload_bits);
-			} else {
-				// Trying to search for an EMB field.
-				emb = dmrpacket_emb_decode_emb(dmrpacket_emb_extract_from_sync(payload_sync_bits));
-				if (emb != NULL) { // Found an EMB field.
-					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT)
-						vbptc_16_11_clear(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
+			// TODO
+			//ipscpacket_handle_sync_field(packet_payload_bits, repeater, ipsc_packet.timeslot);
+			ipscpacket_handle_slot_type(packet_payload_bits);
 
-					if (emb->lcss == DMRPACKET_EMB_LCSS_FIRST_FRAGMENT ||
-						emb->lcss == DMRPACKET_EMB_LCSS_CONTINUATION ||
-						emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) { // Not handling single fragment here.
-						emb_signalling_binary_fragment = dmrpacket_emb_signalling_extract_from_sync(payload_sync_bits);
-						if (emb_signalling_binary_fragment != NULL)
-							vbptc_16_11_add_burst(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, emb_signalling_binary_fragment->bits, 32);
-					}
-
-					if (emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
-						if (vbptc_16_11_check_and_repair(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage)) {
-							vbptc_16_11_get_data_bits(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
-							console_log(LOGLEVEL_COMM_DMR "  decoding embedded lc:\n");
-							deinterleaved_emb_signalling_lc = dmrpacket_emb_deinterleave_lc(&emb_signalling_lc);
-							if (dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc)) {
-								base_bitstobytes(deinterleaved_emb_signalling_lc->bits, 72, emb_signalling_lc_bytes, 9);
-								emb_lc = dmrpacket_control_decode_emb_lc(emb_signalling_lc_bytes);
-								// TODO: doing something with the emb_lc
-							}
-						}
-
-						vbptc_16_11_clear(&repeater->slot[ipsc_packet.timeslot-1].emb_sig_lc_vbptc_storage);
-					}
-				}
-			}
-
+			// TODO: move this from here
 			switch (ipsc_packet.slot_type) {
 				case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
-					ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+					dmrlog_voicecall_end(ip_packet, &ipsc_packet, repeater);
 					ipsc_handle_data_header(ip_packet, &ipsc_packet, repeater);
 					break;
 				case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA:
-					ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+					dmrlog_voicecall_end(ip_packet, &ipsc_packet, repeater);
 					ipsc_handle_data_34rate(ip_packet, &ipsc_packet, repeater);
 					break;
 				case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA:
-					ipsc_call_end(ip_packet, &ipsc_packet, repeater);
+					dmrlog_voicecall_end(ip_packet, &ipsc_packet, repeater);
 					ipsc_handle_data_12rate(ip_packet, &ipsc_packet, repeater);
 					break;
 				default:
