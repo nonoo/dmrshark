@@ -1,5 +1,5 @@
-- Moving every DMR packet decoding related stuff out of ipsc.c
-- Relying only on the decoded DMR packet data when processing call starts and ends
+- Moving every DMR packet decoding related stuff out of ipsc.c and relying only on
+  the decoded DMR packet data when processing call starts and ends.
 - Idle message handling
 - CSBK and Multi Block Control (MBC) message decoding
 - Handling other DPF data types
