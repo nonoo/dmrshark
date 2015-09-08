@@ -68,6 +68,9 @@ flag_t quadres_16_7_check(quadres_16_7_codeword_t *codeword) {
 	uint16_t col;
 	uint8_t dataval = 0;
 
+	if (codeword == NULL)
+		return 0;
+
 	for (col = 0; col < 7; col++) {
 		if (codeword->data[col] == 1)
 			dataval |= (1 << (7-col));
