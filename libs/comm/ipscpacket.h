@@ -18,8 +18,7 @@
 #ifndef IPSCPACKET_H_
 #define IPSCPACKET_H_
 
-#include <libs/base/dmr.h>
-#include <libs/dmrpacket/dmrpacket.h>
+#include "repeaters.h"
 
 #include <netinet/udp.h>
 
@@ -71,7 +70,5 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
 dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload);
-
-void ipscpacket_handle_slot_type(dmrpacket_payload_bits_t *packet_payload_bits);
 
 #endif

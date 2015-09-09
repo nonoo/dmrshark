@@ -37,19 +37,6 @@ dmrpacket_payload_info_bits_t *dmrpacket_extract_info_bits(dmrpacket_payload_bit
 	return &info_bits;
 }
 
-// Extracts the slot type part of the payload (leaves out info and sync parts).
-dmrpacket_payload_slot_type_bits_t *dmrpacket_extract_slot_type_bits(dmrpacket_payload_bits_t *payload_bits) {
-	static dmrpacket_payload_slot_type_bits_t slot_type_bits;
-
-	if (payload_bits == NULL)
-		return NULL;
-
-	memcpy(&slot_type_bits.bits, payload_bits->bits+98, sizeof(slot_type_bits.bits)/2);
-	memcpy(&slot_type_bits.bits[sizeof(slot_type_bits.bits)/2], payload_bits->bits+98+10+48, sizeof(slot_type_bits.bits)/2);
-
-	return &slot_type_bits;
-}
-
 // Extracts the sync field of the payload (leaves out info and slot type parts).
 dmrpacket_payload_sync_field_bits_t *dmrpacket_extract_sync_field_bits(dmrpacket_payload_bits_t *payload_bits) {
 	static dmrpacket_payload_sync_field_bits_t sync_field_bits;
@@ -113,16 +100,4 @@ dmrpacket_sync_pattern_type_t dmrpacket_get_sync_pattern_type(dmrpacket_payload_
 		return DMRPACKET_SYNC_PATTERN_TYPE_DIRECT_DATA_TS2;
 	else
 		return DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN;
-}
-
-dmrpacket_payload_slot_type_t *dmrpacket_decode_slot_type(dmrpacket_payload_slot_type_bits_t *slot_type_bits) {
-	static dmrpacket_payload_slot_type_t slot_type;
-
-	if (!golay_20_8_check_and_repair(slot_type_bits->bits))
-		return NULL;
-
-	slot_type.cc = slot_type_bits->bits[0] << 3 | slot_type_bits->bits[1] << 2 | slot_type_bits->bits[2] << 1 | slot_type_bits->bits[3];
-	slot_type.data_type = slot_type_bits->bits[4] << 3 | slot_type_bits->bits[5] << 2 | slot_type_bits->bits[6] << 1 | slot_type_bits->bits[7];
-
-	return &slot_type;
 }

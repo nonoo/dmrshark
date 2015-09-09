@@ -33,10 +33,6 @@ typedef struct {
 } dmrpacket_payload_info_bits_t;
 
 typedef struct {
-	flag_t bits[10*2];
-} dmrpacket_payload_slot_type_bits_t;
-
-typedef struct {
 	flag_t bits[48];
 } dmrpacket_payload_sync_field_bits_t;
 
@@ -55,8 +51,6 @@ typedef uint8_t dmrpacket_sync_pattern_type_t;
 #include "dmrpacket-data.h"
 #include "dmrpacket-data-header.h"
 #include "dmrpacket-data-34rate.h"
-#include "dmrpacket-control.h"
-#include "dmrpacket-emb.h"
 
 typedef struct {
 	dmr_color_code_t cc;
@@ -64,12 +58,9 @@ typedef struct {
 } dmrpacket_payload_slot_type_t;
 
 dmrpacket_payload_info_bits_t *dmrpacket_extract_info_bits(dmrpacket_payload_bits_t *payload_bits);
-dmrpacket_payload_slot_type_bits_t *dmrpacket_extract_slot_type_bits(dmrpacket_payload_bits_t *payload_bits);
 dmrpacket_payload_sync_field_bits_t *dmrpacket_extract_sync_field_bits(dmrpacket_payload_bits_t *payload_bits);
 
 char *dmrpacket_get_readable_sync_pattern_type(dmrpacket_sync_pattern_type_t sync_pattern_type);
 dmrpacket_sync_pattern_type_t dmrpacket_get_sync_pattern_type(dmrpacket_payload_sync_field_bits_t *sync_field_bits);
-
-dmrpacket_payload_slot_type_t *dmrpacket_decode_slot_type(dmrpacket_payload_slot_type_bits_t *slot_type_bits);
 
 #endif
