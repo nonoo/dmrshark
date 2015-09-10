@@ -36,6 +36,10 @@ typedef struct {
 	flag_t bits[48];
 } dmrpacket_payload_sync_field_bits_t;
 
+typedef struct {
+	flag_t bits[108*2];
+} dmrpacket_payload_voice_bits_t;
+
 #define DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN						0x00
 #define DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE			0x01
 #define DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA				0x02
@@ -59,6 +63,7 @@ typedef struct {
 
 dmrpacket_payload_info_bits_t *dmrpacket_extract_info_bits(dmrpacket_payload_bits_t *payload_bits);
 dmrpacket_payload_sync_field_bits_t *dmrpacket_extract_sync_field_bits(dmrpacket_payload_bits_t *payload_bits);
+dmrpacket_payload_voice_bits_t *dmrpacket_extract_voice_bits(dmrpacket_payload_bits_t *payload_bits);
 
 char *dmrpacket_get_readable_sync_pattern_type(dmrpacket_sync_pattern_type_t sync_pattern_type);
 dmrpacket_sync_pattern_type_t dmrpacket_get_sync_pattern_type(dmrpacket_payload_sync_field_bits_t *sync_field_bits);

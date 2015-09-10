@@ -24,6 +24,10 @@
 #include <libs/base/dmrlog.h>
 #include <libs/dmrpacket/dmrpacket.h>
 
+static void ipsc_handle_voice(dmrpacket_payload_voice_bits_t *voice_bits, repeater_t *repeater) {
+	// TODO
+}
+
 static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, dmrpacket_payload_bits_t *packet_payload_bits, repeater_t *repeater) {
 	console_log(LOGLEVEL_COMM_DMR "  slot type: %.4x (%s)\n", ipscpacket->slot_type, ipscpacket_get_readable_slot_type(ipscpacket->slot_type));
 
@@ -54,6 +58,7 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 								return;
 							dmrlog_voicecall_start(ip_packet, ipscpacket, repeater);
 						}
+					ipsc_handle_voice(dmrpacket_extract_voice_bits(packet_payload_bits), repeater);
 				}
 			}
 

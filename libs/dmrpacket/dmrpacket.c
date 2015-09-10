@@ -49,6 +49,18 @@ dmrpacket_payload_sync_field_bits_t *dmrpacket_extract_sync_field_bits(dmrpacket
 	return &sync_field_bits;
 }
 
+dmrpacket_payload_voice_bits_t *dmrpacket_extract_voice_bits(dmrpacket_payload_bits_t *payload_bits) {
+	static dmrpacket_payload_voice_bits_t voice_bits;
+
+	if (payload_bits == NULL)
+		return NULL;
+
+	memcpy(&voice_bits.bits, payload_bits->bits, sizeof(voice_bits.bits)/2);
+	memcpy(&voice_bits.bits[sizeof(voice_bits.bits)/2], payload_bits->bits+108+48, sizeof(voice_bits.bits)/2);
+
+	return &voice_bits;
+}
+
 char *dmrpacket_get_readable_sync_pattern_type(dmrpacket_sync_pattern_type_t sync_pattern_type) {
 	switch (sync_pattern_type) {
 		default:
