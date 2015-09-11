@@ -26,6 +26,7 @@ You'll need to have the following libs installed on your system to compile dmrsh
 - libpcap-dev (libpcap-devel)
 - libsnmp-dev (net-snmp-devel)
 - libmysqlclient-dev (mariadb-devel)
+- [libmbe](https://github.com/szechyjs/mbelib) (optional)
 
 Instructions on compiling and installing:
 
@@ -37,6 +38,14 @@ make install
 ```
 
 Now you will have dmrshark installed to **/opt/dmrshark**.
+
+### libmbe
+
+If you don't want to use libmbe, create **Makefile.config.inc** in the dmrshark source root directory, and add the following:
+
+```
+DECODEVOICE := 0
+```
 
 ## Configuration
 
@@ -75,6 +84,35 @@ The file has the following configuration variables:
 - **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
+
+## Configuring voice streams
+
+You can also define voice streams as .ini structure groups. Example:
+
+```
+[stream-hg5ruc-ts1]
+enabled=1
+repeaterhost=1.2.3.4
+savefiledir=
+savetorawfile=1
+timeslot=1
+
+[stream-hg5ruc-ts2]
+enabled=1
+repeaterhost=1.2.3.4
+savefiledir=
+savetorawfile=1
+timeslot=2
+```
+
+You can define as many voice streams as you want.
+Voice stream configure variables:
+
+- **enabled**: 0 if voice stream is disabled, 1 if enabled.
+- **repeaterhost**: Host name/IP address of the repeater which is the source of the stream.
+- **timeslot**: Timeslot of the repeater which we want to process.
+- **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
+- **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
 
 ## Running
 

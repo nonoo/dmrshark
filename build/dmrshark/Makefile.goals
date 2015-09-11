@@ -3,8 +3,12 @@ export CFLAGS := $(CFLAGS) -DDMRSHARK_BUILD
 include ../../make/Makefile.target.inc
 
 # Define the lib subdirs which are needed for this build.
-LIBS := $(LIBS) base config daemon comm remotedb dmrpacket coding
+LIBS := $(LIBS) base config daemon comm remotedb dmrpacket coding voicestreams
 PREBUILTLIBS := pcap snmp mysqlclient pthread
+
+ifeq ($(DECODEVOICE),1)
+PREBUILTLIBS := $(PREBUILTLIBS) mbe
+endif
 
 include ../../make/Makefile.build.inc
 include ../../make/Makefile.common.inc

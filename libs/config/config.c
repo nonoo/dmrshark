@@ -18,11 +18,12 @@
 #include <config/defaults.h>
 
 #include "config.h"
+#include "config-voicestreams.h"
 
 #include <libs/base/types.h>
+#include <libs/daemon/daemon.h>
 
 #include <stdio.h>
-#include <glib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -31,6 +32,31 @@ static pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
 static GKeyFile *keyfile = NULL;
 static GKeyFileFlags flags;
 static char *config_configfilename = NULL;
+
+GKeyFile *config_get_keyfile(void) {
+	return keyfile;
+}
+
+pthread_mutex_t *config_get_mutex(void) {
+	return &config_mutex;
+}
+
+char **config_get_groups(int *length) {
+	gchar **result;
+	gsize length_s;
+
+	*length = 0;
+	result = g_key_file_get_groups(keyfile, &length_s);
+	if (!length_s || !result)
+	    return NULL;
+	*length = length_s;
+
+	return result;
+}
+
+void config_free_groups(char **config_groups) {
+    g_strfreev(config_groups);
+}
 
 void config_writeconfigfile(void) {
 	GError *error = NULL;
@@ -524,7 +550,7 @@ void config_init(char *configfilename) {
 		keyfile = NULL;
 	}
 
-	// We read everything, a default value will be set for non-existent keys in the config file
+	// We read everything, a default value will be set for non-existent keys in the config file.
 	config_get_loglevel();
 	char *temp = config_get_logfilename();
 	free(temp);

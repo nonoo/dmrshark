@@ -21,6 +21,6 @@ $(LIBDEST): $(DEPFILE) $(OBJECTS)
 $(DEPFILE): $(SOURCES)
 	$(CC) $(CFLAGS) -MM $(SOURCES) > $(DEPFILE)
 
-$(OBJECTS): $(SOURCES) $(HEADERS) $(TOPDIR)/config/*.h $(TOPDIR)/config/app/*.h
+$(OBJECTS): $(SOURCES) $(HEADERS) $(TOPDIR)/config/*.h $(TOPDIR)/config/app/*.h $(TOPDIR)/Makefile.*.inc
 
 include $(TOPDIR)/make/Makefile.subdir.inc

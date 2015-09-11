@@ -18,8 +18,16 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include <glib.h>
+
 #include <libs/base/types.h>
 #include <libs/daemon/console.h>
+
+GKeyFile *config_get_keyfile(void);
+pthread_mutex_t *config_get_mutex(void);
+
+char **config_get_groups(int *length);
+void config_free_groups(char **config_groups);
 
 void config_writeconfigfile(void);
 

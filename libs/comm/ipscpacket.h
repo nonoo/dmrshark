@@ -60,6 +60,7 @@ typedef struct {
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
 	uint8_t payload[IPSCPACKET_PAYLOAD_SIZE];
+	dmrpacket_payload_bits_t payload_bits;
 } ipscpacket_t;
 
 char *ipscpacket_get_readable_packet_type(ipscpacket_type_t packet_type);

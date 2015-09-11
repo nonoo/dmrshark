@@ -28,6 +28,7 @@
 #include <libs/comm/repeaters.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/comm/comm.h>
+#include <libs/voicestreams/voicestreams.h>
 
 #include <string.h>
 #include <errno.h>
@@ -49,6 +50,7 @@ void command_process(char *input_buffer) {
 		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
 		console_log("  repinfo [host]                  - reads repeater info from host using snmp\n");
 		console_log("  replist                         - list repeaters\n");
+		console_log("  streamlist                      - list voice streams\n");
 		console_log("  remotedbmaintain                - start db maintenance\n");
 		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
 		console_log("  loadpcap [pcapfile]             - reads and processes packets from pcap file\n");
@@ -122,6 +124,11 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "replist") == 0) {
 		repeaters_list();
+		return;
+	}
+
+	if (strcmp(tok, "streamlist") == 0) {
+		voicestreams_list();
 		return;
 	}
 

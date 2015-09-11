@@ -15,18 +15,22 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef IPSC_DATA__H_
-#define IPSC_DATA__H_
-
-#include "repeaters.h"
-#include "ipscpacket.h"
-
-#include <libs/dmrpacket/dmrpacket.h>
+#ifndef CONFIG_VOICESTREAMS_H_
+#define CONFIG_VOICESTREAMS_H_
 
 #include <netinet/ip.h>
 
-void ipsc_data_handle_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
-void ipsc_data_handle_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
-void ipsc_data_handle_12rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
+char **config_voicestreams_streamnames_get(void);
+
+char *config_voicestreams_get_streamname_for_repeater(struct in_addr *ip, int timeslot);
+
+int config_voicestreams_get_enabled(char *streamname);
+char *config_voicestreams_get_repeaterhost(char *streamname);
+char *config_voicestreams_get_savefiledir(char *streamname);
+int config_voicestreams_get_savetorawfile(char *streamname);
+int config_voicestreams_get_timeslot(char *streamname);
+
+void config_voicestreams_init(void);
+void config_voicestreams_deinit(void);
 
 #endif

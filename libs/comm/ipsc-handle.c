@@ -24,11 +24,7 @@
 #include <libs/base/dmrlog.h>
 #include <libs/dmrpacket/dmrpacket.h>
 
-static void ipsc_handle_voice(dmrpacket_payload_voice_bits_t *voice_bits, repeater_t *repeater) {
-	// TODO
-}
-
-static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, dmrpacket_payload_bits_t *packet_payload_bits, repeater_t *repeater) {
+static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	console_log(LOGLEVEL_COMM_DMR "  slot type: %.4x (%s)\n", ipscpacket->slot_type, ipscpacket_get_readable_slot_type(ipscpacket->slot_type));
 
 	switch (ipscpacket->slot_type) {
@@ -45,20 +41,19 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 				if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 					return;
 				dmrlog_voicecall_start(ip_packet, ipscpacket, repeater);
-			} else { // Call running?
+			} else {
 				if (ipscpacket->slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
 					dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
-				else { // Another call started suddenly?
+				else {
 					if (ipscpacket->src_id != repeater->slot[ipscpacket->timeslot-1].src_id ||
 						ipscpacket->dst_id != repeater->slot[ipscpacket->timeslot-1].dst_id ||
-						ipscpacket->call_type != repeater->slot[ipscpacket->timeslot-1].call_type) {
+						ipscpacket->call_type != repeater->slot[ipscpacket->timeslot-1].call_type) { // Another call started suddenly?
 							// Checking if this call is already running on another repeater. This can happen if dmrshark is running
 							// on a server which has multiple repeaters' traffic running through it.
 							if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 								return;
 							dmrlog_voicecall_start(ip_packet, ipscpacket, repeater);
 						}
-					ipsc_handle_voice(dmrpacket_extract_voice_bits(packet_payload_bits), repeater);
 				}
 			}
 
@@ -66,15 +61,15 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
 			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_header(ip_packet, ipscpacket, packet_payload_bits, repeater);
+			ipsc_data_handle_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA:
 			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_34rate(ip_packet, ipscpacket, packet_payload_bits, repeater);
+			ipsc_data_handle_34rate(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA:
 			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_12rate(ip_packet, ipscpacket, packet_payload_bits, repeater);
+			ipsc_data_handle_12rate(ip_packet, ipscpacket, repeater);
 			break;
 		default:
 			break;
@@ -88,10 +83,6 @@ static void ipsc_handle_sync_field(dmrpacket_payload_bits_t *packet_payload_bits
 }
 
 void ipsc_handle(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
-	dmrpacket_payload_bits_t *packet_payload_bits = NULL;
-
-	packet_payload_bits = ipscpacket_convertpayloadtobits(ipscpacket->payload);
-
-	ipsc_handle_sync_field(packet_payload_bits);
-	ipsc_handle_slot_type(ip_packet, ipscpacket, packet_payload_bits, repeater);
+	ipsc_handle_sync_field(&ipscpacket->payload_bits);
+	ipsc_handle_slot_type(ip_packet, ipscpacket, repeater);
 }

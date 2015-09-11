@@ -141,6 +141,7 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;
 	ipscpacket->src_id = ipscpacket_raw->src_id_raw3 << 16 | ipscpacket_raw->src_id_raw2 << 8 | ipscpacket_raw->src_id_raw1;
 	memcpy(ipscpacket->payload, (uint8_t *)ipscpacket_raw->payload, IPSCPACKET_PAYLOAD_SIZE);
+	memcpy(&ipscpacket->payload_bits, ipscpacket_convertpayloadtobits(ipscpacket->payload), sizeof(dmrpacket_payload_bits_t));
 
 	return 1;
 }

@@ -22,6 +22,7 @@
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon.h>
 #include <libs/config/config.h>
+#include <libs/config/config-voicestreams.h>
 #include <libs/comm/comm.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/coding/coding.h>
@@ -97,6 +98,7 @@ int main(int argc, char *argv[]) {
 			break;
 	}
 	if (!daemon_is_consoleclient()) {
+		config_voicestreams_init();
 		base_init();
 		remotedb_init();
 		coding_init();
@@ -121,6 +123,7 @@ int main(int argc, char *argv[]) {
 		comm_deinit();
 		remotedb_deinit();
 		base_deinit();
+		config_voicestreams_deinit();
 	}
 	daemon_deinit();
 	config_deinit();

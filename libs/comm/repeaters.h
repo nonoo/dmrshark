@@ -44,6 +44,7 @@ typedef struct {
 	dmrpacket_data_block_t data_blocks[64];
 	int data_blocks_received;
 	time_t data_header_received_at;
+	char *voicestream_name;
 } repeater_slot_t;
 
 typedef struct {

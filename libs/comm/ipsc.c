@@ -23,6 +23,7 @@
 
 #include <libs/remotedb/remotedb.h>
 #include <libs/config/config.h>
+#include <libs/voicestreams/voicestreams.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -108,6 +109,9 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 
 			ipsc_handle(ip_packet, &ipsc_packet, repeater);
 		}
+
+		if (repeater != NULL)
+			voicestreams_processpacket(&ipsc_packet, repeater);
 	}
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {
