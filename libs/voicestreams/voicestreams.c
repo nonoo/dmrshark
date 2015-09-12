@@ -141,6 +141,8 @@ void voicestreams_deinit(void) {
 	voicestream_t *vs;
 
 	while (voicestreams != NULL) {
+		free(voicestreams->name);
+
 		vs = voicestreams->next;
 		free(voicestreams);
 		voicestreams = vs;

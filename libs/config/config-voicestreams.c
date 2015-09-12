@@ -209,7 +209,7 @@ void config_voicestreams_init(void) {
 			i++;
 			voicestreams_i++;
 		}
-		free(voicestreams);
+		config_voicestreams_free_streamnames(voicestreams);
 	}
 
 	console_log("config: loaded %u voice stream configs\n", i);
