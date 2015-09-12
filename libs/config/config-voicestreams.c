@@ -36,6 +36,7 @@ static int config_voicestreams_streamnames_load(void) {
 	int length;
 	int oldlength;
 	int slen;
+	char *tmp;
 
 	length = 0;
 	config_groups = config_get_groups(&oldlength);
@@ -43,8 +44,18 @@ static int config_voicestreams_streamnames_load(void) {
 		return 0;
 
 	for (i = 0; i < oldlength; i++) {
-		if (strstr(config_groups[i], "stream-") != NULL)
-			length++;
+		if (strstr(config_groups[i], "stream-") == NULL)
+			continue;
+
+		// Checking if repeater host is defined.
+		tmp = config_voicestreams_get_repeaterhost(config_groups[i]);
+		if (tmp == NULL || strlen(tmp) == 0) {
+			free(tmp);
+			continue;
+		}
+		free(tmp);
+
+		length++;
 	}
 
 	if (length == 0)
@@ -60,6 +71,14 @@ static int config_voicestreams_streamnames_load(void) {
 
 		if (strstr(config_groups[i], "stream-") == NULL)
 			continue;
+
+		// Checking if repeater host is defined.
+		tmp = config_voicestreams_get_repeaterhost(config_groups[i]);
+		if (tmp == NULL || strlen(tmp) == 0) {
+			free(tmp);
+			continue;
+		}
+		free(tmp);
 
 		slen = strlen(config_groups[i])+1;
 		config_voicestreams_streamnames[j] = (char *)malloc(slen);
