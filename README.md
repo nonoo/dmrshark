@@ -92,27 +92,30 @@ You can also define voice streams as .ini structure groups. Example:
 ```
 [stream-hg5ruc-ts1]
 enabled=1
-repeaterhost=1.2.3.4
+repeaterhosts=1.2.3.4,repeater123.nonoo.hu
 savefiledir=
 savetorawfile=1
 timeslot=1
+decodequality=3
 
 [stream-hg5ruc-ts2]
 enabled=1
-repeaterhost=1.2.3.4
+repeaterhosts=1.2.3.4,repeater123.nonoo.hu
 savefiledir=
 savetorawfile=1
 timeslot=2
+decodequality=64
 ```
 
 You can define as many voice streams as you want.
 Voice stream configure variables:
 
 - **enabled**: 0 if voice stream is disabled, 1 if enabled.
-- **repeaterhost**: Host name/IP address of the repeater which is the source of the stream.
+- **repeaterhosts**: Host names/IP addresses of the repeaters which are the sources of the stream.
 - **timeslot**: Timeslot of the repeater which we want to process.
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
+- **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3.
 
 ## Running
 
