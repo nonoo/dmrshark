@@ -28,6 +28,7 @@ char *config_voicestreams_get_repeaterhosts(char *streamname);
 char *config_voicestreams_get_savefiledir(char *streamname);
 int config_voicestreams_get_savetorawfile(char *streamname);
 int config_voicestreams_get_timeslot(char *streamname);
+int config_voicestreams_get_decodequality(char *streamname);
 
 void config_voicestreams_init(void);
 

@@ -15,38 +15,18 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef VOICESTREAMS_H_
-#define VOICESTREAMS_H_
+#ifndef VOICESTREAMS_DECODE_H_
+#define VOICESTREAMS_DECODE_H_
+
+#include "voicestreams.h"
 
 #include <libs/base/types.h>
+#include <libs/dmrpacket/dmrpacket.h>
 
-#include <netinet/ip.h>
-#ifdef DECODEVOICE
-#include <mbelib.h>
-#endif
+typedef struct {
+	float samples[160];
+} voicestreams_decoded_frame_t;
 
-typedef struct voicestream_st {
-	char *name;
-	flag_t enabled;
-	char *repeaterhosts;
-	char *savefiledir;
-	flag_t savetorawfile;
-	flag_t timeslot;
-	uint8_t decodequality;
-
-#ifdef DECODEVOICE
-	mbe_parms cur_mp;
-	mbe_parms prev_mp;
-	mbe_parms prev_mp_enhanced;
-#endif
-
-	struct voicestream_st *next;
-} voicestream_t;
-
-voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot);
-void voicestreams_printlist(void);
-
-void voicestreams_init(void);
-void voicestreams_deinit(void);
+voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_ambe_frame_bits_t *ambe_frame_bits, voicestream_t *voicestream);
 
 #endif

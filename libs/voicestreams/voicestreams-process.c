@@ -19,6 +19,7 @@
 
 #include "voicestreams.h"
 #include "voicestreams-process.h"
+#include "voicestreams-decode.h"
 
 #include <libs/comm/repeaters.h>
 #include <libs/comm/ipsc.h>
@@ -58,6 +59,9 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	dmrpacket_payload_voice_bits_t *voice_bits;
 	uint8_t i;
 	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
+#ifdef DECODEVOICE
+	voicestreams_decoded_frame_t *decoded_frame;
+#endif
 
 	if (ipscpacket == NULL || repeater == NULL)
 		return;
@@ -81,11 +85,17 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		return;
 
 	voice_bits = dmrpacket_extract_voice_bits(&ipscpacket->payload_bits);
-	for (i = 0; i < sizeof(voice_bits->bits); i += 8)
-		voice_bytes[i/8] = base_bitstobyte(&voice_bits->bits[i]);
+	for (i = 0; i < sizeof(voice_bits->raw.bits); i += 8)
+		voice_bytes[i/8] = base_bitstobyte(&voice_bits->raw.bits[i]);
 
 	if (voicestream->savetorawfile)
 		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
+
+#ifdef DECODEVOICE
+	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[0], voicestream);
+	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[1], voicestream);
+	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[2], voicestream);
+#endif
 
 	// TODO: streaming
 }

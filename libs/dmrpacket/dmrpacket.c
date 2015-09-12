@@ -55,8 +55,8 @@ dmrpacket_payload_voice_bits_t *dmrpacket_extract_voice_bits(dmrpacket_payload_b
 	if (payload_bits == NULL)
 		return NULL;
 
-	memcpy(&voice_bits.bits, payload_bits->bits, sizeof(voice_bits.bits)/2);
-	memcpy(&voice_bits.bits[sizeof(voice_bits.bits)/2], payload_bits->bits+108+48, sizeof(voice_bits.bits)/2);
+	memcpy(&voice_bits.raw.bits, payload_bits->bits, sizeof(dmrpacket_payload_voice_bits_t)/2);
+	memcpy(&voice_bits.raw.bits[sizeof(dmrpacket_payload_voice_bits_t)/2], payload_bits->bits+108+48, sizeof(dmrpacket_payload_voice_bits_t)/2);
 
 	return &voice_bits;
 }

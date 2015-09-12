@@ -77,10 +77,11 @@ void voicestreams_printlist(void) {
 
 	vs = voicestreams;
 	while (vs != NULL) {
-		console_log("%s: enabled: %u rptrhosts: %s ts: %u savedir: %s saveraw: %u\n", vs->name,
+		console_log("%s: enabled: %u rptrhosts: %s ts: %u quality: %u savedir: %s saveraw: %u\n", vs->name,
 			vs->enabled,
 			vs->repeaterhosts,
 			vs->timeslot,
+			vs->decodequality,
 			(strlen(vs->savefiledir) == 0 ? "." : vs->savefiledir),
 			vs->savetorawfile);
 
@@ -92,6 +93,9 @@ void voicestreams_init(void) {
 	char **streamnames = config_voicestreams_get_streamnames();
 	char **streamnames_i = streamnames;
 	voicestream_t *new_vs;
+#ifdef DECODEVOICE
+	char mbeversion[25];
+#endif
 
 	console_log("voicestreams init:\n");
 	if (streamnames == NULL) {
@@ -118,6 +122,11 @@ void voicestreams_init(void) {
 		new_vs->savefiledir = config_voicestreams_get_savefiledir(new_vs->name);
 		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
+		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
+
+#ifdef DECODEVOICE
+		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
+#endif
 
 		new_vs->next = voicestreams;
 		voicestreams = new_vs;
@@ -127,6 +136,11 @@ void voicestreams_init(void) {
 		streamnames_i++;
 	}
 	config_voicestreams_free_streamnames(streamnames);
+
+#ifdef DECODEVOICE
+	mbe_printVersion(mbeversion);
+	console_log("voicestreams: using mbelib v%s\n", mbeversion);
+#endif
 }
 
 void voicestreams_deinit(void) {

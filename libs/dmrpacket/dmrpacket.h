@@ -37,7 +37,16 @@ typedef struct {
 } dmrpacket_payload_sync_field_bits_t;
 
 typedef struct {
-	flag_t bits[108*2];
+	flag_t bits[72];
+} dmrpacket_payload_ambe_frame_bits_t;
+
+typedef union {
+	struct {
+		flag_t bits[108*2];
+	} raw;
+	struct {
+		dmrpacket_payload_ambe_frame_bits_t frames[3];
+	} ambe_frames;
 } dmrpacket_payload_voice_bits_t;
 
 #define DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN						0x00

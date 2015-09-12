@@ -186,6 +186,21 @@ int config_voicestreams_get_timeslot(char *streamname) {
 	return value;
 }
 
+int config_voicestreams_get_decodequality(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	int defaultvalue = 3;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, "decodequality", &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, "decodequality", value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 void config_voicestreams_init(void) {
 	int i;
 	char *tmp;
@@ -205,6 +220,7 @@ void config_voicestreams_init(void) {
 			free(tmp);
 			config_voicestreams_get_savetorawfile(voicestreams[i]);
 			config_voicestreams_get_timeslot(voicestreams[i]);
+			config_voicestreams_get_decodequality(voicestreams[i]);
 
 			i++;
 			voicestreams_i++;
