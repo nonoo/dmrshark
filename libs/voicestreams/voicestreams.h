@@ -18,10 +18,17 @@
 #ifndef VOICESTREAMS_H_
 #define VOICESTREAMS_H_
 
+#include <libs/base/types.h>
+
 #include <netinet/ip.h>
 
 typedef struct voicestream_st {
 	char *name;
+	flag_t enabled;
+	char *repeaterhosts;
+	char *savefiledir;
+	flag_t savetorawfile;
+	flag_t timeslot;
 
 	struct voicestream_st *next;
 } voicestream_t;

@@ -339,7 +339,7 @@ void snmp_process(void) {
     int nfds = 0;
     int block = 1;
     fd_set fdset;
-    struct timeval timeout;
+    struct timeval timeout = {0,};
 
 	if (snmp_repeaterinfo_received) {
 		snmp_repeaterinfo_received = 0;

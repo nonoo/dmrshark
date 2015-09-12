@@ -28,18 +28,18 @@
 #include <stdio.h>
 #include <string.h>
 
-static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, char *voicestream_name) {
+static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char fn[255];
 	char *dir;
 
-	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream_name == NULL || strlen(voicestream_name) == 0)
+	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream == NULL)
 		return;
 
-	dir = config_voicestreams_get_savefiledir(voicestream_name);
+	dir = voicestream->savefiledir;
 	if (dir == NULL || strlen(dir) == 0)
 		dir = ".";
-	snprintf(fn, sizeof(fn), "%s/%s.raw", dir, voicestream_name);
+	snprintf(fn, sizeof(fn), "%s/%s.raw", dir, voicestream->name);
 
 	f = fopen(fn, "a");
 	if (!f)
@@ -77,15 +77,15 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	if (voicestream == NULL)
 		return;
 
-	if (!config_voicestreams_get_enabled(voicestream->name))
+	if (!voicestream->enabled)
 		return;
 
 	voice_bits = dmrpacket_extract_voice_bits(&ipscpacket->payload_bits);
 	for (i = 0; i < sizeof(voice_bits->bits); i += 8)
 		voice_bytes[i/8] = base_bitstobyte(&voice_bits->bits[i]);
 
-	if (config_voicestreams_get_savetorawfile(voicestream->name))
-		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream->name);
+	if (voicestream->savetorawfile)
+		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 	// TODO: streaming
 }

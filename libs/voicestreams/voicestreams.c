@@ -29,43 +29,36 @@
 static voicestream_t *voicestreams = NULL;
 
 voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot) {
-	char *config_hosts;
 	struct in_addr resolved_ip;
 	char *tok = NULL;
 	voicestream_t *vs = voicestreams;
 
 	while (vs != NULL) {
-		if (config_voicestreams_get_timeslot(vs->name) != timeslot) {
+		if (vs->timeslot != timeslot) {
 			vs = vs->next;
 			continue;
 		}
 
-		config_hosts = config_voicestreams_get_repeaterhosts(vs->name);
-		if (config_hosts == NULL || strlen(config_hosts) == 0) {
+		if (vs->repeaterhosts == NULL || strlen(vs->repeaterhosts) == 0) {
 			vs = vs->next;
 			continue;
 		}
 
 		// Iterating through stream's defined repeater hosts.
-		tok = strtok(config_hosts, ",");
+		tok = strtok(vs->repeaterhosts, ",");
 		if (tok) {
 			do {
 				if (comm_hostname_to_ip(tok, &resolved_ip)) { // Hostname can be resolved to an IP and it matches?
-					if (memcmp(&resolved_ip, ip, sizeof(struct in_addr)) == 0) {
-						free(config_hosts);
+					if (memcmp(&resolved_ip, ip, sizeof(struct in_addr)) == 0)
 						return vs;
-					}
 				} else {
-					if (strcmp(tok, comm_get_ip_str(ip)) == 0) { // Hostname can't be resolved but it matches?
-						free(config_hosts);
+					if (strcmp(tok, comm_get_ip_str(ip)) == 0) // Hostname can't be resolved but it matches?
 						return vs;
-					}
 				}
 
 				tok = strtok(NULL, ",");
 			} while (tok != NULL);
 		}
-		free(config_hosts);
 
 		vs = vs->next;
 	}
@@ -74,8 +67,6 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 }
 
 void voicestreams_printlist(void) {
-	char *hosts;
-	char *dir;
 	voicestream_t *vs;
 
 	if (voicestreams == NULL) {
@@ -86,18 +77,12 @@ void voicestreams_printlist(void) {
 
 	vs = voicestreams;
 	while (vs != NULL) {
-		hosts = config_voicestreams_get_repeaterhosts(vs->name);
-		dir = config_voicestreams_get_savefiledir(vs->name);
-
 		console_log("%s: enabled: %u rptrhosts: %s ts: %u savedir: %s saveraw: %u\n", vs->name,
-			config_voicestreams_get_enabled(vs->name),
-			hosts,
-			config_voicestreams_get_timeslot(vs->name),
-			(strlen(dir) == 0 ? "." : dir),
-			config_voicestreams_get_savetorawfile(vs->name));
-
-		free(hosts);
-		free(dir);
+			vs->enabled,
+			vs->repeaterhosts,
+			vs->timeslot,
+			(strlen(vs->savefiledir) == 0 ? "." : vs->savefiledir),
+			vs->savetorawfile);
 
 		vs = vs->next;
 	}
@@ -121,12 +106,19 @@ void voicestreams_init(void) {
 			console_log("warning: couldn't allocate memory\n");
 			continue;
 		}
+
 		new_vs->name = strdup(*streamnames_i);
 		if (!new_vs->name) {
 			console_log("warning: couldn't allocate memory\n");
 			free(new_vs);
 			continue;
 		}
+		new_vs->enabled = config_voicestreams_get_enabled(new_vs->name);
+		new_vs->repeaterhosts = config_voicestreams_get_repeaterhosts(new_vs->name);
+		new_vs->savefiledir = config_voicestreams_get_savefiledir(new_vs->name);
+		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
+		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
+
 		new_vs->next = voicestreams;
 		voicestreams = new_vs;
 
@@ -142,6 +134,8 @@ void voicestreams_deinit(void) {
 
 	while (voicestreams != NULL) {
 		free(voicestreams->name);
+		free(voicestreams->repeaterhosts);
+		free(voicestreams->savefiledir);
 
 		vs = voicestreams->next;
 		free(voicestreams);
