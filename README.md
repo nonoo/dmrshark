@@ -26,7 +26,7 @@ You'll need to have the following libs installed on your system to compile dmrsh
 - libpcap-dev (libpcap-devel)
 - libsnmp-dev (net-snmp-devel)
 - libmysqlclient-dev (mariadb-devel)
-- [libmbe](https://github.com/szechyjs/mbelib) (optional)
+- [mbelib](https://github.com/szechyjs/mbelib) (optional)
 
 Instructions on compiling and installing:
 
