@@ -26,10 +26,8 @@ typedef struct voicestream_st {
 	struct voicestream_st *next;
 } voicestream_t;
 
-voicestream_t *voicestreams_get(void);
-
 voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot);
-void voicestreams_list(void);
+void voicestreams_printlist(void);
 
 void voicestreams_init(void);
 void voicestreams_deinit(void);

@@ -128,7 +128,7 @@ void command_process(char *input_buffer) {
 	}
 
 	if (strcmp(tok, "streamlist") == 0) {
-		voicestreams_list();
+		voicestreams_printlist();
 		return;
 	}
 

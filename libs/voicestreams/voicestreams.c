@@ -28,10 +28,6 @@
 
 static voicestream_t *voicestreams = NULL;
 
-voicestream_t *voicestreams_get(void) {
-	return voicestreams;
-}
-
 voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot) {
 	char *config_hosts;
 	struct in_addr resolved_ip;
@@ -77,7 +73,7 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 	return NULL;
 }
 
-void voicestreams_list(void) {
+void voicestreams_printlist(void) {
 	char *hosts;
 	char *dir;
 	voicestream_t *vs;
