@@ -15,23 +15,12 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef VOICESTREAMS_H_
-#define VOICESTREAMS_H_
+#ifndef VOICESTREAMS_PROCESS_H_
+#define VOICESTREAMS_PROCESS_H_
 
-#include <netinet/ip.h>
+#include <libs/comm/ipscpacket.h>
+#include <libs/comm/repeaters.h>
 
-typedef struct voicestream_st {
-	char *name;
-
-	struct voicestream_st *next;
-} voicestream_t;
-
-voicestream_t *voicestreams_get(void);
-
-voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot);
-void voicestreams_list(void);
-
-void voicestreams_init(void);
-void voicestreams_deinit(void);
+void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater);
 
 #endif

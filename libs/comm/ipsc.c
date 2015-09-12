@@ -23,7 +23,7 @@
 
 #include <libs/remotedb/remotedb.h>
 #include <libs/config/config.h>
-#include <libs/voicestreams/voicestreams.h>
+#include <libs/voicestreams/voicestreams-process.h>
 
 #include <string.h>
 #include <stdlib.h>

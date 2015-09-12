@@ -126,7 +126,6 @@ int main(int argc, char *argv[]) {
 		voicestreams_deinit();
 		remotedb_deinit();
 		base_deinit();
-		config_voicestreams_deinit();
 	}
 	daemon_deinit();
 	config_deinit();

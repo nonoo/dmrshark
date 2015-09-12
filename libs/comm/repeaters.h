@@ -21,6 +21,7 @@
 #include <libs/base/dmr.h>
 #include <libs/dmrpacket/dmrpacket.h>
 #include <libs/coding/vbptc-16-11.h>
+#include <libs/voicestreams/voicestreams.h>
 
 #include <arpa/inet.h>
 #include <time.h>
@@ -44,7 +45,7 @@ typedef struct {
 	dmrpacket_data_block_t data_blocks[64];
 	int data_blocks_received;
 	time_t data_header_received_at;
-	char *voicestream_name;
+	voicestream_t *voicestream;
 } repeater_slot_t;
 
 typedef struct {

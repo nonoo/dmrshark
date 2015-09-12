@@ -24,7 +24,6 @@
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
-#include <libs/config/config-voicestreams.h>
 #include <libs/remotedb/remotedb.h>
 
 #include <string.h>
@@ -115,12 +114,12 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 		if (repeaters_issnmpignoredforip(ipaddr))
 			repeater->snmpignored = 1;
 
-		repeater->slot[0].voicestream_name = config_voicestreams_get_streamname_for_repeater(ipaddr, 1);
-		repeater->slot[1].voicestream_name = config_voicestreams_get_streamname_for_repeater(ipaddr, 2);
+		repeater->slot[0].voicestream = voicestreams_get_stream_for_repeater(ipaddr, 1);
+		repeater->slot[1].voicestream = voicestreams_get_stream_for_repeater(ipaddr, 2);
 
 		console_log("repeaters [%s]: added (snmp ignored: %u)\n", comm_get_ip_str(ipaddr), repeater->snmpignored);
-		console_log("  ts1 stream name: %s\n", repeater->slot[0].voicestream_name != NULL ? repeater->slot[0].voicestream_name : "no stream defined");
-		console_log("  ts2 stream name: %s\n", repeater->slot[1].voicestream_name != NULL ? repeater->slot[1].voicestream_name : "no stream defined");
+		console_log("  ts1 stream name: %s\n", repeater->slot[0].voicestream != NULL ? repeater->slot[0].voicestream->name : "no stream defined");
+		console_log("  ts2 stream name: %s\n", repeater->slot[1].voicestream != NULL ? repeater->slot[1].voicestream->name : "no stream defined");
 	}
 	repeater->last_active_time = time(NULL);
 	return repeater;
