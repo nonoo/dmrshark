@@ -91,7 +91,16 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	if (ipscpacket == NULL || repeater == NULL)
 		return;
 
-	// TODO: filter by slot type!
+	switch (ipscpacket->slot_type) {
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A: // Only processing voice data packets.
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B:
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_C:
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
+			break;
+		default:
+			return;
+	}
 
 	voicestream_name = repeater->slot[ipscpacket->timeslot-1].voicestream_name;
 
