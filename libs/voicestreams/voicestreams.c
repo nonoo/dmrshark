@@ -28,6 +28,14 @@
 #include <string.h>
 #include <stdlib.h>
 
+typedef struct voicestream_st {
+	char *name;
+
+	struct voicestream_st *next;
+} voicestream_t;
+
+static voicestream_t *voicestreams = NULL;
+
 static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, char *voicestream_name) {
 	FILE *f;
 	char fn[255];
@@ -54,31 +62,32 @@ static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes
 }
 
 void voicestreams_list(void) {
-	char **streamnames = config_voicestreams_streamnames_get();
 	char *hosts;
 	char *dir;
+	voicestream_t *vs;
 
-	if (streamnames == NULL) {
-		console_log("no voice streams defined in config file.\n");
+	if (voicestreams == NULL) {
+		console_log("no voice streams loaded.\n");
 		return;
 	}
 	console_log("voice streams:\n");
 
-	while (*streamnames != NULL) {
-		hosts = config_voicestreams_get_repeaterhosts(*streamnames);
-		dir = config_voicestreams_get_savefiledir(*streamnames);
+	vs = voicestreams;
+	while (vs != NULL) {
+		hosts = config_voicestreams_get_repeaterhosts(vs->name);
+		dir = config_voicestreams_get_savefiledir(vs->name);
 
-		console_log("%s: enabled: %u rptrhosts: %s ts: %u savedir: %s saveraw: %u\n", *streamnames,
-			config_voicestreams_get_enabled(*streamnames),
+		console_log("%s: enabled: %u rptrhosts: %s ts: %u savedir: %s saveraw: %u\n", vs->name,
+			config_voicestreams_get_enabled(vs->name),
 			hosts,
-			config_voicestreams_get_timeslot(*streamnames),
+			config_voicestreams_get_timeslot(vs->name),
 			(strlen(dir) == 0 ? "." : dir),
-			config_voicestreams_get_savetorawfile(*streamnames));
+			config_voicestreams_get_savetorawfile(vs->name));
 
 		free(hosts);
 		free(dir);
 
-		streamnames++;
+		vs = vs->next;
 	}
 }
 
@@ -118,4 +127,43 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream_name);
 
 	// TODO: streaming
+}
+
+void voicestreams_init(void) {
+	char **streamnames = config_voicestreams_streamnames_get();
+	voicestream_t *new_vs;
+
+	console_log("voicestreams init: ");
+	if (streamnames == NULL) {
+		console_log("no voice streams defined in config file.\n");
+		return;
+	}
+
+	while (*streamnames != NULL) {
+		new_vs = (voicestream_t *)malloc(sizeof(voicestream_t));
+		if (!new_vs) {
+			console_log("warning: couldn't allocate memory for voice stream %s\n", *streamnames);
+			continue;
+		}
+		new_vs->name = strdup(*streamnames);
+		if (!new_vs->name) {
+			console_log("warning: couldn't allocate memory for voice stream name %s\n", *streamnames);
+			free(new_vs);
+			continue;
+		}
+		new_vs->next = voicestreams;
+		voicestreams = new_vs;
+
+		streamnames++;
+	}
+}
+
+void voicestreams_deinit(void) {
+	voicestream_t *vs;
+
+	while (voicestreams != NULL) {
+		vs = voicestreams->next;
+		free(voicestreams);
+		voicestreams = vs;
+	}
 }

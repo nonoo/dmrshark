@@ -27,4 +27,7 @@ void voicestreams_list(void);
 
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater);
 
+void voicestreams_init(void);
+void voicestreams_deinit(void);
+
 #endif

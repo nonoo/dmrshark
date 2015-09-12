@@ -26,6 +26,7 @@
 #include <libs/comm/comm.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/coding/coding.h>
+#include <libs/voicestreams/voicestreams.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -102,6 +103,7 @@ int main(int argc, char *argv[]) {
 		base_init();
 		remotedb_init();
 		coding_init();
+		voicestreams_init();
 		if (!comm_init()) {
 			daemon_deinit();
 			return 1;
@@ -121,6 +123,7 @@ int main(int argc, char *argv[]) {
 
 	if (!daemon_is_consoleclient()) {
 		comm_deinit();
+		voicestreams_deinit();
 		remotedb_deinit();
 		base_deinit();
 		config_voicestreams_deinit();
