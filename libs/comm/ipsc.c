@@ -94,7 +94,8 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst))
 			repeater = repeaters_add(&ip_packet->ip_src);
 
-		// The packet is for us, or from a listed repeater?
+		// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
+		// host of the DMR master, and IP packets are just routed through.
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
 			console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
 			console_log(LOGLEVEL_IPSC "->%s]: decoded dmr packet type: %s (0x%.2x) ts %u slot type: %s (0x%.4x) frame type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
@@ -110,8 +111,10 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 			ipsc_handle(ip_packet, &ipsc_packet, repeater);
 		}
 
-		if (repeater != NULL)
-			voicestreams_processpacket(&ipsc_packet, repeater);
+		// Voice stream processing happens both for up and downlink data directions.
+		if (repeater == NULL) // TODO: check if voicestreams_processpacket() works when the master sends to a repeater
+			repeater = repeaters_findbyip(&ip_packet->ip_dst);
+		voicestreams_processpacket(&ipsc_packet, repeater);
 	}
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {
