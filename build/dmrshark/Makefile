@@ -27,6 +27,9 @@ rc:
 kill:
 	@dmrsharkpid=`ps ax | grep dmrshark | grep -v grep | sed -e 's/^[[:space:]]*//' | cut -f1 -d' '`; if [ ! -z "$$dmrsharkpid" ]; then sudo kill $$dmrsharkpid; fi
 
+kill9:
+	@dmrsharkpid=`ps ax | grep dmrshark | grep -v grep | sed -e 's/^[[:space:]]*//' | cut -f1 -d' '`; if [ ! -z "$$dmrsharkpid" ]; then sudo kill -9 $$dmrsharkpid; fi
+
 grep:
 	@ps aux | grep dmrshark | grep -v grep
 
