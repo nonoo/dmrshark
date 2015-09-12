@@ -55,7 +55,7 @@ static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes
 
 void voicestreams_list(void) {
 	char **streamnames = config_voicestreams_streamnames_get();
-	char *host;
+	char *hosts;
 	char *dir;
 
 	if (streamnames == NULL) {
@@ -65,17 +65,17 @@ void voicestreams_list(void) {
 	console_log("voice streams:\n");
 
 	while (*streamnames != NULL) {
-		host = config_voicestreams_get_repeaterhost(*streamnames);
+		hosts = config_voicestreams_get_repeaterhosts(*streamnames);
 		dir = config_voicestreams_get_savefiledir(*streamnames);
 
-		console_log("%s: enabled: %u rptrhost: %s ts: %u savedir: %s saveraw: %u\n", *streamnames,
+		console_log("%s: enabled: %u rptrhosts: %s ts: %u savedir: %s saveraw: %u\n", *streamnames,
 			config_voicestreams_get_enabled(*streamnames),
-			host,
+			hosts,
 			config_voicestreams_get_timeslot(*streamnames),
 			(strlen(dir) == 0 ? "." : dir),
 			config_voicestreams_get_savetorawfile(*streamnames));
 
-		free(host);
+		free(hosts);
 		free(dir);
 
 		streamnames++;

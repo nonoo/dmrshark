@@ -25,7 +25,7 @@ char **config_voicestreams_streamnames_get(void);
 char *config_voicestreams_get_streamname_for_repeater(struct in_addr *ip, int timeslot);
 
 int config_voicestreams_get_enabled(char *streamname);
-char *config_voicestreams_get_repeaterhost(char *streamname);
+char *config_voicestreams_get_repeaterhosts(char *streamname);
 char *config_voicestreams_get_savefiledir(char *streamname);
 int config_voicestreams_get_savetorawfile(char *streamname);
 int config_voicestreams_get_timeslot(char *streamname);

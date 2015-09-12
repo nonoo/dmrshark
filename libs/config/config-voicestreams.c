@@ -47,8 +47,8 @@ static int config_voicestreams_streamnames_load(void) {
 		if (strstr(config_groups[i], "stream-") == NULL)
 			continue;
 
-		// Checking if repeater host is defined.
-		tmp = config_voicestreams_get_repeaterhost(config_groups[i]);
+		// Checking if repeater hosts variable is defined.
+		tmp = config_voicestreams_get_repeaterhosts(config_groups[i]);
 		if (tmp == NULL || strlen(tmp) == 0) {
 			free(tmp);
 			continue;
@@ -72,8 +72,8 @@ static int config_voicestreams_streamnames_load(void) {
 		if (strstr(config_groups[i], "stream-") == NULL)
 			continue;
 
-		// Checking if repeater host is defined.
-		tmp = config_voicestreams_get_repeaterhost(config_groups[i]);
+		// Checking if repeater hosts variable is defined.
+		tmp = config_voicestreams_get_repeaterhosts(config_groups[i]);
 		if (tmp == NULL || strlen(tmp) == 0) {
 			free(tmp);
 			continue;
@@ -99,9 +99,10 @@ char **config_voicestreams_streamnames_get(void) {
 }
 
 char *config_voicestreams_get_streamname_for_repeater(struct in_addr *ip, int timeslot) {
-	char *config_host;
+	char *config_hosts;
 	struct in_addr resolved_ip;
 	int i;
+	char *tok = NULL;
 
 	for (i = 0; i < config_voicestreams_streamnames_length; i++) {
 		if (config_voicestreams_streamnames[i] == NULL)
@@ -110,19 +111,30 @@ char *config_voicestreams_get_streamname_for_repeater(struct in_addr *ip, int ti
 		if (config_voicestreams_get_timeslot(config_voicestreams_streamnames[i]) != timeslot)
 			continue;
 
-		config_host = config_voicestreams_get_repeaterhost(config_voicestreams_streamnames[i]);
-		if (config_host == NULL || strlen(config_host) == 0)
+		config_hosts = config_voicestreams_get_repeaterhosts(config_voicestreams_streamnames[i]);
+		if (config_hosts == NULL || strlen(config_hosts) == 0)
 			continue;
 
-		if (comm_hostname_to_ip(config_host, &resolved_ip)) {
-			free(config_host);
-			if (memcmp(&resolved_ip, ip, sizeof(struct in_addr)) == 0)
-				return config_voicestreams_streamnames[i];
-		} else {
-			free(config_host);
-			if (strcmp(config_host, comm_get_ip_str(ip)) == 0)
-				return config_voicestreams_streamnames[i];
+		// Iterating through stream's defined repeater hosts.
+		tok = strtok(config_hosts, ",");
+		if (tok) {
+			do {
+				if (comm_hostname_to_ip(tok, &resolved_ip)) { // Hostname can be resolved to an IP and it matches?
+					if (memcmp(&resolved_ip, ip, sizeof(struct in_addr)) == 0) {
+						free(config_hosts);
+						return config_voicestreams_streamnames[i];
+					}
+				} else {
+					if (strcmp(tok, comm_get_ip_str(ip)) == 0) { // Hostname can't be resolved but it matches?
+						free(config_hosts);
+						return config_voicestreams_streamnames[i];
+					}
+				}
+
+				tok = strtok(NULL, ",");
+			} while (tok != NULL);
 		}
+		free(config_hosts);
 	}
 	return NULL;
 }
@@ -142,7 +154,7 @@ int config_voicestreams_get_enabled(char *streamname) {
 	return value;
 }
 
-char *config_voicestreams_get_repeaterhost(char *streamname) {
+char *config_voicestreams_get_repeaterhosts(char *streamname) {
 	GError *error = NULL;
 	char *value = NULL;
 	char *defaultvalue = NULL;
@@ -152,12 +164,12 @@ char *config_voicestreams_get_repeaterhost(char *streamname) {
 
 	pthread_mutex_lock(config_get_mutex());
 	defaultvalue = "";
-	value = g_key_file_get_string(config_get_keyfile(), streamname, "repeaterhost", &error);
+	value = g_key_file_get_string(config_get_keyfile(), streamname, "repeaterhosts", &error);
 	if (error || value == NULL) {
 		value = (char *)malloc(strlen(defaultvalue)+1);
 		if (value) {
 			strcpy(value, defaultvalue);
-			g_key_file_set_string(config_get_keyfile(), streamname, "repeaterhost", value);
+			g_key_file_set_string(config_get_keyfile(), streamname, "repeaterhosts", value);
 		}
 	}
 	pthread_mutex_unlock(config_get_mutex());
@@ -230,7 +242,7 @@ void config_voicestreams_init(void) {
 	// We read everything, a default value will be set for non-existent keys in the config file.
 	for (i = 0; i < config_voicestreams_streamnames_length; i++) {
 		config_voicestreams_get_enabled(config_voicestreams_streamnames[i]);
-		tmp = config_voicestreams_get_repeaterhost(config_voicestreams_streamnames[i]);
+		tmp = config_voicestreams_get_repeaterhosts(config_voicestreams_streamnames[i]);
 		free(tmp);
 		tmp = config_voicestreams_get_savefiledir(config_voicestreams_streamnames[i]);
 		free(tmp);
