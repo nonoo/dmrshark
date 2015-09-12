@@ -258,8 +258,11 @@ flag_t daemon_init(flag_t daemonize, flag_t consoleclient) {
 		return DAEMON_INIT_RESULT_CONSOLECLIENT_ERROR;
 	}
 
-	if (daemon_is_consoleserver())
+	if (daemon_is_consoleserver()) {
 		daemon_consoleserver_init();
+		// Restoring the default umask.
+		umask(0022);
+	}
 
 	free(daemonctlfile);
 
