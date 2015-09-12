@@ -291,6 +291,10 @@ void comm_process(void) {
 			pcap_close(comm_pcap_file_handle);
 			comm_pcap_file_handle = NULL;
 		}
+
+		// Setting timeout to 0 because select() and poll() do not work correctly on BPF devices.
+		// See man pcap_get_selectable_fd for more info.
+		daemon_poll_setmaxtimeout(0);
 	}
 
 	repeaters_process();
