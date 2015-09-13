@@ -30,8 +30,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
-static float voicestreams_process_rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*50] = {0,}; // 1 sec. buffer
+static int16_t voicestreams_process_rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*50] = {0,}; // 1 sec. buffer
 static uint16_t voicestreams_process_rms_buf_pos = 0;
 
 static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
@@ -55,8 +56,9 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 
 static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i, n;
-	float aout_abs, max, gainfactor, gaindelta, maxbuf;
-	static int aout_max_buf[33];
+	float gainfactor, gaindelta, maxbuf;
+	int16_t aout_abs, max;
+	static int16_t aout_max_buf[33];
 	static uint8_t aout_max_buf_idx = 0;
 	static float needed_gain = 25;
 
@@ -67,7 +69,7 @@ static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded
 		// Detect max. level
 		max = 0;
 		for (n = 0; n < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; n++) {
-			aout_abs = fabsf(decoded_frame->samples[n]);
+			aout_abs = abs(decoded_frame->samples[n]);
 			if (aout_abs > max)
 				max = aout_abs;
 		}
@@ -144,13 +146,9 @@ void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams
 		return;
 
 	FILE *f = fopen("out.raw", "a");
-	int16_t samples_short[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
-	uint8_t i;
 	voicestreams_process_rms_calc_addtobuf(voicestream, decoded_frame);
 	voicestreams_process_apply_agc(decoded_frame);
-	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++)
-		samples_short[i] = lrintf(decoded_frame->samples[i]);
-	fwrite(samples_short, 2, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
+	fwrite(decoded_frame->samples, 2, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
 	fclose(f);
 }
 
