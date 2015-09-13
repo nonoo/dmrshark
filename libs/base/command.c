@@ -87,6 +87,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.heartbeat = !loglevel.flags.heartbeat;
 			else if (strcmp(tok, "remotedb") == 0)
 				loglevel.flags.remotedb = !loglevel.flags.remotedb;
+			else if (strcmp(tok, "voicestreams") == 0)
+				loglevel.flags.voicestreams = !loglevel.flags.voicestreams;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

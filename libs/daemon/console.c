@@ -191,6 +191,7 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_REPEATERS_VAL: return loglevel.flags.repeaters;
 		case LOGLEVEL_HEARTBEAT_VAL: return loglevel.flags.heartbeat;
 		case LOGLEVEL_REMOTEDB_VAL: return loglevel.flags.remotedb;
+		case LOGLEVEL_VOICESTREAMS_VAL: return loglevel.flags.voicestreams;
 		default: return 1;
 	}
 }
@@ -205,6 +206,7 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_REPEATERS_VAL:
 		case LOGLEVEL_HEARTBEAT_VAL:
 		case LOGLEVEL_REMOTEDB_VAL:
+		case LOGLEVEL_VOICESTREAMS_VAL:
 			return 1;
 		default: return 0;
 	}

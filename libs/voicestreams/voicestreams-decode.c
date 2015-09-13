@@ -19,6 +19,8 @@
 
 #include "voicestreams-decode.h"
 
+#include <libs/daemon/console.h>
+
 #ifdef DECODEVOICE
 
 static uint8_t voicestreams_decode_deinterleave_matrix_w[36] = {
@@ -82,6 +84,9 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 	}
 
 	mbe_processAmbe3600x2450Framef(decoded_frame.samples, &errs, &errs2, err_str, deinterleaved_ambe_frame_bits, ambe_d, &voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced, voicestream->decodequality);
+
+	if (errs2 > 0)
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: mbelib decoding error, errs2: %u, err_str: %s\n", errs2, err_str);
 
 	return &decoded_frame;
 }

@@ -21,6 +21,7 @@
 #include "voicestreams-process.h"
 #include "voicestreams-decode.h"
 
+#include <libs/daemon/console.h>
 #include <libs/comm/repeaters.h>
 #include <libs/comm/ipsc.h>
 #include <libs/base/base.h>
@@ -48,15 +49,21 @@ static char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *
 
 static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
+	char *fn;
+	size_t saved_bytes;
 
 	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream == NULL)
 		return;
 
-	f = fopen(voicestreams_get_stream_filename(voicestream, ".raw"), "a");
-	if (!f)
+	fn = voicestreams_get_stream_filename(voicestream, ".raw");
+	f = fopen(fn, "a");
+	if (!f) {
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams error: can't save voice packet to %s\n", fn);
 		return;
-	fwrite(voice_bytes, 1, voice_bytes_count, f);
+	}
+	saved_bytes = fwrite(voice_bytes, 1, voice_bytes_count, f);
 	fclose(f);
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: saved %u voice packet bytes to %s\n", saved_bytes, fn);
 }
 
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -97,8 +104,11 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 #ifdef DECODEVOICE
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 0\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[0], voicestream);
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 1\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[1], voicestream);
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 2\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[2], voicestream);
 #endif
 

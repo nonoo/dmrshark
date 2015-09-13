@@ -139,7 +139,7 @@ void voicestreams_init(void) {
 
 #ifdef DECODEVOICE
 	mbe_printVersion(mbeversion);
-	console_log("voicestreams: using mbelib v%s\n", mbeversion);
+	console_log("voicestreams: using mbelib v%s for voice decoding\n", mbeversion);
 #endif
 }
 
