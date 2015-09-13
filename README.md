@@ -100,7 +100,7 @@ decodequality=3
 
 [stream-hg5ruc-ts2]
 enabled=1
-repeaterhosts=1.2.3.4,repeater123.nonoo.hu
+repeaterhosts=*
 savefiledir=
 savetorawfile=1
 timeslot=2
@@ -111,18 +111,17 @@ You can define as many voice streams as you want.
 Voice stream configure variables:
 
 - **enabled**: 0 if voice stream is disabled, 1 if enabled.
-- **repeaterhosts**: Host names/IP addresses of the repeaters which are the sources of the stream.
+- **repeaterhosts**: Host names/IP addresses of the repeaters which are the sources of the stream. You can use the "*" wildcard to match all hosts.
 - **timeslot**: Timeslot of the repeater which we want to process.
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
-- **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3.
+- **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 
 ## Running
 
 If dmrshark is started without an argument, it will fork into the background. Use **-f** to have dmrshark run in the foreground.
-You can connect to a running process using the remote console, whether it's running in the foreground or the background.
-Use **-r** to have dmrshark connect to it's already running process' remote console server.
+You can connect to a running process using the remote console, whether it's running in the foreground or the background by using the **-r** command line parameter.
 
 If you are on the console, enter the command **help** or **h** to get the list of available commands.
 
-For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin). You can see a working example [here](http://ham-dmr.hu/elo-statusz/).
+For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin). You can see a working example [here](http://ham-dmr.hu/elo-statusz/) or [here](http://live.ham-dmr.hu/).
