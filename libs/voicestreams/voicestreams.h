@@ -43,6 +43,8 @@ typedef struct voicestream_st {
 	struct voicestream_st *next;
 } voicestream_t;
 
+char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *extension);
+
 voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot);
 void voicestreams_printlist(void);
 

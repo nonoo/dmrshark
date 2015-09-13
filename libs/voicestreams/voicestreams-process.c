@@ -31,24 +31,10 @@
 #include <string.h>
 #include <math.h>
 
-static char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *extension) {
-	static char fn[255];
-	char *dir;
-	time_t t;
-	struct tm *tm;
+static float voicestreams_process_rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*50] = {0,}; // 1 sec. buffer
+static uint16_t voicestreams_process_rms_buf_pos = 0;
 
-	t = time(NULL);
-	tm = localtime(&t);
-
-	dir = voicestream->savefiledir;
-	if (dir == NULL || strlen(dir) == 0)
-		dir = ".";
-	snprintf(fn, sizeof(fn), "%s/%s-%.4u%.2u%.2u%s", dir, voicestream->name, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, extension);
-
-	return fn;
-}
-
-static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
+static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char *fn;
 	size_t saved_bytes;
@@ -67,7 +53,7 @@ static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: saved %u voice packet bytes to %s\n", saved_bytes, fn);
 }
 
-static void voicestreams_agc_decoded_frame(voicestreams_decoded_frame_t *decoded_frame) {
+static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i, n;
 	float aout_abs, max, gainfactor, gaindelta, maxbuf;
 	static int aout_max_buf[33];
@@ -77,10 +63,10 @@ static void voicestreams_agc_decoded_frame(voicestreams_decoded_frame_t *decoded
 	if (decoded_frame == NULL)
 		return;
 
-	for (i = 0; i < 160; i++) {
+	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++) {
 		// Detect max. level
 		max = 0;
-		for (n = 0; n < 160; n++) {
+		for (n = 0; n < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; n++) {
 			aout_abs = fabsf(decoded_frame->samples[n]);
 			if (aout_abs > max)
 				max = aout_abs;
@@ -125,17 +111,46 @@ static void voicestreams_agc_decoded_frame(voicestreams_decoded_frame_t *decoded
 	}
 }
 
-void voicestreams_process_decoded_frame(voicestreams_decoded_frame_t *decoded_frame) {
+static float voicestreams_process_rms_calc(void) {
+	uint16_t i;
+	float rms = 0;
+
+	for (i = 0; i < voicestreams_process_rms_buf_pos; i++)
+		rms += voicestreams_process_rms_buf[i]*voicestreams_process_rms_buf[i];
+
+	rms /= voicestreams_process_rms_buf_pos;
+	return sqrtf(rms);
+}
+
+static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
+	uint16_t rms_buf_remaining_space;
+	uint16_t samples_to_copy;
+	float rms;
+
+	rms_buf_remaining_space = sizeof(voicestreams_process_rms_buf)/sizeof(voicestreams_process_rms_buf[0])-voicestreams_process_rms_buf_pos;
+	samples_to_copy = min(rms_buf_remaining_space, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT);
+	memcpy(&voicestreams_process_rms_buf[voicestreams_process_rms_buf_pos], decoded_frame->samples, samples_to_copy*sizeof(voicestreams_process_rms_buf[0]));
+	voicestreams_process_rms_buf_pos += samples_to_copy;
+
+	if (voicestreams_process_rms_buf_pos == sizeof(voicestreams_process_rms_buf)/sizeof(voicestreams_process_rms_buf[0])) {
+		rms = voicestreams_process_rms_calc();
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams: calculated rms volume is %f\n", rms);
+		voicestreams_process_rms_buf_pos = 0;
+	}
+}
+
+void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	if (decoded_frame == NULL)
 		return;
 
 	FILE *f = fopen("out.raw", "a");
-	int16_t samples_short[160];
+	int16_t samples_short[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
 	uint8_t i;
-	voicestreams_agc_decoded_frame(decoded_frame);
-	for (i = 0; i < 160; i++)
+	voicestreams_process_rms_calc_addtobuf(voicestream, decoded_frame);
+	voicestreams_process_apply_agc(decoded_frame);
+	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++)
 		samples_short[i] = lrintf(decoded_frame->samples[i]);
-	fwrite(samples_short, 2, 160, f);
+	fwrite(samples_short, 2, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
 	fclose(f);
 }
 
@@ -174,20 +189,20 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		voice_bytes[i/8] = base_bitstobyte(&voice_bits->raw.bits[i]);
 
 	if (voicestream->savetorawfile)
-		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
+		voicestreams_process_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 #ifdef DECODEVOICE
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 0\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[0], voicestream);
-	voicestreams_process_decoded_frame(decoded_frame);
+	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 1\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[1], voicestream);
-	voicestreams_process_decoded_frame(decoded_frame);
+	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 2\n");
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[2], voicestream);
-	voicestreams_process_decoded_frame(decoded_frame);
+	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 #endif
 
 	// TODO: streaming

@@ -1,3 +1,4 @@
+- Locking voicestreams with calls to prevent multiple repeaters storing voice data to the same stream
 - CSBK and Multi Block Control (MBC) message decoding
 - Handling other DPF data types
 - Inserting decoded SMS messages into a database table

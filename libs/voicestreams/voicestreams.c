@@ -25,8 +25,27 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <stdio.h>
 
 static voicestream_t *voicestreams = NULL;
+
+char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *extension) {
+	static char fn[255];
+	char *dir;
+	time_t t;
+	struct tm *tm;
+
+	t = time(NULL);
+	tm = localtime(&t);
+
+	dir = voicestream->savefiledir;
+	if (dir == NULL || strlen(dir) == 0)
+		dir = ".";
+	snprintf(fn, sizeof(fn), "%s/%s-%.4u%.2u%.2u%s", dir, voicestream->name, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, extension);
+
+	return fn;
+}
 
 voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int timeslot) {
 	struct in_addr resolved_ip;
