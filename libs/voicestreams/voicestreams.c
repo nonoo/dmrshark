@@ -146,6 +146,8 @@ void voicestreams_init(void) {
 void voicestreams_deinit(void) {
 	voicestream_t *vs;
 
+	console_log("voicestreams: deinit\n");
+
 	while (voicestreams != NULL) {
 		free(voicestreams->name);
 		free(voicestreams->repeaterhosts);

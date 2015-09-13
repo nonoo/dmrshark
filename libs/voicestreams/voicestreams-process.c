@@ -92,9 +92,9 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		voicestreams_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 #ifdef DECODEVOICE
-	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[0], voicestream);
-	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[1], voicestream);
-	decoded_frame = voicestreams_decode(&voice_bits->ambe_frames.frames[2], voicestream);
+	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[0], voicestream);
+	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[1], voicestream);
+	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[2], voicestream);
 #endif
 
 	// TODO: streaming
