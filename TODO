@@ -1,4 +1,5 @@
-- Locking voicestreams with calls to prevent multiple repeaters storing voice data to the same stream
+- dmrlog removing
+- repeater_add malloc
 - CSBK and Multi Block Control (MBC) message decoding
 - Handling other DPF data types
 - Inserting decoded SMS messages into a database table

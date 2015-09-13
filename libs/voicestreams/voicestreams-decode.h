@@ -23,8 +23,6 @@
 #include <libs/base/types.h>
 #include <libs/dmrpacket/dmrpacket.h>
 
-#define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT 160
-
 typedef struct {
 	int16_t samples[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
 } voicestreams_decoded_frame_t;

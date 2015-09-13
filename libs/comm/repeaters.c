@@ -53,8 +53,18 @@ char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr) {
 	return comm_get_ip_str(ipaddr);
 }
 
+char *repeaters_get_display_string(repeater_t *repeater) {
+	if (repeater->callsign[0] == 0)
+		return comm_get_ip_str(&repeater->ipaddr);
+	else
+		return repeater->callsign;
+}
+
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {
 	int i;
+
+	if (ipaddr == NULL)
+		return NULL;
 
 	for (i = 0; i < MAX_REPEATER_COUNT; i++) {
 		if (memcmp(&repeaters[i].ipaddr, ipaddr, sizeof(struct in_addr)) == 0)

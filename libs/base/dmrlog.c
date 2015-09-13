@@ -23,10 +23,13 @@
 #include <libs/daemon/console.h>
 #include <libs/comm/comm.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/voicestreams/voicestreams-process.h>
 
 void dmrlog_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater) {
 	if (repeater->slot[ipsc_packet->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
 		return;
+
+	voicestreams_process_call_end(repeater->slot[ipsc_packet->timeslot-1].voicestream, repeater);
 
 	console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_IPSC "->%s]: %s call end on ts %u src id %u dst id %u\n",
@@ -59,6 +62,8 @@ void dmrlog_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, rep
 		console_log(LOGLEVEL_IPSC "->%s]: starting auto snmp rssi update\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
 		repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
 	}
+
+	voicestreams_process_call_start(repeater->slot[ipsc_packet->timeslot-1].voicestream, repeater);
 
 	remotedb_update(repeater);
 }

@@ -18,6 +18,7 @@
 #include <config/defaults.h>
 
 #include "voicestreams.h"
+#include "voicestreams-process.h"
 
 #include <libs/config/config-voicestreams.h>
 #include <libs/daemon/console.h>
@@ -128,7 +129,7 @@ void voicestreams_init(void) {
 
 	while (*streamnames_i != NULL) {
 		console_log("  %s: ", *streamnames_i);
-		new_vs = (voicestream_t *)malloc(sizeof(voicestream_t));
+		new_vs = (voicestream_t *)calloc(sizeof(voicestream_t), 1);
 		if (!new_vs) {
 			console_log("warning: couldn't allocate memory\n");
 			continue;
@@ -146,6 +147,8 @@ void voicestreams_init(void) {
 		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
+
+		new_vs->agc_needed_gain = 25;
 
 #ifdef DECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);

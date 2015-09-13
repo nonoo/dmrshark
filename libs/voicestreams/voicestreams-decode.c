@@ -86,7 +86,7 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 	mbe_processAmbe3600x2450Frame(decoded_frame.samples, &errs, &errs2, err_str, deinterleaved_ambe_frame_bits, ambe_d, &voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced, voicestream->decodequality);
 
 	if (errs2 > 0)
-		console_log(LOGLEVEL_VOICESTREAMS "voicestreams: mbelib decoding errors: %u %s\n", errs2, err_str);
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: mbelib decoding errors: %u %s\n", voicestream->name, errs2, err_str);
 
 	return &decoded_frame;
 }

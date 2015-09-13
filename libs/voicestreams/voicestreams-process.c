@@ -32,9 +32,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-static int16_t voicestreams_process_rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*50] = {0,}; // 1 sec. buffer
-static uint16_t voicestreams_process_rms_buf_pos = 0;
-
 static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char *fn;
@@ -46,21 +43,18 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 	fn = voicestreams_get_stream_filename(voicestream, ".raw");
 	f = fopen(fn, "a");
 	if (!f) {
-		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams error: can't save voice packet to %s\n", fn);
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save voice packet to %s\n", voicestream->name, fn);
 		return;
 	}
 	saved_bytes = fwrite(voice_bytes, 1, voice_bytes_count, f);
 	fclose(f);
-	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: saved %u voice packet bytes to %s\n", saved_bytes, fn);
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u voice packet bytes to %s\n", voicestream->name, saved_bytes, fn);
 }
 
-static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded_frame) {
+static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i, n;
 	float gainfactor, gaindelta, maxbuf;
 	int16_t aout_abs, max;
-	static int16_t aout_max_buf[33];
-	static uint8_t aout_max_buf_idx = 0;
-	static float needed_gain = 25;
 
 	if (decoded_frame == NULL)
 		return;
@@ -73,13 +67,13 @@ static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded
 			if (aout_abs > max)
 				max = aout_abs;
 		}
-		aout_max_buf[aout_max_buf_idx++] = max;
-		if (aout_max_buf_idx > 24)
-			aout_max_buf_idx = 0;
+		voicestream->agc_aout_max_buf[voicestream->agc_aout_max_buf_idx++] = max;
+		if (voicestream->agc_aout_max_buf_idx > 24)
+			voicestream->agc_aout_max_buf_idx = 0;
 
 		// Lookup max. history
 		for (n = 0; n < 25; n++) {
-			maxbuf = aout_max_buf[n];
+			maxbuf = voicestream->agc_aout_max_buf[n];
 			if (maxbuf > max)
 				max = maxbuf;
 		}
@@ -90,22 +84,22 @@ static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded
 		else
 			gainfactor = 50.0f;
 
-		if (gainfactor < needed_gain) {
-			needed_gain = gainfactor;
+		if (gainfactor < voicestream->agc_needed_gain) {
+			voicestream->agc_needed_gain = gainfactor;
 			gaindelta = 0.0f;
 		} else {
 			if (gainfactor > 50.0f)
 				gainfactor = 50.0f;
 
-			gaindelta = gainfactor - needed_gain;
-			if (gaindelta > (0.05f * needed_gain))
-				gaindelta = (0.05f * needed_gain);
+			gaindelta = gainfactor - voicestream->agc_needed_gain;
+			if (gaindelta > (0.05f * voicestream->agc_needed_gain))
+				gaindelta = (0.05f * voicestream->agc_needed_gain);
 		}
 
 		// Adjust output gain
-		needed_gain += gaindelta;
+		voicestream->agc_needed_gain += gaindelta;
 
-		decoded_frame->samples[i] *= needed_gain;
+		decoded_frame->samples[i] *= voicestream->agc_needed_gain;
 		if (decoded_frame->samples[i] > 32767.0f)
 			decoded_frame->samples[i] = 32767.0f;
 		else if (decoded_frame->samples[i] < -32767.0f)
@@ -113,14 +107,14 @@ static void voicestreams_process_apply_agc(voicestreams_decoded_frame_t *decoded
 	}
 }
 
-static float voicestreams_process_rms_calc(void) {
+float voicestreams_process_rms_calc(voicestream_t *voicestream) {
 	uint16_t i;
 	float rms = 0;
 
-	for (i = 0; i < voicestreams_process_rms_buf_pos; i++)
-		rms += voicestreams_process_rms_buf[i]*voicestreams_process_rms_buf[i];
+	for (i = 0; i < voicestream->rms_buf_pos; i++)
+		rms += voicestream->rms_buf[i]*voicestream->rms_buf[i];
 
-	rms /= voicestreams_process_rms_buf_pos;
+	rms /= voicestream->rms_buf_pos;
 	return sqrtf(rms);
 }
 
@@ -129,25 +123,38 @@ static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, v
 	uint16_t samples_to_copy;
 	float rms;
 
-	rms_buf_remaining_space = sizeof(voicestreams_process_rms_buf)/sizeof(voicestreams_process_rms_buf[0])-voicestreams_process_rms_buf_pos;
-	samples_to_copy = min(rms_buf_remaining_space, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT);
-	memcpy(&voicestreams_process_rms_buf[voicestreams_process_rms_buf_pos], decoded_frame->samples, samples_to_copy*sizeof(voicestreams_process_rms_buf[0]));
-	voicestreams_process_rms_buf_pos += samples_to_copy;
+	if (voicestream == NULL)
+		return;
 
-	if (voicestreams_process_rms_buf_pos == sizeof(voicestreams_process_rms_buf)/sizeof(voicestreams_process_rms_buf[0])) {
-		rms = voicestreams_process_rms_calc();
-		console_log(LOGLEVEL_VOICESTREAMS "voicestreams: calculated rms volume is %f\n", rms);
-		voicestreams_process_rms_buf_pos = 0;
+	rms_buf_remaining_space = sizeof(voicestream->rms_buf)/sizeof(voicestream->rms_buf[0])-voicestream->rms_buf_pos;
+	samples_to_copy = min(rms_buf_remaining_space, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT);
+	memcpy(&voicestream->rms_buf[voicestream->rms_buf_pos], decoded_frame->samples, samples_to_copy*sizeof(voicestream->rms_buf[0]));
+	voicestream->rms_buf_pos += samples_to_copy;
+
+	if (voicestream->rms_buf_pos == sizeof(voicestream->rms_buf)/sizeof(voicestream->rms_buf[0])) {
+		rms = voicestreams_process_rms_calc(voicestream);
+		rms = 10*log10f(rms/32767.0);
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %f\n", voicestream->name, rms);
+		voicestream->rms_buf_pos = 0;
 	}
 }
 
-void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
+static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
+	uint8_t i;
+
+	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++)
+		decoded_frame->samples[i] *= 2;
+}
+
+static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	if (decoded_frame == NULL)
 		return;
 
-	FILE *f = fopen("out.raw", "a");
+	voicestreams_process_apply_gain(decoded_frame);
+	voicestreams_process_apply_agc(voicestream, decoded_frame);
 	voicestreams_process_rms_calc_addtobuf(voicestream, decoded_frame);
-	voicestreams_process_apply_agc(decoded_frame);
+
+	FILE *f = fopen("out.raw", "a");
 	fwrite(decoded_frame->samples, 2, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
 	fclose(f);
 }
@@ -182,6 +189,12 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	if (!voicestream->enabled)
 		return;
 
+	// Some listed repeater has already streaming on this stream?
+	if ((repeater_t *)voicestream->currently_streaming_repeater != repeater)
+		return;
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: processing packet from %s\n", voicestream->name, repeaters_get_display_string((repeater_t *)voicestream->currently_streaming_repeater));
+
 	voice_bits = dmrpacket_extract_voice_bits(&ipscpacket->payload_bits);
 	for (i = 0; i < sizeof(voice_bits->raw.bits); i += 8)
 		voice_bytes[i/8] = base_bitstobyte(&voice_bits->raw.bits[i]);
@@ -190,18 +203,40 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 		voicestreams_process_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 #ifdef DECODEVOICE
-	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 0\n");
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: decoding frame 0\n", voicestream->name);
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[0], voicestream);
 	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 
-	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 1\n");
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: decoding frame 1\n", voicestream->name);
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[1], voicestream);
 	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 
-	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams: decoding frame 2\n");
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: decoding frame 2\n", voicestream->name);
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[2], voicestream);
 	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 #endif
 
 	// TODO: streaming
+}
+
+void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater) {
+	if (!voicestream || !voicestream->enabled)
+		return;
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
+
+	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
+	voicestream->rms_buf_pos = 0;
+	voicestream->agc_needed_gain = 25;
+	voicestream->agc_aout_max_buf_idx = 0;
+}
+
+void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
+	if (!voicestream || !voicestream->enabled)
+		return;
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
+
+	voicestreams_process_rms_calc(voicestream);
+	voicestream->currently_streaming_repeater = NULL;
 }

@@ -25,6 +25,8 @@
 #include <mbelib.h>
 #endif
 
+#define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT 160
+
 typedef struct voicestream_st {
 	char *name;
 	flag_t enabled;
@@ -34,11 +36,20 @@ typedef struct voicestream_st {
 	flag_t timeslot;
 	uint8_t decodequality;
 
+	int16_t agc_aout_max_buf[33];
+	uint8_t agc_aout_max_buf_idx;
+	float agc_needed_gain;
+
+	int16_t rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25]; // 0.5 sec. buffer
+	uint16_t rms_buf_pos;
+
 #ifdef DECODEVOICE
 	mbe_parms cur_mp;
 	mbe_parms prev_mp;
 	mbe_parms prev_mp_enhanced;
 #endif
+
+	struct repeater_t *currently_streaming_repeater;
 
 	struct voicestream_st *next;
 } voicestream_t;

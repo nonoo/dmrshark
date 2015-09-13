@@ -65,6 +65,7 @@ typedef struct {
 } repeater_t;
 
 char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr);
+char *repeaters_get_display_string(repeater_t *repeater);
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
 repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type);

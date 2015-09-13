@@ -115,6 +115,9 @@ flag_t comm_is_our_ipaddr(struct in_addr *ipaddr) {
 	struct sockaddr_in *addr = NULL;
 	int i;
 
+	if (ipaddr == NULL)
+		return 0;
+
 	getifaddrs(&ifaddr);
 	for (ifa = ifaddr, i = 0; ifa != NULL; ifa = ifa->ifa_next, i++) {
 		if (ifa->ifa_addr == NULL)
