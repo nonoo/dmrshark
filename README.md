@@ -22,10 +22,10 @@ Contact:
 
 You'll need to have the following libs installed on your system to compile dmrshark:
 
-- libglib2.0-dev (glib2-devel)
-- libpcap-dev (libpcap-devel)
-- libsnmp-dev (net-snmp-devel)
-- libmysqlclient-dev (mariadb-devel)
+- libglib2.0-dev / glib2-devel
+- libpcap-dev / libpcap-devel
+- libsnmp-dev / net-snmp-devel
+- libmysqlclient-dev / mariadb-devel
 - [mbelib](https://github.com/szechyjs/mbelib) (optional)
 
 Instructions on compiling and installing:
