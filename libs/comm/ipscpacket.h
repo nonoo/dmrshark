@@ -24,12 +24,6 @@
 
 #define IPSCPACKET_PAYLOAD_SIZE							34
 
-#define IPSCPACKET_PACKET_TYPE_VOICE					0x01
-#define IPSCPACKET_PACKET_TYPE_START_OF_TRANSMISSION	0x02
-#define IPSCPACKET_PACKET_TYPE_END_OF_TRANSMISSION		0x03
-#define IPSCPACKET_PACKET_TYPE_HYTERA_DATA				0x41
-typedef uint8_t ipscpacket_type_t;
-
 #define IPSCPACKET_SLOT_TYPE_CALL_START					0xDDDD
 #define IPSCPACKET_SLOT_TYPE_START						0xEEEE
 #define IPSCPACKET_SLOT_TYPE_CALL_END					0x2222
@@ -45,17 +39,9 @@ typedef uint8_t ipscpacket_type_t;
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_F				0xAAAA
 typedef uint16_t ipscpacket_slot_type_t;
 
-#define IPSCPACKET_FRAME_TYPE_GENERAL					0x0000
-#define IPSCPACKET_FRAME_TYPE_VOICE_SYNC				0x1111
-#define IPSCPACKET_FRAME_TYPE_DATA_START				0x6666
-#define IPSCPACKET_FRAME_TYPE_VOICE						0x9999
-typedef uint16_t ipscpacket_frame_type_t;
-
 typedef struct {
-	ipscpacket_type_t packet_type;
 	dmr_timeslot_t timeslot;
 	ipscpacket_slot_type_t slot_type;
-	ipscpacket_frame_type_t frame_type;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
@@ -63,9 +49,7 @@ typedef struct {
 	dmrpacket_payload_bits_t payload_bits;
 } ipscpacket_t;
 
-char *ipscpacket_get_readable_packet_type(ipscpacket_type_t packet_type);
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
-char *ipscpacket_get_readable_frame_type(ipscpacket_frame_type_t frame_type);
 
 flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);

@@ -29,7 +29,7 @@
 #include <string.h>
 
 typedef struct __attribute__((packed)) {
-	uint16_t port;
+	uint16_t udp_source_port;
 	uint8_t reserved1[2];
 	uint8_t seq;
 	uint8_t reserved2[3];
@@ -56,16 +56,6 @@ typedef struct __attribute__((packed)) {
 #define IPSC_PACKET_SIZE1 72
 #define IPSC_PACKET_SIZE2 103
 
-char *ipscpacket_get_readable_packet_type(ipscpacket_type_t packet_type) {
-	switch (packet_type) {
-		case IPSCPACKET_PACKET_TYPE_VOICE: return "voice";
-		case IPSCPACKET_PACKET_TYPE_START_OF_TRANSMISSION: return "sync/start of transmission";
-		case IPSCPACKET_PACKET_TYPE_END_OF_TRANSMISSION: return "end of transmission";
-		case IPSCPACKET_PACKET_TYPE_HYTERA_DATA: return "hytera data";
-		default: return "unknown";
-	}
-}
-
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 	switch (slot_type) {
 		case IPSCPACKET_SLOT_TYPE_CALL_START: return "call start";
@@ -81,16 +71,6 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D: return "voice data d";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E: return "voice data e";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F: return "voice data f";
-		default: return "unknown";
-	}
-}
-
-char *ipscpacket_get_readable_frame_type(ipscpacket_frame_type_t frame_type) {
-	switch (frame_type) {
-		case IPSCPACKET_FRAME_TYPE_GENERAL: return "general";
-		case IPSCPACKET_FRAME_TYPE_VOICE_SYNC: return "voice sync";
-		case IPSCPACKET_FRAME_TYPE_DATA_START: return "data start";
-		case IPSCPACKET_FRAME_TYPE_VOICE: return "voice";
 		default: return "unknown";
 	}
 }
@@ -119,13 +99,18 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
 	}
 
-	/*if (ipscpacket_raw->delimiter != 0x1111) {
+	if (ipscpacket_raw->udp_source_port != udppacket->source) {
+		console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
+			ipscpacket_raw->udp_source_port, udppacket->source);
+		return 0;
+	}
+
+	if (ipscpacket_raw->delimiter != 0x1111) {
 		console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, delimiter mismatch (it's %.4x, should be 0x1111)\n",
 			ipscpacket_raw->delimiter);
 		return 0;
-	}*/
+	}
 
-	ipscpacket->packet_type = ipscpacket_raw->packet_type;
 	if (ipscpacket_raw->timeslot_raw == 0x1111)
 		ipscpacket->timeslot = 1;
 	else if (ipscpacket_raw->timeslot_raw == 0x2222)
@@ -136,7 +121,6 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 	}
 
 	ipscpacket->slot_type = ipscpacket_raw->slot_type;
-	ipscpacket->frame_type = ipscpacket_raw->frame_type;
 	ipscpacket->call_type = ipscpacket_raw->calltype;
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;
 	ipscpacket->src_id = ipscpacket_raw->src_id_raw3 << 16 | ipscpacket_raw->src_id_raw2 << 8 | ipscpacket_raw->src_id_raw1;
