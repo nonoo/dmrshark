@@ -28,8 +28,8 @@ void ipsc_data_handle_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, rep
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 
-	console_log(LOGLEVEL_IPSC "ipsc data [%s", comm_get_ip_str(&ip_packet->ip_src));
-	console_log(LOGLEVEL_IPSC "->%s]: got header\n", comm_get_ip_str(&ip_packet->ip_dst));
+	console_log(LOGLEVEL_IPSC "ipsc data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_IPSC "->%s]: got header\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
 
 	data_packet_header = dmrpacket_data_header_decode(dmrpacket_data_extract_and_repair_bptc_data(&ipscpacket->payload_bits), 0);
 
@@ -79,8 +79,8 @@ void ipsc_data_handle_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, rep
 		return;
 
 	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED) { // Now we only care about short data packets.
-		console_log(LOGLEVEL_IPSC "ipsc data [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: got 3/4 rate block #%u/%u \n", comm_get_ip_str(&ip_packet->ip_dst),
+		console_log(LOGLEVEL_IPSC "ipsc data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+		console_log(LOGLEVEL_IPSC "->%s]: got 3/4 rate block #%u/%u \n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
 
 		packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
@@ -111,8 +111,8 @@ void ipsc_data_handle_12rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, rep
 		return;
 
 	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED) { // Now we only care about short data packets.
-		console_log(LOGLEVEL_IPSC "ipsc data [%s", comm_get_ip_str(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: got 1/2 rate block #%u/%u \n", comm_get_ip_str(&ip_packet->ip_dst),
+		console_log(LOGLEVEL_IPSC "ipsc data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+		console_log(LOGLEVEL_IPSC "->%s]: got 1/2 rate block #%u/%u \n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
 
 		data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_data_extract_and_repair_bptc_data(&ipscpacket->payload_bits));

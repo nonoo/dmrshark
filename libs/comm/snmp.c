@@ -28,6 +28,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <iconv.h>
+#include <ctype.h>
 
 #define OID_RSSI_TS1		"1.3.6.1.4.1.40297.1.2.1.2.9.0"
 #define OID_RSSI_TS2		"1.3.6.1.4.1.40297.1.2.1.2.10.0"
@@ -208,6 +209,7 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 	char value_utf8[sizeof(value_utf16)/2] = {0,};
 	int length = 0;
 	flag_t dodbupdate = 0;
+	uint8_t i;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
@@ -251,7 +253,9 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
 					if (repeater != NULL) {
-						strncpy(repeater->callsign, value_utf8, sizeof(repeater->callsign));
+						for (i = 0; (value_utf8[i] && i < sizeof(repeater->callsign)); i++)
+							repeater->callsign[i] = tolower(value_utf8[i]);
+						repeater->callsign[i] = 0;
 						dodbupdate = 1;
 					}
 					console_log("snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);

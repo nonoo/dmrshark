@@ -41,6 +41,18 @@ static char *repeaters_get_readable_slot_state(repeater_slot_state_t state) {
 	}
 }
 
+char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr) {
+	repeater_t *foundrep;
+
+	foundrep = repeaters_findbyip(ipaddr);
+	if (foundrep)
+		return foundrep->callsign;
+	if (comm_is_our_ipaddr(ipaddr))
+		return "ds";
+
+	return comm_get_ip_str(ipaddr);
+}
+
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {
 	int i;
 
@@ -96,7 +108,7 @@ static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
 }
 
 static void repeaters_remove(repeater_t *repeater) {
-	console_log("repeaters [%s]: removing\n", comm_get_ip_str(&repeater->ipaddr));
+	console_log("repeaters [%s]: removing\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 	memset(repeater, 0, sizeof(repeater_t));
 }
 
@@ -106,7 +118,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 	if (repeater == NULL) {
 		repeater = repeaters_findfirstemptyslot();
 		if (repeater == NULL) {
-			console_log("repeaters [%s]: can't add new repeater, list is full (%u elements)\n", comm_get_ip_str(ipaddr), MAX_REPEATER_COUNT);
+			console_log("repeaters [%s]: can't add new repeater, list is full (%u elements)\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), MAX_REPEATER_COUNT);
 			return NULL;
 		}
 		memset(repeater, 0, sizeof(repeater_t));
@@ -117,7 +129,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 		repeater->slot[0].voicestream = voicestreams_get_stream_for_repeater(ipaddr, 1);
 		repeater->slot[1].voicestream = voicestreams_get_stream_for_repeater(ipaddr, 2);
 
-		console_log("repeaters [%s]: added (snmp ignored: %u)\n", comm_get_ip_str(ipaddr), repeater->snmpignored);
+		console_log("repeaters [%s]: added (snmp ignored: %u)\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), repeater->snmpignored);
 		console_log("  ts1 stream name: %s\n", repeater->slot[0].voicestream != NULL ? repeater->slot[0].voicestream->name : "no stream defined");
 		console_log("  ts2 stream name: %s\n", repeater->slot[1].voicestream != NULL ? repeater->slot[1].voicestream->name : "no stream defined");
 	}
@@ -151,14 +163,14 @@ void repeaters_list(void) {
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state) {
 	console_log(LOGLEVEL_IPSC "repeaters [%s]: slot %u state change from %s to %s\n",
-		comm_get_ip_str(&repeater->ipaddr), timeslot+1, repeaters_get_readable_slot_state(repeater->slot[timeslot].state),
+		repeaters_get_display_string_for_ip(&repeater->ipaddr), timeslot+1, repeaters_get_readable_slot_state(repeater->slot[timeslot].state),
 		repeaters_get_readable_slot_state(new_state));
 	repeater->slot[timeslot].state = new_state;
 
 	if (repeater->auto_rssi_update_enabled_at != 0 &&
 		repeater->slot[0].state != REPEATER_SLOT_STATE_CALL_RUNNING &&
 		repeater->slot[1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: stopping auto rssi update\n", comm_get_ip_str(&repeater->ipaddr));
+			console_log(LOGLEVEL_IPSC "repeaters [%s]: stopping auto rssi update\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 			repeater->auto_rssi_update_enabled_at = 0;
 	}
 }
@@ -173,19 +185,19 @@ void repeaters_process(void) {
 			continue;
 
 		if (time(NULL)-repeaters[i].last_active_time > config_get_repeaterinactivetimeoutinsec()) {
-			console_log("repeaters [%s]: timed out\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log("repeaters [%s]: timed out\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			repeaters_remove(&repeaters[i]);
 			continue;
 		}
 
 		if (!repeaters[i].snmpignored && config_get_repeaterinfoupdateinsec() > 0 && time(NULL)-repeaters[i].last_repeaterinfo_request_time > config_get_repeaterinfoupdateinsec()) {
-			console_log(LOGLEVEL_DEBUG "repeaters [%s]: sending snmp info update request\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log(LOGLEVEL_DEBUG "repeaters [%s]: sending snmp info update request\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			snmp_start_read_repeaterinfo(comm_get_ip_str(&repeaters[i].ipaddr));
 			repeaters[i].last_repeaterinfo_request_time = time(NULL);
 		}
 
 		if (repeaters[i].slot[0].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeaters[i].slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts1\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts1\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			repeaters_state_change(&repeaters[i], 0, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[0].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
@@ -193,7 +205,7 @@ void repeaters_process(void) {
 		}
 
 		if (repeaters[i].slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeaters[i].slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts2\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts2\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			repeaters_state_change(&repeaters[i], 1, REPEATER_SLOT_STATE_IDLE);
 			repeaters[i].slot[1].call_ended_at = time(NULL);
 			remotedb_update(&repeaters[i]);
@@ -212,12 +224,12 @@ void repeaters_process(void) {
 		}
 
 		if (repeaters[i].slot[0].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeaters[i].slot[0].data_header_received_at > config_get_datatimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts1\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts1\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			repeaters_state_change(&repeaters[i], 0, REPEATER_SLOT_STATE_IDLE);
 		}
 
 		if (repeaters[i].slot[1].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeaters[i].slot[1].data_header_received_at > config_get_datatimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts2\n", comm_get_ip_str(&repeaters[i].ipaddr));
+			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts2\n", repeaters_get_display_string_for_ip(&repeaters[i].ipaddr));
 			repeaters_state_change(&repeaters[i], 1, REPEATER_SLOT_STATE_IDLE);
 		}
 	}

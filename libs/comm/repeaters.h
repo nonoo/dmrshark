@@ -64,6 +64,8 @@ typedef struct {
 	time_t auto_rssi_update_enabled_at;
 } repeater_t;
 
+char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr);
+
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
 repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type);
 repeater_t *repeaters_add(struct in_addr *ipaddr);

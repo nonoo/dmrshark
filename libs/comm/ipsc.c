@@ -97,9 +97,9 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
 		// host of the DMR master, and IP packets are just routed through.
 		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
-			console_log(LOGLEVEL_IPSC "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 			console_log(LOGLEVEL_IPSC "->%s]: decoded dmr ts %u slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
-				comm_get_ip_str(&ip_packet->ip_dst),
+				repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 				ipsc_packet.timeslot,
 				ipscpacket_get_readable_slot_type(ipsc_packet.slot_type), ipsc_packet.slot_type,
 				dmr_get_readable_call_type(ipsc_packet.call_type), ipsc_packet.call_type,
@@ -117,8 +117,8 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst)) {
-			console_log(LOGLEVEL_HEARTBEAT "ipsc [%s", comm_get_ip_str(&ip_packet->ip_src));
-			console_log(LOGLEVEL_HEARTBEAT "->%s]: got heartbeat\n", comm_get_ip_str(&ip_packet->ip_dst));
+			console_log(LOGLEVEL_HEARTBEAT "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+			console_log(LOGLEVEL_HEARTBEAT "->%s]: got heartbeat\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
 			repeater = repeaters_findbyip(&ip_packet->ip_src);
 			if (repeater == NULL)
 				repeater = repeaters_add(&ip_packet->ip_src);

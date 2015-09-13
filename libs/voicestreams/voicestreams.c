@@ -32,6 +32,7 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 	struct in_addr resolved_ip;
 	char *tok = NULL;
 	voicestream_t *vs = voicestreams;
+	voicestream_t *wildcard_host_vs = NULL;
 
 	while (vs != NULL) {
 		if (vs->timeslot != timeslot) {
@@ -48,6 +49,9 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 		tok = strtok(vs->repeaterhosts, ",");
 		if (tok) {
 			do {
+				if (strcmp(tok, "*") == 0) // Found a wildcard host, storing it.
+					wildcard_host_vs = vs;
+
 				if (comm_hostname_to_ip(tok, &resolved_ip)) { // Hostname can be resolved to an IP and it matches?
 					if (memcmp(&resolved_ip, ip, sizeof(struct in_addr)) == 0)
 						return vs;
@@ -63,7 +67,7 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 		vs = vs->next;
 	}
 
-	return NULL;
+	return wildcard_host_vs;
 }
 
 void voicestreams_printlist(void) {
