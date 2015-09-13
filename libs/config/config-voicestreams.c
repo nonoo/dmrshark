@@ -100,13 +100,14 @@ void config_voicestreams_free_streamnames(char **streamnames) {
 int config_voicestreams_get_enabled(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
+	char *key = "enabled";
 	int defaultvalue = 1;
 
 	pthread_mutex_lock(config_get_mutex());
-	value = g_key_file_get_integer(config_get_keyfile(), streamname, "enabled", &error);
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(config_get_keyfile(), streamname, "enabled", value);
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
@@ -115,6 +116,7 @@ int config_voicestreams_get_enabled(char *streamname) {
 char *config_voicestreams_get_repeaterhosts(char *streamname) {
 	GError *error = NULL;
 	char *value = NULL;
+	char *key = "repeaterhosts";
 	char *defaultvalue = NULL;
 
 	if (streamname == NULL)
@@ -122,13 +124,11 @@ char *config_voicestreams_get_repeaterhosts(char *streamname) {
 
 	pthread_mutex_lock(config_get_mutex());
 	defaultvalue = "";
-	value = g_key_file_get_string(config_get_keyfile(), streamname, "repeaterhosts", &error);
+	value = g_key_file_get_string(config_get_keyfile(), streamname, key, &error);
 	if (error || value == NULL) {
-		value = (char *)malloc(strlen(defaultvalue)+1);
-		if (value) {
-			strcpy(value, defaultvalue);
-			g_key_file_set_string(config_get_keyfile(), streamname, "repeaterhosts", value);
-		}
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
@@ -137,6 +137,7 @@ char *config_voicestreams_get_repeaterhosts(char *streamname) {
 char *config_voicestreams_get_savefiledir(char *streamname) {
 	GError *error = NULL;
 	char *value = NULL;
+	char *key = "savefiledir";
 	char *defaultvalue = NULL;
 
 	if (streamname == NULL)
@@ -144,13 +145,11 @@ char *config_voicestreams_get_savefiledir(char *streamname) {
 
 	pthread_mutex_lock(config_get_mutex());
 	defaultvalue = "";
-	value = g_key_file_get_string(config_get_keyfile(), streamname, "savefiledir", &error);
+	value = g_key_file_get_string(config_get_keyfile(), streamname, key, &error);
 	if (error || value == NULL) {
-		value = (char *)malloc(strlen(defaultvalue)+1);
-		if (value) {
-			strcpy(value, defaultvalue);
-			g_key_file_set_string(config_get_keyfile(), streamname, "savefiledir", value);
-		}
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
@@ -159,13 +158,14 @@ char *config_voicestreams_get_savefiledir(char *streamname) {
 int config_voicestreams_get_savetorawfile(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
+	char *key = "savetorawfile";
 	int defaultvalue = 0;
 
 	pthread_mutex_lock(config_get_mutex());
-	value = g_key_file_get_integer(config_get_keyfile(), streamname, "savetorawfile", &error);
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(config_get_keyfile(), streamname, "savetorawfile", value);
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
@@ -174,13 +174,14 @@ int config_voicestreams_get_savetorawfile(char *streamname) {
 int config_voicestreams_get_timeslot(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
+	char *key = "timeslot";
 	int defaultvalue = 1;
 
 	pthread_mutex_lock(config_get_mutex());
-	value = g_key_file_get_integer(config_get_keyfile(), streamname, "timeslot", &error);
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(config_get_keyfile(), streamname, "timeslot", value);
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
@@ -189,13 +190,14 @@ int config_voicestreams_get_timeslot(char *streamname) {
 int config_voicestreams_get_decodequality(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
+	char *key = "decodequality";
 	int defaultvalue = 3;
 
 	pthread_mutex_lock(config_get_mutex());
-	value = g_key_file_get_integer(config_get_keyfile(), streamname, "decodequality", &error);
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(config_get_keyfile(), streamname, "decodequality", value);
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
 	}
 	pthread_mutex_unlock(config_get_mutex());
 	return value;
