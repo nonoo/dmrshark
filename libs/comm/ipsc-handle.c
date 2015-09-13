@@ -25,8 +25,6 @@
 #include <libs/dmrpacket/dmrpacket.h>
 
 static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
-	console_log(LOGLEVEL_COMM_DMR "  slot type: %.4x (%s)\n", ipscpacket->slot_type, ipscpacket_get_readable_slot_type(ipscpacket->slot_type));
-
 	switch (ipscpacket->slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B:
@@ -79,7 +77,7 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 static void ipsc_handle_sync_field(dmrpacket_payload_bits_t *packet_payload_bits) {
 	dmrpacket_sync_pattern_type_t sync_pattern_type = dmrpacket_get_sync_pattern_type(dmrpacket_extract_sync_field_bits(packet_payload_bits));
 	if (sync_pattern_type != DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN)
-		console_log(LOGLEVEL_COMM_DMR "  sync pattern type: %s\n", dmrpacket_get_readable_sync_pattern_type(sync_pattern_type));
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  sync pattern type: %s\n", dmrpacket_get_readable_sync_pattern_type(sync_pattern_type));
 }
 
 void ipsc_handle(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {

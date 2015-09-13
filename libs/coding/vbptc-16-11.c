@@ -37,28 +37,28 @@ static void vbptc_16_11_print_matrix(vbptc_16_11_t *vbptc) {
 	uint8_t row;
 	uint8_t col;
 
-	if (!loglevel.flags.debug && !loglevel.flags.comm_dmr)
+	if (!loglevel.flags.debug && !loglevel.flags.coding)
 		return;
 
-	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    vbptc (16,11) matrix: ");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "    vbptc (16,11) matrix: ");
 
 	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows == 0) {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "empty\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "empty\n");
 		return;
 	}
 
 	for (row = 0; row < vbptc->expected_rows; row++) {
 		if (row > 0)
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "                          ");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "                          ");
 
 		for (col = 0; col < 16; col++) {
 			if (col == 11)
-				console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR " ");
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", vbptc->matrix[row*16+col]);
+				console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING " ");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "%u", vbptc->matrix[row*16+col]);
 		}
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "\n");
 		if (row == vbptc->expected_rows-2)
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "\n");
 	}
 }
 
@@ -119,7 +119,7 @@ static flag_t vbptc_16_11_check_row(flag_t *data_bits, hamming_error_vector_t *e
 		error_vector->bits[4] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) error vector: %u%u%u%u%u\n",
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "    vbptc (16,11): hamming(16,11) error vector: %u%u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -189,16 +189,16 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 			// Error check failed, checking if we can determine the location of the bit error.
 			wrongbitnr = vbptc_16_11_find_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0) {
-				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, can't repair row #%u\n", row);
+				console_log(LOGLEVEL_CODING "    vbptc (16,11): hamming(16,11) check error, can't repair row #%u\n", row);
 				result = 0;
 			} else {
-				console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, fixing bit pos. #%u in row #%u\n", wrongbitnr, row);
+				console_log(LOGLEVEL_CODING "    vbptc (16,11): hamming(16,11) check error, fixing bit pos. #%u in row #%u\n", wrongbitnr, row);
 				vbptc->matrix[row*16+wrongbitnr] = !vbptc->matrix[row*16+wrongbitnr];
 
 				vbptc_16_11_print_matrix(vbptc);
 
 				if (!vbptc_16_11_check_row(vbptc->matrix+row*16, &hamming_error_vector)) {
-					console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): hamming(16,11) check error, couldn't repair row #%u\n", row);
+					console_log(LOGLEVEL_CODING "    vbptc (16,11): hamming(16,11) check error, couldn't repair row #%u\n", row);
 					result = 0;
 				}
 			}
@@ -211,17 +211,17 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 			parity = (parity + vbptc->matrix[row*16+col]) % 2;
 
 		if (parity != vbptc->matrix[(vbptc->expected_rows-1)*16+col]) {
-			console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): parity check error in col. #%u\n", col);
+			console_log(LOGLEVEL_CODING "    vbptc (16,11): parity check error in col. #%u\n", col);
 			return 0; // As we don't modify the parity bits we can return here immediately.
 		}
 	}
 
 	if (result && !errors_found)
-		console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): received data was error free\n");
+		console_log(LOGLEVEL_CODING "    vbptc (16,11): received data was error free\n");
 	else if (result && errors_found)
-		console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): received data had errors which were corrected\n");
+		console_log(LOGLEVEL_CODING "    vbptc (16,11): received data had errors which were corrected\n");
 	else if (!result)
-		console_log(LOGLEVEL_COMM_DMR "    vbptc (16,11): received data had errors which couldn't be corrected\n");
+		console_log(LOGLEVEL_CODING "    vbptc (16,11): received data had errors which couldn't be corrected\n");
 
 	return result;
 }
@@ -271,7 +271,7 @@ flag_t vbptc_16_11_init(vbptc_16_11_t *vbptc, uint8_t expected_rows) {
 
 	vbptc->matrix = (flag_t *)calloc(bytes_to_allocate, 1);
 	if (vbptc->matrix == NULL) {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    vbptc (16,11): can't allocate %u bytes for the vbptc matrix\n", bytes_to_allocate);
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "    vbptc (16,11): can't allocate %u bytes for the vbptc matrix\n", bytes_to_allocate);
 		return 0;
 	}
 	vbptc->expected_rows = expected_rows;

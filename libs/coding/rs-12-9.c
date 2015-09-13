@@ -285,7 +285,7 @@ rs_12_9_correct_errors_result_t rs_12_9_correct_errors(rs_12_9_codeword_t *codew
 				denom ^= rs_12_9_galois_multiplication(error_locator_poly.data[j], rs_12_9_galois_exp_table_get(((255-i)*(j-1)) % 255));
 
 			err = rs_12_9_galois_multiplication(num, rs_12_9_galois_inv(denom));
-			console_log(LOGLEVEL_DEBUG "    rs (12,9): error magnitude %#x at byte loc. %u\n", err, sizeof(rs_12_9_codeword_t)-i);
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "    rs (12,9): error magnitude %#x at byte loc. %u\n", err, sizeof(rs_12_9_codeword_t)-i);
 
 			codeword->data[sizeof(rs_12_9_codeword_t)-i-1] ^= err;
 		}

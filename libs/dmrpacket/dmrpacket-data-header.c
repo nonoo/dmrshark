@@ -162,22 +162,22 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[95];
 
 	if (dmrpacket_data_header_crc_calc(data_bits) != header.common.crc) {
-		console_log("dmrpacket data error: header crc mismatch\n");
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data error: header crc mismatch\n");
 		return NULL;
 	}
 
 	if (proprietary_header) {
-		console_log(LOGLEVEL_COMM_DMR "dmrpacket data: decoding proprietary header\n");
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data: decoding proprietary header\n");
 		header.common.service_access_point =			data_bits->bits[0] << 3 |
 														data_bits->bits[1] << 2 |
 														data_bits->bits[2] << 1 |
 														data_bits->bits[3];
-		console_log(LOGLEVEL_COMM_DMR "  service access point: %.2x (%s)\n", header.common.service_access_point, dmrpacket_data_header_get_readable_sap(header.common.service_access_point));
+		console_log(LOGLEVEL_DMRDATA "  service access point: %.2x (%s)\n", header.common.service_access_point, dmrpacket_data_header_get_readable_sap(header.common.service_access_point));
 		header.common.data_packet_format =				data_bits->bits[4] << 3 |
 														data_bits->bits[5] << 2 |
 														data_bits->bits[6] << 1 |
 														data_bits->bits[7];
-		console_log(LOGLEVEL_COMM_DMR "  data packet format: %.2x (%s)\n", header.common.data_packet_format, dmrpacket_data_header_get_readable_dpf(header.common.data_packet_format));
+		console_log(LOGLEVEL_DMRDATA "  data packet format: %.2x (%s)\n", header.common.data_packet_format, dmrpacket_data_header_get_readable_dpf(header.common.data_packet_format));
 		header.proprietary.manufacturer_id =			data_bits->bits[8] << 7 |
 														data_bits->bits[9] << 6 |
 														data_bits->bits[10] << 5 |
@@ -186,8 +186,8 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-		console_log(LOGLEVEL_COMM_DMR "  manufacturer id: %.2x\n", header.proprietary.manufacturer_id);
-		console_log(LOGLEVEL_COMM_DMR "  crc: %.4x\n", header.common.crc);
+		console_log(LOGLEVEL_DMRDATA "  manufacturer id: %.2x\n", header.proprietary.manufacturer_id);
+		console_log(LOGLEVEL_DMRDATA "  crc: %.4x\n", header.common.crc);
 		return &header;
 	}
 
@@ -195,18 +195,18 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[5] << 2 |
 														data_bits->bits[6] << 1 |
 														data_bits->bits[7];
-	console_log(LOGLEVEL_COMM_DMR "dmrpacket data: decoding header format %s (%.2x)\n", dmrpacket_data_header_get_readable_dpf(header.common.data_packet_format), header.common.data_packet_format);
+	console_log(LOGLEVEL_DMRDATA "dmrpacket data: decoding header format %s (%.2x)\n", dmrpacket_data_header_get_readable_dpf(header.common.data_packet_format), header.common.data_packet_format);
 
 	// These fields are common for each data packet format.
 	header.common.dst_is_a_group =						data_bits->bits[0];
-	console_log(LOGLEVEL_COMM_DMR "  dst is a group: %u\n", header.common.dst_is_a_group);
+	console_log(LOGLEVEL_DMRDATA "  dst is a group: %u\n", header.common.dst_is_a_group);
 	header.common.response_requested =					data_bits->bits[1];
-	console_log(LOGLEVEL_COMM_DMR "  response requested: %u\n", header.common.response_requested);
+	console_log(LOGLEVEL_DMRDATA "  response requested: %u\n", header.common.response_requested);
 	header.common.service_access_point =				data_bits->bits[8] << 3 |
 														data_bits->bits[9] << 2 |
 														data_bits->bits[10] << 1 |
 														data_bits->bits[11];
-	console_log(LOGLEVEL_COMM_DMR "  service access point: %.2x (%s)\n", header.common.service_access_point, dmrpacket_data_header_get_readable_sap(header.common.service_access_point));
+	console_log(LOGLEVEL_DMRDATA "  service access point: %.2x (%s)\n", header.common.service_access_point, dmrpacket_data_header_get_readable_sap(header.common.service_access_point));
 	header.common.dst_llid =							data_bits->bits[16] << 23 |
 														data_bits->bits[17] << 22 |
 														data_bits->bits[18] << 21 |
@@ -231,7 +231,7 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[37] << 2 |
 														data_bits->bits[38] << 1 |
 														data_bits->bits[39];
-	console_log(LOGLEVEL_COMM_DMR "  dst llid: %u\n", header.common.dst_llid);
+	console_log(LOGLEVEL_DMRDATA "  dst llid: %u\n", header.common.dst_llid);
 	header.common.src_llid =							data_bits->bits[40] << 23 |
 														data_bits->bits[41] << 22 |
 														data_bits->bits[42] << 21 |
@@ -256,7 +256,7 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[61] << 2 |
 														data_bits->bits[62] << 1 |
 														data_bits->bits[63];
-	console_log(LOGLEVEL_COMM_DMR "  src llid: %u\n", header.common.src_llid);
+	console_log(LOGLEVEL_DMRDATA "  src llid: %u\n", header.common.src_llid);
 
 	switch (header.common.data_packet_format) {
 		case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
@@ -265,9 +265,9 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-			console_log(LOGLEVEL_COMM_DMR "  pad octet count: %u\n", header.unconfirmed_data.pad_octet_count);
+			console_log(LOGLEVEL_DMRDATA "  pad octet count: %u\n", header.unconfirmed_data.pad_octet_count);
 			header.unconfirmed_data.full_message =		data_bits->bits[64];
-			console_log(LOGLEVEL_COMM_DMR "  full message: %u\n", header.unconfirmed_data.full_message);
+			console_log(LOGLEVEL_DMRDATA "  full message: %u\n", header.unconfirmed_data.full_message);
 			header.unconfirmed_data.blocks_to_follow =	data_bits->bits[65] << 6 |
 														data_bits->bits[66] << 5 |
 														data_bits->bits[67] << 4 |
@@ -275,12 +275,12 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[69] << 2 |
 														data_bits->bits[70] << 1 |
 														data_bits->bits[71];
-			console_log(LOGLEVEL_COMM_DMR "  blocks to follow: %u\n", header.unconfirmed_data.blocks_to_follow);
+			console_log(LOGLEVEL_DMRDATA "  blocks to follow: %u\n", header.unconfirmed_data.blocks_to_follow);
 			header.unconfirmed_data.fragmentseqnum =	data_bits->bits[76] << 3 |
 														data_bits->bits[77] << 2 |
 														data_bits->bits[78] << 1 |
 														data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  fragment seqnum: %u\n", header.unconfirmed_data.fragmentseqnum);
+			console_log(LOGLEVEL_DMRDATA "  fragment seqnum: %u\n", header.unconfirmed_data.fragmentseqnum);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
 			header.confirmed_data.pad_octet_count =		data_bits->bits[3] << 4 |
@@ -288,9 +288,9 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-			console_log(LOGLEVEL_COMM_DMR "  pad octet count: %u\n", header.confirmed_data.pad_octet_count);
+			console_log(LOGLEVEL_DMRDATA "  pad octet count: %u\n", header.confirmed_data.pad_octet_count);
 			header.confirmed_data.full_message =		data_bits->bits[64];
-			console_log(LOGLEVEL_COMM_DMR "  full message: %u\n", header.confirmed_data.full_message);
+			console_log(LOGLEVEL_DMRDATA "  full message: %u\n", header.confirmed_data.full_message);
 			header.confirmed_data.blocks_to_follow =	data_bits->bits[65] << 6 |
 														data_bits->bits[66] << 5 |
 														data_bits->bits[67] << 4 |
@@ -298,18 +298,18 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[69] << 2 |
 														data_bits->bits[70] << 1 |
 														data_bits->bits[71];
-			console_log(LOGLEVEL_COMM_DMR "  blocks to follow: %u\n", header.confirmed_data.blocks_to_follow);
+			console_log(LOGLEVEL_DMRDATA "  blocks to follow: %u\n", header.confirmed_data.blocks_to_follow);
 			header.confirmed_data.resync =				data_bits->bits[72];
-			console_log(LOGLEVEL_COMM_DMR "  resync: %u\n", header.confirmed_data.resync);
+			console_log(LOGLEVEL_DMRDATA "  resync: %u\n", header.confirmed_data.resync);
 			header.confirmed_data.fragmentseqnum =		data_bits->bits[76] << 3 |
 														data_bits->bits[77] << 2 |
 														data_bits->bits[78] << 1 |
 														data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  fragment seqnum: %u\n", header.confirmed_data.fragmentseqnum);
+			console_log(LOGLEVEL_DMRDATA "  fragment seqnum: %u\n", header.confirmed_data.fragmentseqnum);
 			header.confirmed_data.sendseqnum =			data_bits->bits[73] << 2 |
 														data_bits->bits[74] << 1 |
 														data_bits->bits[75];
-			console_log(LOGLEVEL_COMM_DMR "  send seqnum: %u\n", header.confirmed_data.sendseqnum);
+			console_log(LOGLEVEL_DMRDATA "  send seqnum: %u\n", header.confirmed_data.sendseqnum);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
 			header.response.blocks_to_follow =			data_bits->bits[65] << 6 |
@@ -319,18 +319,18 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[69] << 2 |
 														data_bits->bits[70] << 1 |
 														data_bits->bits[71];
-			console_log(LOGLEVEL_COMM_DMR "  blocks to follow: %u\n", header.response.blocks_to_follow);
+			console_log(LOGLEVEL_DMRDATA "  blocks to follow: %u\n", header.response.blocks_to_follow);
 			header.response.class =						data_bits->bits[72] << 1 |
 														data_bits->bits[73];
-			console_log(LOGLEVEL_COMM_DMR "  class: %.2x\n", header.response.class);
+			console_log(LOGLEVEL_DMRDATA "  class: %.2x\n", header.response.class);
 			header.response.type =						data_bits->bits[74] << 2 |
 														data_bits->bits[75] << 1 |
 														data_bits->bits[76];
-			console_log(LOGLEVEL_COMM_DMR "  type: %.2x\n", header.response.type);
+			console_log(LOGLEVEL_DMRDATA "  type: %.2x\n", header.response.type);
 			header.response.status =					data_bits->bits[77] << 2 |
 														data_bits->bits[78] << 1 |
 														data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  status: %.2x\n", header.response.status);
+			console_log(LOGLEVEL_DMRDATA "  status: %.2x\n", header.response.status);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_PROPRIETARY_DATA: // This is handled at the beginning of this function.
 			return &header;
@@ -341,19 +341,19 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-			console_log(LOGLEVEL_COMM_DMR "  appended blocks: %u\n", header.short_data_raw.appended_blocks);
+			console_log(LOGLEVEL_DMRDATA "  appended blocks: %u\n", header.short_data_raw.appended_blocks);
 			header.short_data_raw.source_port =			data_bits->bits[72] << 2 |
 														data_bits->bits[73] << 1 |
 														data_bits->bits[74];
-			console_log(LOGLEVEL_COMM_DMR "  source port: %u\n", header.short_data_raw.source_port);
+			console_log(LOGLEVEL_DMRDATA "  source port: %u\n", header.short_data_raw.source_port);
 			header.short_data_raw.destination_port =	data_bits->bits[75] << 2 |
 														data_bits->bits[76] << 1 |
 														data_bits->bits[77];
-			console_log(LOGLEVEL_COMM_DMR "  destination port: %u\n", header.short_data_raw.destination_port);
+			console_log(LOGLEVEL_DMRDATA "  destination port: %u\n", header.short_data_raw.destination_port);
 			header.short_data_raw.resync =				data_bits->bits[78];
-			console_log(LOGLEVEL_COMM_DMR "  resync: %u\n", header.short_data_raw.resync);
+			console_log(LOGLEVEL_DMRDATA "  resync: %u\n", header.short_data_raw.resync);
 			header.short_data_raw.full_message =		data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  full message: %u\n", header.short_data_raw.full_message);
+			console_log(LOGLEVEL_DMRDATA "  full message: %u\n", header.short_data_raw.full_message);
 			header.short_data_raw.bit_padding =				data_bits->bits[80] << 7 |
 														data_bits->bits[81] << 6 |
 														data_bits->bits[82] << 5 |
@@ -362,7 +362,7 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[85] << 2 |
 														data_bits->bits[86] << 1 |
 														data_bits->bits[87];
-			console_log(LOGLEVEL_COMM_DMR "  bit padding: %.2x\n", header.short_data_raw.bit_padding);
+			console_log(LOGLEVEL_DMRDATA "  bit padding: %.2x\n", header.short_data_raw.bit_padding);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
 			header.short_data_defined.appended_blocks =	data_bits->bits[2] << 5 |
@@ -371,18 +371,18 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-			console_log(LOGLEVEL_COMM_DMR "  appended blocks: %u\n", header.short_data_defined.appended_blocks);
+			console_log(LOGLEVEL_DMRDATA "  appended blocks: %u\n", header.short_data_defined.appended_blocks);
 			header.short_data_defined.dd_format =		data_bits->bits[72] << 5 |
 														data_bits->bits[73] << 4 |
 														data_bits->bits[74] << 3 |
 														data_bits->bits[75] << 2 |
 														data_bits->bits[76] << 1 |
 														data_bits->bits[77];
-			console_log(LOGLEVEL_COMM_DMR "  dd format: %.2x (%s)\n", header.short_data_defined.dd_format, dmrpacket_data_header_get_readable_dd_format(header.short_data_defined.dd_format));
+			console_log(LOGLEVEL_DMRDATA "  dd format: %.2x (%s)\n", header.short_data_defined.dd_format, dmrpacket_data_header_get_readable_dd_format(header.short_data_defined.dd_format));
 			header.short_data_defined.resync =			data_bits->bits[78];
-			console_log(LOGLEVEL_COMM_DMR "  resync: %u\n", header.short_data_defined.resync);
+			console_log(LOGLEVEL_DMRDATA "  resync: %u\n", header.short_data_defined.resync);
 			header.short_data_defined.full_message =	data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  full message: %u\n", header.short_data_defined.full_message);
+			console_log(LOGLEVEL_DMRDATA "  full message: %u\n", header.short_data_defined.full_message);
 			header.short_data_defined.bit_padding =		data_bits->bits[80] << 7 |
 														data_bits->bits[81] << 6 |
 														data_bits->bits[82] << 5 |
@@ -391,28 +391,28 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 														data_bits->bits[85] << 2 |
 														data_bits->bits[86] << 1 |
 														data_bits->bits[87];
-			console_log(LOGLEVEL_COMM_DMR "  bit padding: %.2x\n", header.short_data_defined.bit_padding);
+			console_log(LOGLEVEL_DMRDATA "  bit padding: %.2x\n", header.short_data_defined.bit_padding);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
 			header.udt.format =							data_bits->bits[12] << 3 |
 														data_bits->bits[13] << 2 |
 														data_bits->bits[14] << 1 |
 														data_bits->bits[15];
-			console_log(LOGLEVEL_COMM_DMR "  udt format: %.2x (%s)\n", header.udt.format, dmrpacket_data_header_get_readable_udt_format(header.udt.format));
+			console_log(LOGLEVEL_DMRDATA "  udt format: %.2x (%s)\n", header.udt.format, dmrpacket_data_header_get_readable_udt_format(header.udt.format));
 			header.udt.pad_nibble =						data_bits->bits[73] << 4 |
 														data_bits->bits[74] << 3 |
 														data_bits->bits[75] << 2 |
 														data_bits->bits[76] << 1 |
 														data_bits->bits[77];
-			console_log(LOGLEVEL_COMM_DMR "  pad nibble: %u\n", header.udt.pad_nibble);
+			console_log(LOGLEVEL_DMRDATA "  pad nibble: %u\n", header.udt.pad_nibble);
 			header.udt.appended_blocks =				data_bits->bits[78] << 1 |
 														data_bits->bits[79];
-			console_log(LOGLEVEL_COMM_DMR "  appended blocks: %u\n", header.udt.appended_blocks);
+			console_log(LOGLEVEL_DMRDATA "  appended blocks: %u\n", header.udt.appended_blocks);
 			header.udt.supplementary_flag =				data_bits->bits[80];
-			console_log(LOGLEVEL_COMM_DMR "  supplementary flag: %u\n", header.udt.supplementary_flag);
+			console_log(LOGLEVEL_DMRDATA "  supplementary flag: %u\n", header.udt.supplementary_flag);
 			break;
 		default:
-			console_log("dmrpacket data error: unknown header data packet format\n");
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data error: unknown header data packet format\n");
 			return NULL;
 	}
 

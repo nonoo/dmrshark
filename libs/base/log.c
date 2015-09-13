@@ -45,8 +45,8 @@ void log_loglevel(loglevel_t *loglevel) {
 	else
 		console_log("off\n");
 
-	console_log("  comm-dmr ");
-	if (loglevel->flags.comm_dmr)
+	console_log("  dmrdata ");
+	if (loglevel->flags.dmrdata)
 		console_log("on\n");
 	else
 		console_log("off\n");
@@ -77,6 +77,12 @@ void log_loglevel(loglevel_t *loglevel) {
 
 	console_log("  voicestreams ");
 	if (loglevel->flags.voicestreams)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
+	console_log("  coding ");
+	if (loglevel->flags.coding)
 		console_log("on\n");
 	else
 		console_log("off\n");

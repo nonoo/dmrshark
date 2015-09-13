@@ -51,7 +51,7 @@ static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, hamming_
 		error_vector->bits[3] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "    bptc (196,96): hamming(15,11) error vector: %u%u%u%u\n",
+	console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "    bptc (196,96): hamming(15,11) error vector: %u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -76,7 +76,7 @@ static flag_t bptc_196_96_hamming_13_9_3_errorcheck(flag_t *data_bits, hamming_e
 		error_vector->bits[3] == 0)
 			return 1;
 
-	console_log(LOGLEVEL_DEBUG "    bptc (196,96): hamming(13,9) error vector: %u%u%u%u\n",
+	console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "    bptc (196,96): hamming(13,9) error vector: %u%u%u%u\n",
 		error_vector->bits[0],
 		error_vector->bits[1],
 		error_vector->bits[2],
@@ -89,24 +89,24 @@ static void bptc_196_96_display_data_matrix(flag_t deinterleaved_bits[196]) {
 	loglevel_t loglevel = console_get_loglevel();
 	uint8_t row, col;
 
-	if (!loglevel.flags.debug && !loglevel.flags.comm_dmr)
+	if (!loglevel.flags.debug && !loglevel.flags.coding)
 		return;
 
-	console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "    bptc (196,96) matrix:\n");
+	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "    bptc (196,96) matrix:\n");
 	for (row = 0; row < 13; row++) {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "      #%.2u ", row);
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "      #%.2u ", row);
 		for (col = 0; col < 11; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", deinterleaved_bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "%u", deinterleaved_bits[col+row*15+1]);
 		}
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR " ");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING " ");
 		for (; col < 15; col++) {
 			// +1 because the first bit is R(3) and it's not used so we can ignore that.
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%u", deinterleaved_bits[col+row*15+1]);
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "%u", deinterleaved_bits[col+row*15+1]);
 		}
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
+		console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "\n");
 		if (row == 8)
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
+			console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "\n");
 	}
 }
 
@@ -205,10 +205,10 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 			wrongbitnr = bptc_196_96_find_hamming_13_9_3_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0) {
 				result = 0;
-				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, can't repair column #%u\n", col);
+				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(13,9) check error, can't repair column #%u\n", col);
 			} else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
-				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, fixing bit row #%u col #%u\n", wrongbitnr, col);
+				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(13,9) check error, fixing bit row #%u col #%u\n", wrongbitnr, col);
 				deinterleaved_bits[col+wrongbitnr*15+1] = !deinterleaved_bits[col+wrongbitnr*15+1];
 
 				bptc_196_96_display_data_matrix(deinterleaved_bits);
@@ -220,7 +220,7 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 
 				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
 					result = 0;
-					console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(13,9) check error, couldn't repair column #%u\n", col);
+					console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(13,9) check error, couldn't repair column #%u\n", col);
 				}
 			}
 		}
@@ -234,28 +234,28 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 			wrongbitnr = bptc_196_96_find_hamming_15_11_3_error_position(&hamming_error_vector);
 			if (wrongbitnr < 0) {
 				result = 0;
-				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error in row %u, can't repair\n", row);
+				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(15,11) check error in row %u, can't repair\n", row);
 			} else {
 				// +1 because the first bit is R(3) and it's not used so we can ignore that.
-				console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error, fixing bit row #%u col #%u\n", row, wrongbitnr);
+				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(15,11) check error, fixing bit row #%u col #%u\n", row, wrongbitnr);
 				deinterleaved_bits[row*15+wrongbitnr+1] = !deinterleaved_bits[row*15+wrongbitnr+1];
 
 				bptc_196_96_display_data_matrix(deinterleaved_bits);
 
 				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
 					result = 0;
-					console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): hamming(15,11) check error, couldn't repair row #%u\n", row);
+					console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(15,11) check error, couldn't repair row #%u\n", row);
 				}
 			}
 		}
 	}
 
 	if (result && !errors_found)
-		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data was error free\n");
+		console_log(LOGLEVEL_CODING "    bptc (196,96): received data was error free\n");
 	else if (result && errors_found)
-		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data had errors which were corrected\n");
+		console_log(LOGLEVEL_CODING "    bptc (196,96): received data had errors which were corrected\n");
 	else if (!result)
-		console_log(LOGLEVEL_COMM_DMR "    bptc (196,96): received data had errors which couldn't be corrected\n");
+		console_log(LOGLEVEL_CODING "    bptc (196,96): received data had errors which couldn't be corrected\n");
 
 	return result;
 }

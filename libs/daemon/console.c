@@ -186,12 +186,13 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_DEBUG_VAL: return loglevel.flags.debug;
 		case LOGLEVEL_IPSC_VAL: return loglevel.flags.ipsc;
 		case LOGLEVEL_COMM_IP_VAL: return loglevel.flags.comm_ip;
-		case LOGLEVEL_COMM_DMR_VAL: return loglevel.flags.comm_dmr;
+		case LOGLEVEL_DMRDATA_VAL: return loglevel.flags.dmrdata;
 		case LOGLEVEL_SNMP_VAL: return loglevel.flags.snmp;
 		case LOGLEVEL_REPEATERS_VAL: return loglevel.flags.repeaters;
 		case LOGLEVEL_HEARTBEAT_VAL: return loglevel.flags.heartbeat;
 		case LOGLEVEL_REMOTEDB_VAL: return loglevel.flags.remotedb;
 		case LOGLEVEL_VOICESTREAMS_VAL: return loglevel.flags.voicestreams;
+		case LOGLEVEL_CODING_VAL: return loglevel.flags.coding;
 		default: return 1;
 	}
 }
@@ -201,12 +202,13 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_DEBUG_VAL:
 		case LOGLEVEL_IPSC_VAL:
 		case LOGLEVEL_COMM_IP_VAL:
-		case LOGLEVEL_COMM_DMR_VAL:
+		case LOGLEVEL_DMRDATA_VAL:
 		case LOGLEVEL_SNMP_VAL:
 		case LOGLEVEL_REPEATERS_VAL:
 		case LOGLEVEL_HEARTBEAT_VAL:
 		case LOGLEVEL_REMOTEDB_VAL:
 		case LOGLEVEL_VOICESTREAMS_VAL:
+		case LOGLEVEL_CODING_VAL:
 			return 1;
 		default: return 0;
 	}

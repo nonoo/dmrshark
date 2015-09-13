@@ -86,27 +86,27 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
 	ipscpacket_raw_length = ntohs(udppacket->len)-sizeof(struct udphdr);
 	if (ipscpacket_raw_length != IPSC_PACKET_SIZE1 && ipscpacket_raw_length != IPSC_PACKET_SIZE2) {
-		//console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, packet size is %u not %u or %u bytes.\n",
+		//console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, packet size is %u not %u or %u bytes.\n",
 		//	ipscpacket_raw_length, IPSC_PACKET_SIZE1, IPSC_PACKET_SIZE2);
 		return 0;
 	}
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.debug && loglevel.flags.comm_dmr) {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "ipscpacket: decoding: ");
+	if (loglevel.flags.debug && loglevel.flags.ipsc) {
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decoding: ");
 		for (i = 0; i < ipscpacket_raw_length; i++)
-			console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "%.2x ", *((uint8_t *)ipscpacket_raw+i));
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "\n");
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x ", *((uint8_t *)ipscpacket_raw+i));
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
 	}
 
 	if (ipscpacket_raw->udp_source_port != udppacket->source) {
-		console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
 			ipscpacket_raw->udp_source_port, udppacket->source);
 		return 0;
 	}
 
 	if (ipscpacket_raw->delimiter != 0x1111) {
-		console_log(LOGLEVEL_DEBUG "ipscpacket: decode failed, delimiter mismatch (it's %.4x, should be 0x1111)\n",
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, delimiter mismatch (it's %.4x, should be 0x1111)\n",
 			ipscpacket_raw->delimiter);
 		return 0;
 	}
@@ -116,7 +116,7 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 	else if (ipscpacket_raw->timeslot_raw == 0x2222)
 		ipscpacket->timeslot = 2;
 	else {
-		console_log(LOGLEVEL_DEBUG LOGLEVEL_COMM_DMR "ipscpacket: decode failed, invalid timeslot (%.4x)\n", ipscpacket_raw->timeslot_raw);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid timeslot (%.4x)\n", ipscpacket_raw->timeslot_raw);
 		return 0;
 	}
 

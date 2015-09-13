@@ -77,8 +77,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.ipsc = !loglevel.flags.ipsc;
 			else if (strcmp(tok, "comm-ip") == 0)
 				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
-			else if (strcmp(tok, "comm-dmr") == 0)
-				loglevel.flags.comm_dmr = !loglevel.flags.comm_dmr;
+			else if (strcmp(tok, "dmrdata") == 0)
+				loglevel.flags.dmrdata = !loglevel.flags.dmrdata;
 			else if (strcmp(tok, "snmp") == 0)
 				loglevel.flags.snmp = !loglevel.flags.snmp;
 			else if (strcmp(tok, "repeaters") == 0)
@@ -89,6 +89,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.remotedb = !loglevel.flags.remotedb;
 			else if (strcmp(tok, "voicestreams") == 0)
 				loglevel.flags.voicestreams = !loglevel.flags.voicestreams;
+			else if (strcmp(tok, "coding") == 0)
+				loglevel.flags.coding = !loglevel.flags.coding;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

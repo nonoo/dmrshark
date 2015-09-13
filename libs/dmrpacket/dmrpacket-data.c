@@ -69,26 +69,31 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payloa
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary) {
 	static dmrpacket_data_block_bytes_t bytes;
 	uint8_t i;
+	loglevel_t loglevel = console_get_loglevel();
 
 	if (binary == NULL)
 		return NULL;
 
-	console_log(LOGLEVEL_DEBUG "dmrpacket data: converting binary data to bytes\n");
-	console_log(LOGLEVEL_DEBUG "  input: ");
-	for (i = 0; i < sizeof(binary->bits); i++) {
-		if (i > 0 && i % 8 == 0)
-			console_log(LOGLEVEL_DEBUG " ");
-		console_log(LOGLEVEL_DEBUG "%u", binary->bits[i]);
-
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: converting binary data to bytes\n");
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(binary->bits); i++) {
+			if (i > 0 && i % 8 == 0)
+				console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " ");
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u", binary->bits[i]);
+		}
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
 	}
-	console_log(LOGLEVEL_DEBUG "\n");
 
-	console_log(LOGLEVEL_DEBUG "  output: ");
-	for (i = 0; i < sizeof(binary->bits)/8; i++) {
+	for (i = 0; i < sizeof(binary->bits)/8; i++)
 		bytes.bytes[i] = base_bitstobyte(&binary->bits[i*8]);
-		console_log(LOGLEVEL_DEBUG "%.2x ", bytes.bytes[i]);
+
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(binary->bits)/8; i++)
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x ", bytes.bytes[i]);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
 	}
-	console_log(LOGLEVEL_DEBUG "\n");
 
 	return &bytes;
 }
@@ -96,26 +101,31 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpa
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(bptc_196_96_data_bits_t *binary) {
 	static dmrpacket_data_block_bytes_t bytes;
 	uint8_t i;
+	loglevel_t loglevel = console_get_loglevel();
 
 	if (binary == NULL)
 		return NULL;
 
-	console_log(LOGLEVEL_DEBUG "dmrpacket data: converting payload data bits to bytes\n");
-	console_log(LOGLEVEL_DEBUG "  input: ");
-	for (i = 0; i < sizeof(binary->bits); i++) {
-		if (i > 0 && i % 8 == 0)
-			console_log(LOGLEVEL_DEBUG " ");
-		console_log(LOGLEVEL_DEBUG "%u", binary->bits[i]);
-
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: converting payload data bits to bytes\n");
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(binary->bits); i++) {
+			if (i > 0 && i % 8 == 0)
+				console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " ");
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u", binary->bits[i]);
+		}
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
 	}
-	console_log(LOGLEVEL_DEBUG "\n");
 
-	console_log(LOGLEVEL_DEBUG "  output: ");
-	for (i = 0; i < sizeof(binary->bits)/8; i++) {
+	for (i = 0; i < sizeof(binary->bits)/8; i++)
 		bytes.bytes[i] = base_bitstobyte(&binary->bits[i*8]);
-		console_log(LOGLEVEL_DEBUG "%.2x ", bytes.bytes[i]);
+
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(binary->bits)/8; i++)
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x ", bytes.bytes[i]);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
 	}
-	console_log(LOGLEVEL_DEBUG "\n");
 
 	return &bytes;
 }
@@ -124,14 +134,15 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 	static dmrpacket_data_block_t data_block;
 	uint16_t crcval = 0; // See DMR AI spec. page 142.
 	uint8_t i;
+	loglevel_t loglevel = console_get_loglevel();
 
 	if (bytes == NULL)
 		return NULL;
 
-	console_log(LOGLEVEL_COMM_DMR "dmrpacket data: decoding ");
+	console_log(LOGLEVEL_DMRDATA "dmrpacket data: decoding ");
 	if (!confirmed)
-		console_log(LOGLEVEL_COMM_DMR "un");
-	console_log(LOGLEVEL_COMM_DMR "confirmed data type %s\n", dmrpacket_data_get_readable_data_type(data_type));
+		console_log(LOGLEVEL_DMRDATA "un");
+	console_log(LOGLEVEL_DMRDATA "confirmed data type %s\n", dmrpacket_data_get_readable_data_type(data_type));
 
 	memset(&data_block, 0, sizeof(dmrpacket_data_block_t));
 
@@ -140,30 +151,32 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 			case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: data_block.data_length = 10; break;
 			case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION: data_block.data_length = 16; break;
 			default:
-				console_log("dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
+				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
 				return NULL;
 		}
 
 		data_block.serialnr = bytes->bytes[0] >> 1;
-		console_log(LOGLEVEL_DEBUG "  serialnr: %u\n", data_block.serialnr);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  serialnr: %u\n", data_block.serialnr);
 
 		data_block.crc = ((bytes->bytes[0] & 0b00000001) << 8) | bytes->bytes[1];
-		console_log(LOGLEVEL_DEBUG "  crc: %.4x\n", data_block.crc);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  crc: %.4x\n", data_block.crc);
 	} else {
 		switch (data_type) {
 			case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: data_block.data_length = 12; break;
 			case DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION: data_block.data_length = 18; break;
 			default:
-				console_log("dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
+				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't decode block, unsupported data type %.2x\n", data_type);
 				return NULL;
 		}
 	}
 
 	memcpy(data_block.data, &bytes->bytes[2], sizeof(data_block.data));
-	console_log(LOGLEVEL_DEBUG "  data (len. %u): ", data_block.data_length);
-	for (i = 0; i < data_block.data_length; i++)
-		console_log(LOGLEVEL_DEBUG "%.2x", data_block.data[i]);
-	console_log(LOGLEVEL_DEBUG "\n");
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data (len. %u): ", data_block.data_length);
+		for (i = 0; i < data_block.data_length; i++)
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x", data_block.data[i]);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+	}
 
 	for (i = 0; i < data_block.data_length; i++)
 		crc_calc_crc9(&crcval, data_block.data[i], 8);
@@ -180,7 +193,7 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 	if (crcval == data_block.crc)
 		return &data_block;
 	else {
-		console_log("dmrpacket data: block crc error\n");
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data: block crc error\n");
 		return NULL;
 	}
 }
@@ -190,13 +203,14 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 	uint16_t i;
 	uint32_t crcval = 0; // See DMR AI spec. page 139.
 	uint32_t fragment_crc = 0;
+	loglevel_t loglevel = console_get_loglevel();
 
 	if (blocks == NULL || blocks_count == 0)
 		return NULL;
 
 	memset(&data, 0, sizeof(dmrpacket_data_fragment_t));
 
-	console_log(LOGLEVEL_COMM_DMR "dmrpacket data: extracting fragment from %u blocks\n", blocks_count);
+	console_log(LOGLEVEL_DMRDATA "dmrpacket data: extracting fragment from %u blocks\n", blocks_count);
 	for (i = 0; i < blocks_count; i++) {
 		if (blocks[i].data_length == 0)
 			continue;
@@ -218,24 +232,26 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 		}
 	}
 
-	console_log(LOGLEVEL_COMM_DMR "  data (len. %u): ", data.bytes_stored);
-	for (i = 0; i < data.bytes_stored; i++)
-		console_log(LOGLEVEL_COMM_DMR "%.2x", data.bytes[i]);
-	console_log(LOGLEVEL_COMM_DMR "\n");
+	if (loglevel.flags.dmrdata) {
+		console_log(LOGLEVEL_DMRDATA "  data (len. %u): ", data.bytes_stored);
+		for (i = 0; i < data.bytes_stored; i++)
+			console_log(LOGLEVEL_DMRDATA "%.2x", data.bytes[i]);
+		console_log(LOGLEVEL_DMRDATA "\n");
+	}
 
 	for (i = 0; i < data.bytes_stored; i += 2) {
 		crc_calc_crc32(&crcval, data.bytes[i+1]);
 		crc_calc_crc32(&crcval, data.bytes[i]);
 	}
 	crc_calc_crc32_finish(&crcval);
-	console_log(LOGLEVEL_DEBUG "  fragment crc: %.8x\n", fragment_crc);
-	console_log(LOGLEVEL_DEBUG "  calculated crc: %.8x\n", crcval);
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  fragment crc: %.8x\n", fragment_crc);
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  calculated crc: %.8x\n", crcval);
 
 	if (crcval == fragment_crc) {
-		console_log(LOGLEVEL_COMM_DMR "  crc: ok\n");
+		console_log(LOGLEVEL_DMRDATA "  crc: ok\n");
 		return &data;
 	} else {
-		console_log("dmrpacket data: fragment crc error\n");
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data: fragment crc error\n");
 		return NULL;
 	}
 }
@@ -254,7 +270,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	if (fragment == NULL)
 		return NULL;
 
-	console_log("dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
+	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
 
 	switch (dd_format) {
 		default:
@@ -297,10 +313,10 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	iconv_handle = iconv_open("utf-8", dmrpacket_data_header_get_readable_dd_format(dd_format));
 	if (iconv_handle == (iconv_t)-1) {
 		if (errno == EINVAL) {
-			console_log("dmrpacket data: can't convert data from %s to utf8, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
 			return NULL;
 		} else {
-			console_log("dmrpacket data: can't convert data from %s to utf8, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
 			return NULL;
 		}
 	}
@@ -308,7 +324,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
 	iconv_close(iconv_handle);
 	if (result < 0) {
-		console_log("dmrpacket data: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
 		return NULL;
 	}
 
