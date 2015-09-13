@@ -29,28 +29,33 @@
 #include <stdio.h>
 #include <string.h>
 
-static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
-	FILE *f;
-	char fn[255];
+static char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *extension) {
+	static char fn[255];
 	char *dir;
+	time_t t;
+	struct tm *tm;
 
-	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream == NULL)
-		return;
+	t = time(NULL);
+	tm = localtime(&t);
 
 	dir = voicestream->savefiledir;
 	if (dir == NULL || strlen(dir) == 0)
 		dir = ".";
-	snprintf(fn, sizeof(fn), "%s/%s.raw", dir, voicestream->name);
+	snprintf(fn, sizeof(fn), "%s/%s-%.4u%.2u%.2u%s", dir, voicestream->name, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, extension);
 
-	f = fopen(fn, "a");
-	if (!f)
+	return fn;
+}
+
+static void voicestreams_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
+	FILE *f;
+
+	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream == NULL)
 		return;
 
-#if 0
-	console_log("voicestreams raw: written %d bytes\n", fwrite(voice_bytes, 1, voice_bytes_count, f));
-#else
+	f = fopen(voicestreams_get_stream_filename(voicestream, ".raw"), "a");
+	if (!f)
+		return;
 	fwrite(voice_bytes, 1, voice_bytes_count, f);
-#endif
 	fclose(f);
 }
 
