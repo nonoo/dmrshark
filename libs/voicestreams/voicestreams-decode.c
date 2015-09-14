@@ -83,10 +83,13 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 		z++;
 	}
 
-	mbe_processAmbe3600x2450Frame(decoded_frame.samples, &errs, &errs2, err_str, deinterleaved_ambe_frame_bits, ambe_d, &voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced, voicestream->decodequality);
+	mbe_processAmbe3600x2450Framef(decoded_frame.samples, &errs, &errs2, err_str, deinterleaved_ambe_frame_bits, ambe_d, &voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced, voicestream->decodequality);
 
 	if (errs2 > 0)
 		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: mbelib decoding errors: %u %s\n", voicestream->name, errs2, err_str);
+
+	for (j = 0; j < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; j++)
+		decoded_frame.samples[j] /= 32767.0;
 
 	return &decoded_frame;
 }

@@ -24,7 +24,7 @@
 #include <libs/dmrpacket/dmrpacket.h>
 
 typedef struct {
-	int16_t samples[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
+	float samples[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
 } voicestreams_decoded_frame_t;
 
 voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_ambe_frame_bits_t *ambe_frame_bits, voicestream_t *voicestream);

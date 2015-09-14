@@ -32,6 +32,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN 18.0
+
 static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char *fn;
@@ -54,7 +56,7 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i, n;
 	float gainfactor, gaindelta, maxbuf;
-	int16_t aout_abs, max;
+	float aout_abs, max;
 
 	if (decoded_frame == NULL)
 		return;
@@ -63,7 +65,7 @@ static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestre
 		// Detect max. level
 		max = 0;
 		for (n = 0; n < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; n++) {
-			aout_abs = abs(decoded_frame->samples[n]);
+			aout_abs = fabsf(decoded_frame->samples[n]);
 			if (aout_abs > max)
 				max = aout_abs;
 		}
@@ -82,14 +84,14 @@ static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestre
 		if (max > 0.0f)
 			gainfactor = (32767.0f / max);
 		else
-			gainfactor = 50.0f;
+			gainfactor = VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN;
 
 		if (gainfactor < voicestream->agc_needed_gain) {
 			voicestream->agc_needed_gain = gainfactor;
 			gaindelta = 0.0f;
 		} else {
-			if (gainfactor > 50.0f)
-				gainfactor = 50.0f;
+			if (gainfactor > VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN)
+				gainfactor = VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN;
 
 			gaindelta = gainfactor - voicestream->agc_needed_gain;
 			if (gaindelta > (0.05f * voicestream->agc_needed_gain))
@@ -100,10 +102,10 @@ static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestre
 		voicestream->agc_needed_gain += gaindelta;
 
 		decoded_frame->samples[i] *= voicestream->agc_needed_gain;
-		if (decoded_frame->samples[i] > 32767.0f)
-			decoded_frame->samples[i] = 32767.0f;
-		else if (decoded_frame->samples[i] < -32767.0f)
-			decoded_frame->samples[i] = -32767.0f;
+		if (decoded_frame->samples[i] > 1.0f)
+			decoded_frame->samples[i] = 1.0f;
+		else if (decoded_frame->samples[i] < -1.0f)
+			decoded_frame->samples[i] = -1.0f;
 	}
 }
 
@@ -121,7 +123,7 @@ float voicestreams_process_rms_calc(voicestream_t *voicestream) {
 static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	uint16_t rms_buf_remaining_space;
 	uint16_t samples_to_copy;
-	float rms;
+	int8_t rms;
 
 	if (voicestream == NULL)
 		return;
@@ -132,9 +134,8 @@ static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, v
 	voicestream->rms_buf_pos += samples_to_copy;
 
 	if (voicestream->rms_buf_pos == sizeof(voicestream->rms_buf)/sizeof(voicestream->rms_buf[0])) {
-		rms = voicestreams_process_rms_calc(voicestream);
-		rms = 10*log10f(rms/32767.0);
-		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %f\n", voicestream->name, rms);
+		rms = 10*log10f(voicestreams_process_rms_calc(voicestream)/32767.0);
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB\n", voicestream->name, rms);
 		voicestream->rms_buf_pos = 0;
 	}
 }
@@ -150,12 +151,12 @@ static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voice
 	if (decoded_frame == NULL)
 		return;
 
-	voicestreams_process_apply_gain(decoded_frame);
+	//voicestreams_process_apply_gain(decoded_frame);
 	voicestreams_process_apply_agc(voicestream, decoded_frame);
 	voicestreams_process_rms_calc_addtobuf(voicestream, decoded_frame);
 
 	FILE *f = fopen("out.raw", "a");
-	fwrite(decoded_frame->samples, 2, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
+	fwrite(decoded_frame->samples, sizeof(decoded_frame->samples[0]), VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
 	fclose(f);
 }
 

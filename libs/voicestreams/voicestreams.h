@@ -40,7 +40,7 @@ typedef struct voicestream_st {
 	uint8_t agc_aout_max_buf_idx;
 	float agc_needed_gain;
 
-	int16_t rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25]; // 0.5 sec. buffer
+	float rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25]; // 0.5 sec. buffer
 	uint16_t rms_buf_pos;
 
 #ifdef DECODEVOICE
