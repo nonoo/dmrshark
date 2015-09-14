@@ -75,6 +75,8 @@ static void remotedb_addquery(char *query) {
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tableprefix = NULL;
 	char query[512] = {0,};
+	int8_t rms_vol = 127;
+	int8_t avg_rms_vol = 127;
 
 	if (repeater == NULL || timeslot > 2 || timeslot < 1 || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
 		return;
@@ -82,12 +84,17 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 	if (remotedb_conn == NULL)
 		return;
 
+	if (repeater->slot[timeslot-1].voicestream) {
+		rms_vol = repeater->slot[timeslot-1].voicestream->rms_vol;
+		avg_rms_vol = repeater->slot[timeslot-1].voicestream->avg_rms_vol;
+	}
+
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d)",
+	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`, `currrmsvol`, `avgrmsvol`) "
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d)",
 		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
-		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].avg_rssi);
+		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].avg_rssi, rms_vol, avg_rms_vol);
 	free(tableprefix);
 
 	remotedb_addquery(query);
