@@ -109,7 +109,7 @@ static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestre
 	}
 }
 
-float voicestreams_process_rms_calc(voicestream_t *voicestream) {
+static void voicestreams_process_rms_calc(voicestream_t *voicestream) {
 	uint16_t i;
 	float rms = 0;
 
@@ -117,13 +117,16 @@ float voicestreams_process_rms_calc(voicestream_t *voicestream) {
 		rms += voicestream->rms_buf[i]*voicestream->rms_buf[i];
 
 	rms /= voicestream->rms_buf_pos;
-	return sqrtf(rms);
+	rms = sqrtf(rms);
+	rms = 10*log10f(rms/1.0);
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB\n", voicestream->name, (int8_t)rms);
+	voicestream->rms_buf_pos = 0;
 }
 
 static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	uint16_t rms_buf_remaining_space;
 	uint16_t samples_to_copy;
-	int8_t rms;
 
 	if (voicestream == NULL)
 		return;
@@ -133,11 +136,8 @@ static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, v
 	memcpy(&voicestream->rms_buf[voicestream->rms_buf_pos], decoded_frame->samples, samples_to_copy*sizeof(voicestream->rms_buf[0]));
 	voicestream->rms_buf_pos += samples_to_copy;
 
-	if (voicestream->rms_buf_pos == sizeof(voicestream->rms_buf)/sizeof(voicestream->rms_buf[0])) {
-		rms = 10*log10f(voicestreams_process_rms_calc(voicestream)/32767.0);
-		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB\n", voicestream->name, rms);
-		voicestream->rms_buf_pos = 0;
-	}
+	if (voicestream->rms_buf_pos == sizeof(voicestream->rms_buf)/sizeof(voicestream->rms_buf[0]))
+		voicestreams_process_rms_calc(voicestream);
 }
 
 /*static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
@@ -236,8 +236,7 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 	if (!voicestream || !voicestream->enabled)
 		return;
 
-	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
-
 	voicestreams_process_rms_calc(voicestream);
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 	voicestream->currently_streaming_repeater = NULL;
 }

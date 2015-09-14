@@ -21,8 +21,6 @@
 #include <libs/comm/ipscpacket.h>
 #include <libs/comm/repeaters.h>
 
-float voicestreams_process_rms_calc(voicestream_t *voicestream);
-
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater);
 
 void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater);
