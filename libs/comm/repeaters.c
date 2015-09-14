@@ -45,8 +45,8 @@ char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr) {
 	repeater_t *foundrep;
 
 	foundrep = repeaters_findbyip(ipaddr);
-	if (foundrep)
-		return foundrep->callsign;
+	if (foundrep && foundrep->callsign_lowercase[0] != 0)
+		return foundrep->callsign_lowercase;
 	if (comm_is_our_ipaddr(ipaddr))
 		return "ds";
 
@@ -57,7 +57,7 @@ char *repeaters_get_display_string(repeater_t *repeater) {
 	if (repeater->callsign[0] == 0)
 		return comm_get_ip_str(&repeater->ipaddr);
 	else
-		return repeater->callsign;
+		return repeater->callsign_lowercase;
 }
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {

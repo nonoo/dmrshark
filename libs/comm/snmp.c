@@ -253,9 +253,12 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
 					snmp_utf16_to_utf8(value_utf16, length, value_utf8, sizeof(value_utf8));
 					if (repeater != NULL) {
-						for (i = 0; (value_utf8[i] && i < sizeof(repeater->callsign)); i++)
-							repeater->callsign[i] = tolower(value_utf8[i]);
+						for (i = 0; (value_utf8[i] && i < sizeof(repeater->callsign)); i++) {
+							repeater->callsign[i] = value_utf8[i];
+							repeater->callsign_lowercase[i] = tolower(value_utf8[i]);
+						}
 						repeater->callsign[i] = 0;
+						repeater->callsign_lowercase[i] = 0;
 						dodbupdate = 1;
 					}
 					console_log("snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);

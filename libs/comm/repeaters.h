@@ -58,6 +58,7 @@ typedef struct {
 	char type[25];
 	char fwversion[25];
 	char callsign[25];
+	char callsign_lowercase[25];
 	int dlfreq;
 	int ulfreq;
 	repeater_slot_t slot[2];
