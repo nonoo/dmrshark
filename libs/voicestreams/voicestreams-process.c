@@ -32,8 +32,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN 18.0
-
 static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char *fn;
@@ -53,65 +51,14 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u voice packet bytes to %s\n", voicestream->name, saved_bytes, fn);
 }
 
-static void voicestreams_process_apply_agc(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
-	uint8_t i, n;
-	float gainfactor, gaindelta, maxbuf;
-	float aout_abs, max;
-
-	if (decoded_frame == NULL)
-		return;
-
-	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++) {
-		// Detect max. level
-		max = 0;
-		for (n = 0; n < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; n++) {
-			aout_abs = fabsf(decoded_frame->samples[n]);
-			if (aout_abs > max)
-				max = aout_abs;
-		}
-		voicestream->agc_aout_max_buf[voicestream->agc_aout_max_buf_idx++] = max;
-		if (voicestream->agc_aout_max_buf_idx > 24)
-			voicestream->agc_aout_max_buf_idx = 0;
-
-		// Lookup max. history
-		for (n = 0; n < 25; n++) {
-			maxbuf = voicestream->agc_aout_max_buf[n];
-			if (maxbuf > max)
-				max = maxbuf;
-		}
-
-		// Determine optimal gain level
-		if (max > 0.0f)
-			gainfactor = (32767.0f / max);
-		else
-			gainfactor = VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN;
-
-		if (gainfactor < voicestream->agc_needed_gain) {
-			voicestream->agc_needed_gain = gainfactor;
-			gaindelta = 0.0f;
-		} else {
-			if (gainfactor > VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN)
-				gainfactor = VOICESTREAMS_PROCESS_AGC_DEFAULT_GAIN;
-
-			gaindelta = gainfactor - voicestream->agc_needed_gain;
-			if (gaindelta > (0.05f * voicestream->agc_needed_gain))
-				gaindelta = (0.05f * voicestream->agc_needed_gain);
-		}
-
-		// Adjust output gain
-		voicestream->agc_needed_gain += gaindelta;
-
-		decoded_frame->samples[i] *= voicestream->agc_needed_gain;
-		if (decoded_frame->samples[i] > 1.0f)
-			decoded_frame->samples[i] = 1.0f;
-		else if (decoded_frame->samples[i] < -1.0f)
-			decoded_frame->samples[i] = -1.0f;
-	}
-}
-
 static void voicestreams_process_rms_calc(voicestream_t *voicestream) {
 	uint16_t i;
 	float rms = 0;
+
+	if (voicestream->rms_buf_pos == 0) {
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: not enough data collected to calculate rms volume\n", voicestream->name);
+		return;
+	}
 
 	for (i = 0; i < voicestream->rms_buf_pos; i++)
 		rms += voicestream->rms_buf[i]*voicestream->rms_buf[i];
@@ -140,19 +87,25 @@ static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, v
 		voicestreams_process_rms_calc(voicestream);
 }
 
-/*static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
+static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i;
 
-	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++)
-		decoded_frame->samples[i] *= 2;
-}*/
+	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++) {
+		decoded_frame->samples[i] *= 15.0;
+
+		// Clipping
+		if (decoded_frame->samples[i] > 1.0f)
+			decoded_frame->samples[i] = 1.0f;
+		else if (decoded_frame->samples[i] < -1.0f)
+			decoded_frame->samples[i] = -1.0f;
+	}
+}
 
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	if (decoded_frame == NULL)
 		return;
 
-	//voicestreams_process_apply_gain(decoded_frame);
-	voicestreams_process_apply_agc(voicestream, decoded_frame);
+	voicestreams_process_apply_gain(decoded_frame);
 	voicestreams_process_rms_calc_addtobuf(voicestream, decoded_frame);
 
 	FILE *f = fopen("out.raw", "a");
@@ -228,8 +181,6 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_buf_pos = 0;
-	voicestream->agc_needed_gain = 25;
-	voicestream->agc_aout_max_buf_idx = 0;
 }
 
 void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {

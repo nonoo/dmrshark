@@ -148,8 +148,6 @@ void voicestreams_init(void) {
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 
-		new_vs->agc_needed_gain = 25;
-
 #ifdef DECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
 #endif

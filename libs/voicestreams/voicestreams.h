@@ -36,10 +36,6 @@ typedef struct voicestream_st {
 	flag_t timeslot;
 	uint8_t decodequality;
 
-	int16_t agc_aout_max_buf[33];
-	uint8_t agc_aout_max_buf_idx;
-	float agc_needed_gain;
-
 	float rms_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25]; // 0.5 sec. buffer
 	uint16_t rms_buf_pos;
 
