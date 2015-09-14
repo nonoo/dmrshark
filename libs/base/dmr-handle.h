@@ -15,15 +15,15 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef DMRLOG_H_
-#define DMRLOG_H_
+#ifndef DMR_HANDLE_H_
+#define DMR_HANDLE_H_
 
 #include <libs/comm/ipscpacket.h>
 #include <libs/comm/repeaters.h>
 
 #include <netinet/ip.h>
 
-void dmrlog_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater);
-void dmrlog_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipsc_packet, repeater_t *repeater);
+void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
+void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
 
 #endif

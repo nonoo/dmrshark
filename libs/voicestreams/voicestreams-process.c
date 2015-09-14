@@ -140,12 +140,12 @@ static void voicestreams_process_rms_calc_addtobuf(voicestream_t *voicestream, v
 	}
 }
 
-static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
+/*static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decoded_frame) {
 	uint8_t i;
 
 	for (i = 0; i < VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT; i++)
 		decoded_frame->samples[i] *= 2;
-}
+}*/
 
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	if (decoded_frame == NULL)

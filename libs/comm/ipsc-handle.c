@@ -21,7 +21,7 @@
 #include "ipsc-data.h"
 
 #include <libs/daemon/console.h>
-#include <libs/base/dmrlog.h>
+#include <libs/base/dmr-handle.h>
 #include <libs/dmrpacket/dmrpacket.h>
 
 static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -38,10 +38,10 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 				// on a server which has multiple repeaters' traffic running through it.
 				if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 					return;
-				dmrlog_voicecall_start(ip_packet, ipscpacket, repeater);
+				dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
 			} else {
 				if (ipscpacket->slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
-					dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
+					dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 				else {
 					if (ipscpacket->src_id != repeater->slot[ipscpacket->timeslot-1].src_id ||
 						ipscpacket->dst_id != repeater->slot[ipscpacket->timeslot-1].dst_id ||
@@ -50,7 +50,7 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 							// on a server which has multiple repeaters' traffic running through it.
 							if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 								return;
-							dmrlog_voicecall_start(ip_packet, ipscpacket, repeater);
+							dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
 						}
 				}
 			}
@@ -58,15 +58,15 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 			repeater->slot[ipscpacket->timeslot-1].last_packet_received_at = time(NULL);
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
-			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
+			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			ipsc_data_handle_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA:
-			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
+			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			ipsc_data_handle_34rate(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA:
-			dmrlog_voicecall_end(ip_packet, ipscpacket, repeater);
+			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			ipsc_data_handle_12rate(ip_packet, ipscpacket, repeater);
 			break;
 		default:

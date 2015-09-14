@@ -21,7 +21,7 @@
 
 #include <libs/base/base.h>
 #include <libs/daemon/console.h>
-#include <libs/base/dmrlog.h>
+#include <libs/base/dmr.h>
 
 #include <stdio.h>
 #include <stdlib.h>
