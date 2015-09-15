@@ -7,6 +7,4 @@
 #define CONFIGFILENAME				"dmrshark.cfg"
 #define CONSOLE_INPUTBUFFERSIZE		1024
 
-#define MAX_REPEATER_COUNT			100
-
 #endif

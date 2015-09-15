@@ -312,8 +312,6 @@ flag_t comm_init(void) {
 	int *datalinks = NULL;
 	int i;
 
-	repeaters_init();
-
 	netdevname = config_get_netdevicename();
 
 	console_log("comm: opening capture device %s, capture buffer size: %u\n", netdevname, BUFSIZ);
@@ -374,4 +372,5 @@ void comm_deinit(void) {
 	}
 
 	snmp_deinit();
+	repeaters_deinit();
 }

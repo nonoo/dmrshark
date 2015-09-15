@@ -48,7 +48,7 @@ typedef struct {
 	voicestream_t *voicestream;
 } repeater_slot_t;
 
-typedef struct {
+typedef struct repeater_st {
 	struct in_addr ipaddr;
 	time_t last_active_time;
 	flag_t snmpignored;
@@ -63,6 +63,9 @@ typedef struct {
 	int ulfreq;
 	repeater_slot_t slot[2];
 	time_t auto_rssi_update_enabled_at;
+
+	struct repeater_st *next;
+	struct repeater_st *prev;
 } repeater_t;
 
 char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr);
@@ -76,6 +79,6 @@ void repeaters_list(void);
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
 
 void repeaters_process(void);
-void repeaters_init(void);
+void repeaters_deinit(void);
 
 #endif
