@@ -4,10 +4,11 @@ dmrshark uses libpcap to analyse the traffic of a Hytera IPSC network.
 
 It can be used for:
 
-- Tracking calls, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
+- Tracking and decoding voice calls, measuring RMS volume, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
+- Saving decoded voice data to files.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
-- Decoding DMR SMS messages
+- Decoding DMR SMS messages.
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's passing by traffic.
@@ -95,6 +96,7 @@ enabled=1
 repeaterhosts=1.2.3.4,repeater123.nonoo.hu
 savefiledir=
 savetorawfile=1
+savedecodedtorawfile=1
 timeslot=1
 decodequality=3
 
@@ -103,6 +105,7 @@ enabled=1
 repeaterhosts=*
 savefiledir=
 savetorawfile=1
+savedecodedtorawfile=1
 timeslot=2
 decodequality=64
 ```
@@ -115,6 +118,7 @@ Voice stream configure variables:
 - **timeslot**: Timeslot of the repeater which we want to process.
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
+- **savedecodedtorawfile**: Set this to 1 if you want to save raw, but decoded voice data. Samples are saved as 8kHz IEEE 32bit floats.
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 
 ## Running
