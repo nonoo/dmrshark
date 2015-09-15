@@ -83,7 +83,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG LOGLEVEL_SNMP "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
+						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
 					else {
 						if (value_num > -200) {
 							if (repeater != NULL) {
@@ -102,7 +102,7 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG LOGLEVEL_SNMP "snmp: invalid ts2 rssi value received: %s\n", value);
+						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
 					else {
 						if (value_num > -200) {
 							if (repeater != NULL) {
@@ -124,9 +124,9 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 
 			snmp_rssi_received = 1;
 		} else
-			console_log(LOGLEVEL_DEBUG "snmp: rssi read error\n");
+			console_log(LOGLEVEL_SNMP "snmp: rssi read error\n");
     } else
-    	console_log(LOGLEVEL_DEBUG "snmp: rssi read timeout\n");
+    	console_log(LOGLEVEL_SNMP "snmp: rssi read timeout\n");
 
 	return 1;
 }
@@ -153,7 +153,7 @@ void snmp_start_read_rssi(char *host) {
 	session.community_len = strlen(community);
 	session.callback = snmp_get_rssi_cb;
 	if (!(snmp_session_rssi = snmp_open(&session))) {
-		console_log("snmp error: error opening session to host %s\n", host);
+		console_log(LOGLEVEL_SNMP "snmp error: error opening session to host %s\n", host);
 		return;
 	}
 
@@ -161,7 +161,7 @@ void snmp_start_read_rssi(char *host) {
 	snmp_add_null_var(pdu, oid_rssi_ts1, oid_rssi_ts1_length);
 	snmp_add_null_var(pdu, oid_rssi_ts2, oid_rssi_ts2_length);
 	if (!snmp_send(snmp_session_rssi, pdu))
-		console_log("snmp error: error sending rssi request to host %s\n", host);
+		console_log(LOGLEVEL_SNMP "snmp error: error sending rssi request to host %s\n", host);
 	free(session.peername);
 	free(session.community);
 }
@@ -222,13 +222,13 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid id value received: %s\n", sp->peername, value);
+						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp [%s]: invalid id value received: %s\n", sp->peername, value);
 					else {
 						if (repeater != NULL) {
 							repeater->id = value_num;
 							dodbupdate = 1;
 						}
-						console_log("snmp [%s]: got id value %d\n", sp->peername, value_num);
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got id value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_repeatertype, oid_repeatertype_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
@@ -238,7 +238,7 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 						strncpy(repeater->type, value_utf8, sizeof(repeater->type));
 						dodbupdate = 1;
 					}
-					console_log("snmp [%s]: got repeater type value %s\n", sp->peername, value_utf8);
+					console_log(LOGLEVEL_SNMP "snmp [%s]: got repeater type value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_fwversion, oid_fwversion_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
@@ -247,7 +247,7 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 						strncpy(repeater->fwversion, value_utf8, sizeof(repeater->fwversion));
 						dodbupdate = 1;
 					}
-					console_log("snmp [%s]: got repeater fw version value %s\n", sp->peername, value_utf8);
+					console_log(LOGLEVEL_SNMP "snmp [%s]: got repeater fw version value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_callsign, oid_callsign_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					length = snmp_hexstring_to_bytearray(value+12, value_utf16, sizeof(value_utf16)); // +12: cutting "Hex-STRING: " text returned by snprint_value().
@@ -261,32 +261,32 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 						repeater->callsign_lowercase[i] = 0;
 						dodbupdate = 1;
 					}
-					console_log("snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);
+					console_log(LOGLEVEL_SNMP "snmp [%s]: got repeater callsign value %s\n", sp->peername, value_utf8);
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_dlfreq, oid_dlfreq_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
+						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
 						if (repeater != NULL) {
 							repeater->dlfreq = value_num;
 							dodbupdate = 1;
 						}
-						console_log("snmp [%s]: got dl freq value %d\n", sp->peername, value_num);
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got dl freq value %d\n", sp->peername, value_num);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_ulfreq, oid_ulfreq_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
 					errno = 0;
 					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
 					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
+						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp [%s]: invalid dl freq value received: %s\n", sp->peername, value);
 					else {
 						if (repeater != NULL) {
 							repeater->ulfreq = value_num;
 							dodbupdate = 1;
 						}
-						console_log("snmp [%s]: got ul freq value %d\n", sp->peername, value_num);
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got ul freq value %d\n", sp->peername, value_num);
 					}
 				}
 			}
@@ -296,9 +296,9 @@ static int snmp_get_repeaterinfo_cb(int operation, struct snmp_session *sp, int 
 
 			snmp_repeaterinfo_received = 1;
 		} else
-			console_log(LOGLEVEL_DEBUG "snmp [%s]: repeater info read error\n", sp->peername);
+			console_log(LOGLEVEL_SNMP "snmp [%s]: repeater info read error\n", sp->peername);
     } else
-    	console_log(LOGLEVEL_DEBUG "snmp [%s]: repeater info read timeout\n", sp->peername);
+    	console_log(LOGLEVEL_SNMP "snmp [%s]: repeater info read timeout\n", sp->peername);
 
 	return 1;
 }
@@ -325,7 +325,7 @@ void snmp_start_read_repeaterinfo(char *host) {
 	session.community_len = strlen(community);
 	session.callback = snmp_get_repeaterinfo_cb;
 	if (!(snmp_session_repeaterinfo = snmp_open(&session))) {
-		console_log("snmp [%s]: error opening session\n", host);
+		console_log(LOGLEVEL_SNMP "snmp [%s]: error opening session\n", host);
 		return;
 	}
 
@@ -337,7 +337,7 @@ void snmp_start_read_repeaterinfo(char *host) {
 	snmp_add_null_var(pdu, oid_dlfreq, oid_dlfreq_length);
 	snmp_add_null_var(pdu, oid_ulfreq, oid_ulfreq_length);
 	if (!snmp_send(snmp_session_repeaterinfo, pdu))
-		console_log("snmp [%s]: error sending repeater info request\n", host);
+		console_log(LOGLEVEL_SNMP "snmp [%s]: error sending repeater info request\n", host);
 	free(session.peername);
 	free(session.community);
 }
