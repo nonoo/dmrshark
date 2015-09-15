@@ -207,7 +207,7 @@ int config_voicestreams_get_mp3bitrate(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "mp3bitrate";
-	int defaultvalue = 32;
+	int defaultvalue = 64;
 
 	pthread_mutex_lock(config_get_mutex());
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);

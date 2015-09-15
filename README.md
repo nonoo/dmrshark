@@ -107,6 +107,8 @@ savefiledir=
 savetorawfile=1
 savedecodedtorawfile=1
 savedecodedtomp3file=1
+mp3bitrate=64
+mp3quality=0
 timeslot=1
 decodequality=3
 
@@ -117,6 +119,8 @@ savefiledir=
 savetorawfile=1
 savedecodedtorawfile=1
 savedecodedtomp3file=1
+mp3bitrate=64
+mp3quality=0
 timeslot=2
 decodequality=64
 ```
@@ -131,6 +135,8 @@ Voice stream configure variables:
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
 - **savedecodedtorawfile**: Set this to 1 if you want to save raw, but decoded voice data. Samples are saved as 8kHz IEEE 32bit floats.
 - **savedecodedtomp3file**: Set this to 1 if you want to save decoded voice data in MP3 files.
+- **mp3bitrate**: Bitrate of the MP3 encoder.
+- **mp3quality**: Quality of MP3 encoding. 0 - highest, 9 - lowest.
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 
 ## Running
