@@ -148,8 +148,10 @@ void voicestreams_init(void) {
 		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
 		new_vs->savedecodedtorawfile = config_voicestreams_get_savedecodedtorawfile(new_vs->name);
 		new_vs->savedecodedtomp3file = config_voicestreams_get_savedecodedtomp3file(new_vs->name);
+		new_vs->minmp3bitrate = config_voicestreams_get_minmp3bitrate(new_vs->name);
 		new_vs->mp3bitrate = config_voicestreams_get_mp3bitrate(new_vs->name);
 		new_vs->mp3quality = config_voicestreams_get_mp3quality(new_vs->name);
+		new_vs->mp3vbr = config_voicestreams_get_mp3vbr(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 

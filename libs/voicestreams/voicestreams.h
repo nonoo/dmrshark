@@ -38,8 +38,10 @@ typedef struct voicestream_st {
 	flag_t savetorawfile;
 	flag_t savedecodedtorawfile;
 	flag_t savedecodedtomp3file;
+	uint8_t minmp3bitrate;
 	uint8_t mp3bitrate;
 	uint8_t mp3quality;
+	flag_t mp3vbr;
 	flag_t timeslot;
 	uint8_t decodequality;
 

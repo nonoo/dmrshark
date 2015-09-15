@@ -29,8 +29,10 @@ char *config_voicestreams_get_savefiledir(char *streamname);
 int config_voicestreams_get_savetorawfile(char *streamname);
 int config_voicestreams_get_savedecodedtorawfile(char *streamname);
 int config_voicestreams_get_savedecodedtomp3file(char *streamname);
+int config_voicestreams_get_minmp3bitrate(char *streamname);
 int config_voicestreams_get_mp3bitrate(char *streamname);
 int config_voicestreams_get_mp3quality(char *streamname);
+int config_voicestreams_get_mp3vbr(char *streamname);
 int config_voicestreams_get_timeslot(char *streamname);
 int config_voicestreams_get_decodequality(char *streamname);
 

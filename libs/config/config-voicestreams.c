@@ -203,6 +203,22 @@ int config_voicestreams_get_savedecodedtomp3file(char *streamname) {
 	return value;
 }
 
+int config_voicestreams_get_minmp3bitrate(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "minmp3bitrate";
+	int defaultvalue = 32;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 int config_voicestreams_get_mp3bitrate(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
@@ -223,6 +239,22 @@ int config_voicestreams_get_mp3quality(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "mp3quality";
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
+int config_voicestreams_get_mp3vbr(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "mp3vbr";
 	int defaultvalue = 0;
 
 	pthread_mutex_lock(config_get_mutex());
@@ -291,8 +323,10 @@ void config_voicestreams_init(void) {
 			if (config_voicestreams_get_savedecodedtomp3file(voicestreams[i]))
 				console_log("config warning: voice stream %s has mp3 encoding enabled, but mp3 encoding is not compiled in\n", voicestreams[i]);
 #endif
+			config_voicestreams_get_minmp3bitrate(voicestreams[i]);
 			config_voicestreams_get_mp3bitrate(voicestreams[i]);
 			config_voicestreams_get_mp3quality(voicestreams[i]);
+			config_voicestreams_get_mp3vbr(voicestreams[i]);
 			config_voicestreams_get_timeslot(voicestreams[i]);
 			config_voicestreams_get_decodequality(voicestreams[i]);
 

@@ -104,6 +104,11 @@ void voicestreams_mp3_init(voicestream_t *voicestream) {
 	lame_set_quality(voicestream->mp3_flags, voicestream->mp3quality);
 	lame_set_bWriteVbrTag(voicestream->mp3_flags, 0);
 
+	lame_set_VBR(voicestream->mp3_flags, voicestream->mp3vbr);
+	lame_set_VBR_q(voicestream->mp3_flags, voicestream->mp3quality);
+	lame_set_VBR_min_bitrate_kbps(voicestream->mp3_flags, voicestream->minmp3bitrate);
+	lame_set_VBR_max_bitrate_kbps(voicestream->mp3_flags, voicestream->mp3bitrate);
+
 	if (lame_init_params(voicestream->mp3_flags) < 0) {
 		lame_close(voicestream->mp3_flags);
 		voicestream->mp3_flags = NULL;
