@@ -25,6 +25,9 @@
 #include <libs/dmrpacket/dmrpacket.h>
 
 static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
+	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
+		return;
+
 	switch (ipscpacket->slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B:
@@ -32,7 +35,6 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
 		case IPSCPACKET_SLOT_TYPE_CALL_START:
-		case IPSCPACKET_SLOT_TYPE_CALL_END:
 			if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
 				// Checking if this call is already running on another repeater. This can happen if dmrshark is running
 				// on a server which has multiple repeaters' traffic running through it.
@@ -40,22 +42,19 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 					return;
 				dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
 			} else {
-				if (ipscpacket->slot_type == IPSCPACKET_SLOT_TYPE_CALL_END)
-					dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
-				else {
-					if (ipscpacket->src_id != repeater->slot[ipscpacket->timeslot-1].src_id ||
-						ipscpacket->dst_id != repeater->slot[ipscpacket->timeslot-1].dst_id ||
-						ipscpacket->call_type != repeater->slot[ipscpacket->timeslot-1].call_type) { // Another call started suddenly?
-							// Checking if this call is already running on another repeater. This can happen if dmrshark is running
-							// on a server which has multiple repeaters' traffic running through it.
-							if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
-								return;
-							dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
-						}
-				}
+				if (ipscpacket->src_id != repeater->slot[ipscpacket->timeslot-1].src_id ||
+					ipscpacket->dst_id != repeater->slot[ipscpacket->timeslot-1].dst_id ||
+					ipscpacket->call_type != repeater->slot[ipscpacket->timeslot-1].call_type) { // Another call started suddenly?
+						// Checking if this call is already running on another repeater. This can happen if dmrshark is running
+						// on a server which has multiple repeaters' traffic running through it.
+						if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
+							return;
+						dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
+					}
 			}
-
-			repeater->slot[ipscpacket->timeslot-1].last_packet_received_at = time(NULL);
+			break;
+		case IPSCPACKET_SLOT_TYPE_CALL_END:
+			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
@@ -72,6 +71,8 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 		default:
 			break;
 	}
+
+	repeater->slot[ipscpacket->timeslot-1].last_packet_received_at = time(NULL);
 }
 
 static void ipsc_handle_sync_field(dmrpacket_payload_bits_t *packet_payload_bits) {

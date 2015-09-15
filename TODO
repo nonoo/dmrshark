@@ -1,4 +1,6 @@
+- saving raw decoded voice data
 - repeater_add malloc
+- repeater voltage, pwr, swr sending to remote db
 - CSBK and Multi Block Control (MBC) message decoding
 - Handling other DPF data types
 - Inserting decoded SMS messages into a database table
