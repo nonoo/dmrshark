@@ -101,7 +101,7 @@ void voicestreams_printlist(void) {
 	console_log("voice streams:\n");
 
 	vs = voicestreams;
-	while (vs != NULL) {
+	while (vs != NULL) { // TODO
 		console_log("%s: enabled: %u rptrhosts: %s ts: %u quality: %u savedir: %s saveraw: %u\n", vs->name,
 			vs->enabled,
 			vs->repeaterhosts,
@@ -129,16 +129,16 @@ void voicestreams_init(void) {
 	}
 
 	while (*streamnames_i != NULL) {
-		console_log("  %s: ", *streamnames_i);
+		console_log("  initializing %s...\n", *streamnames_i);
 		new_vs = (voicestream_t *)calloc(sizeof(voicestream_t), 1);
 		if (!new_vs) {
-			console_log("warning: couldn't allocate memory\n");
+			console_log("    warning: couldn't allocate memory\n");
 			continue;
 		}
 
 		new_vs->name = strdup(*streamnames_i);
 		if (!new_vs->name) {
-			console_log("warning: couldn't allocate memory\n");
+			console_log("    warning: couldn't allocate memory\n");
 			free(new_vs);
 			continue;
 		}
@@ -154,6 +154,8 @@ void voicestreams_init(void) {
 		new_vs->mp3vbr = config_voicestreams_get_mp3vbr(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
+		new_vs->playrawfileatcallstart = config_voicestreams_get_playrawfileatcallstart(new_vs->name);
+		new_vs->playrawfileatcallend = config_voicestreams_get_playrawfileatcallend(new_vs->name);
 
 #ifdef AMBEDECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
@@ -165,7 +167,7 @@ void voicestreams_init(void) {
 		new_vs->next = voicestreams;
 		voicestreams = new_vs;
 
-		console_log("initialized\n");
+		console_log("  initialized\n");
 
 		streamnames_i++;
 	}
@@ -190,6 +192,8 @@ void voicestreams_deinit(void) {
 		free(voicestreams->name);
 		free(voicestreams->repeaterhosts);
 		free(voicestreams->savefiledir);
+		free(voicestreams->playrawfileatcallstart);
+		free(voicestreams->playrawfileatcallend);
 
 		next_vs = voicestreams->next;
 		free(voicestreams);

@@ -112,9 +112,9 @@ void voicestreams_mp3_init(voicestream_t *voicestream) {
 	if (lame_init_params(voicestream->mp3_flags) < 0) {
 		lame_close(voicestream->mp3_flags);
 		voicestream->mp3_flags = NULL;
-		console_log("voicestreams-mp3 error: failed to initialize libmp3lame\n");
+		console_log("    error: failed to initialize libmp3lame\n");
 	} else
-		console_log("voicestreams-mp3: initialized libmp3lame encoder\n");
+		console_log("    initialized libmp3lame encoder\n");
 }
 
 void voicestreams_mp3_deinit(voicestream_t *voicestream) {

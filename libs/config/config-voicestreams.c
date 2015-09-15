@@ -299,6 +299,48 @@ int config_voicestreams_get_decodequality(char *streamname) {
 	return value;
 }
 
+char *config_voicestreams_get_playrawfileatcallstart(char *streamname) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "playrawfileatcallstart";
+	char *defaultvalue = NULL;
+
+	if (streamname == NULL)
+		return NULL;
+
+	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = "call-start.raw";
+	value = g_key_file_get_string(config_get_keyfile(), streamname, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
+char *config_voicestreams_get_playrawfileatcallend(char *streamname) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "playrawfileatcallend";
+	char *defaultvalue = NULL;
+
+	if (streamname == NULL)
+		return NULL;
+
+	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = "call-end.raw";
+	value = g_key_file_get_string(config_get_keyfile(), streamname, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 void config_voicestreams_init(void) {
 	int i;
 	char *tmp;
@@ -329,6 +371,10 @@ void config_voicestreams_init(void) {
 			config_voicestreams_get_mp3vbr(voicestreams[i]);
 			config_voicestreams_get_timeslot(voicestreams[i]);
 			config_voicestreams_get_decodequality(voicestreams[i]);
+			tmp = config_voicestreams_get_playrawfileatcallstart(voicestreams[i]);
+			free(tmp);
+			tmp = config_voicestreams_get_playrawfileatcallend(voicestreams[i]);
+			free(tmp);
 
 			i++;
 			voicestreams_i++;

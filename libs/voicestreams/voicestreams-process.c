@@ -136,6 +136,27 @@ static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_de
 	}
 }
 
+static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepath) {
+	FILE *f;
+	voicestreams_decoded_frame_t frame;
+
+	if (voicestream == NULL || filepath == NULL || filepath[0] == 0)
+		return;
+
+	f = fopen(filepath, "r");
+	if (!f) {
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: can't play raw file %s\n", voicestream->name, filepath);
+		return;
+	}
+	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: playing raw file %s\n", voicestream->name, filepath);
+	while (!feof(f)) {
+		memset(frame.samples, 0, sizeof(frame.samples));
+		if (fread(frame.samples, 1, sizeof(frame.samples), f) > 0)
+			voicestreams_process_mp3(voicestream, &frame);
+	}
+	fclose(f);
+}
+
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	FILE *f;
 	char *fn;
@@ -231,6 +252,8 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_vol = voicestream->avg_rms_vol = voicestream->rms_vol_buf_pos = 0;
 	voicestreams_mp3_resetbuf(voicestream);
+
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
 }
 
 void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
@@ -241,6 +264,8 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 		return;
 
 	voicestreams_process_rms_vol_calc(voicestream);
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallend);
+
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 	voicestream->currently_streaming_repeater = NULL;
 
