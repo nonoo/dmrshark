@@ -244,13 +244,13 @@ static flag_t remotedb_thread_process(void) {
 		if (mysql_query(remotedb_conn, remotedb_querybuf[0].query))
 			console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
 
-		console_log(LOGLEVEL_REMOTEDB "remotedb: shifting the query buffer\n");
+		console_log(LOGLEVEL_REMOTEDB LOGLEVEL_DEBUG "remotedb: shifting the query buffer\n");
 		for (i = 1; i < REMOTEDB_QUERYBUFSIZE; i++)
 			strncpy(remotedb_querybuf[i-1].query, remotedb_querybuf[i].query, REMOTEDB_MAXQUERYSIZE);
 		remotedb_querybuf[REMOTEDB_QUERYBUFSIZE-1].query[0] = 0;
 
 		query_left_in_buffer = (remotedb_querybuf[0].query[0] != 0);
-		console_log(LOGLEVEL_REMOTEDB "remotedb: query left in buffer: %u\n", query_left_in_buffer);
+		console_log(LOGLEVEL_REMOTEDB LOGLEVEL_DEBUG "remotedb: query left in buffer: %u\n", query_left_in_buffer);
 	}
 	pthread_mutex_unlock(&remotedb_mutex_querybuf);
 
