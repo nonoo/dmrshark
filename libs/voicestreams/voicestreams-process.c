@@ -55,6 +55,9 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	uint16_t i;
 	float rms_vol = 0;
 
+	if (voicestream == NULL)
+		return;
+
 	if (voicestream->rms_vol_buf_pos == 0) {
 		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: not enough data collected to calculate rms volume\n", voicestream->name);
 		return;
@@ -78,7 +81,7 @@ static void voicestreams_process_rms_vol_calc_addtobuf(voicestream_t *voicestrea
 	uint16_t rms_vol_buf_remaining_space;
 	uint16_t samples_to_copy;
 
-	if (voicestream == NULL)
+	if (voicestream == NULL || decoded_frame == NULL)
 		return;
 
 	rms_vol_buf_remaining_space = sizeof(voicestream->rms_vol_buf)/sizeof(voicestream->rms_vol_buf[0])-voicestream->rms_vol_buf_pos;
@@ -105,15 +108,27 @@ static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decode
 }
 
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
-	if (decoded_frame == NULL)
+	FILE *f;
+	char *fn;
+	size_t saved_items;
+
+	if (voicestream == NULL || decoded_frame == NULL)
 		return;
 
 	voicestreams_process_apply_gain(decoded_frame);
 	voicestreams_process_rms_vol_calc_addtobuf(voicestream, decoded_frame);
 
-	FILE *f = fopen("out.raw", "a");
-	fwrite(decoded_frame->samples, sizeof(decoded_frame->samples[0]), VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
-	fclose(f);
+	if (voicestream->savedecodedtorawfile) {
+		fn = voicestreams_get_stream_filename(voicestream, ".decoded.raw");
+		f = fopen(fn, "a");
+		if (!f) {
+			console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save decoded voice packet to %s\n", voicestream->name, fn);
+			return;
+		}
+		saved_items = fwrite(decoded_frame->samples, sizeof(decoded_frame->samples[0]), VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT, f);
+		fclose(f);
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u decoded voice packet bytes to %s\n", voicestream->name, saved_items*sizeof(decoded_frame->samples[0]), fn);
+	}
 }
 
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {

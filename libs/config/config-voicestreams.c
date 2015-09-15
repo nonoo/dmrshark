@@ -171,6 +171,22 @@ int config_voicestreams_get_savetorawfile(char *streamname) {
 	return value;
 }
 
+int config_voicestreams_get_savedecodedtorawfile(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "savedecodedtorawfile";
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 int config_voicestreams_get_timeslot(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
@@ -221,6 +237,7 @@ void config_voicestreams_init(void) {
 			tmp = config_voicestreams_get_savefiledir(voicestreams[i]);
 			free(tmp);
 			config_voicestreams_get_savetorawfile(voicestreams[i]);
+			config_voicestreams_get_savedecodedtorawfile(voicestreams[i]);
 			config_voicestreams_get_timeslot(voicestreams[i]);
 			config_voicestreams_get_decodequality(voicestreams[i]);
 

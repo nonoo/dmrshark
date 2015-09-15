@@ -145,6 +145,7 @@ void voicestreams_init(void) {
 		new_vs->repeaterhosts = config_voicestreams_get_repeaterhosts(new_vs->name);
 		new_vs->savefiledir = config_voicestreams_get_savefiledir(new_vs->name);
 		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
+		new_vs->savedecodedtorawfile = config_voicestreams_get_savedecodedtorawfile(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 

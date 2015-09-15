@@ -33,6 +33,7 @@ typedef struct voicestream_st {
 	char *repeaterhosts;
 	char *savefiledir;
 	flag_t savetorawfile;
+	flag_t savedecodedtorawfile;
 	flag_t timeslot;
 	uint8_t decodequality;
 
