@@ -77,6 +77,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.ipsc = !loglevel.flags.ipsc;
 			else if (strcmp(tok, "comm-ip") == 0)
 				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
+			else if (strcmp(tok, "dmr") == 0)
+				loglevel.flags.dmr = !loglevel.flags.dmr;
 			else if (strcmp(tok, "dmrdata") == 0)
 				loglevel.flags.dmrdata = !loglevel.flags.dmrdata;
 			else if (strcmp(tok, "snmp") == 0)

@@ -26,20 +26,22 @@
 #define LOGLEVEL_IPSC_VAL			0x02
 #define LOGLEVEL_COMM_IP			"\x03"
 #define LOGLEVEL_COMM_IP_VAL		0x03
-#define LOGLEVEL_DMRDATA			"\x04"
-#define LOGLEVEL_DMRDATA_VAL		0x04
-#define LOGLEVEL_SNMP				"\x05"
-#define LOGLEVEL_SNMP_VAL			0x05
-#define LOGLEVEL_REPEATERS			"\x06"
-#define LOGLEVEL_REPEATERS_VAL		0x06
-#define LOGLEVEL_HEARTBEAT			"\x07"
-#define LOGLEVEL_HEARTBEAT_VAL		0x07
-#define LOGLEVEL_REMOTEDB			"\x08"
-#define LOGLEVEL_REMOTEDB_VAL		0x08
-#define LOGLEVEL_VOICESTREAMS		"\x09"
-#define LOGLEVEL_VOICESTREAMS_VAL	0x09
-#define LOGLEVEL_CODING				"\x0b"
-#define LOGLEVEL_CODING_VAL			0x0b
+#define LOGLEVEL_DMR				"\x04"
+#define LOGLEVEL_DMR_VAL			0x04
+#define LOGLEVEL_DMRDATA			"\x05"
+#define LOGLEVEL_DMRDATA_VAL		0x05
+#define LOGLEVEL_SNMP				"\x06"
+#define LOGLEVEL_SNMP_VAL			0x06
+#define LOGLEVEL_REPEATERS			"\x07"
+#define LOGLEVEL_REPEATERS_VAL		0x07
+#define LOGLEVEL_HEARTBEAT			"\x08"
+#define LOGLEVEL_HEARTBEAT_VAL		0x08
+#define LOGLEVEL_REMOTEDB			"\x09"
+#define LOGLEVEL_REMOTEDB_VAL		0x09
+#define LOGLEVEL_VOICESTREAMS		"\x0b"
+#define LOGLEVEL_VOICESTREAMS_VAL	0x0b
+#define LOGLEVEL_CODING				"\x0c"
+#define LOGLEVEL_CODING_VAL			0x0c
 
 // Don't forget to add new loglevels to the log command handler in command.c,
 // and to the loglevel display list in log.c!
@@ -48,6 +50,7 @@ typedef union __attribute__((packed)) {
 		uint8_t debug			: 1;
 		uint8_t ipsc			: 1;
 		uint8_t comm_ip			: 1;
+		uint8_t dmr				: 1;
 		uint8_t dmrdata			: 1;
 		uint8_t snmp			: 1;
 		uint8_t repeaters		: 1;

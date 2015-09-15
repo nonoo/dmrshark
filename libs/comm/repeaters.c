@@ -25,6 +25,7 @@
 #include <libs/daemon/daemon-poll.h>
 #include <libs/config/config.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/base/dmr-handle.h>
 
 #include <string.h>
 #include <sys/time.h>
@@ -229,23 +230,11 @@ void repeaters_process(void) {
 			repeater->last_repeaterinfo_request_time = time(NULL);
 		}
 
-		// TODO
-		if (repeater->slot[0].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeater->slot[0].last_packet_received_at > config_get_calltimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts1\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-			repeaters_state_change(repeater, 0, REPEATER_SLOT_STATE_IDLE);
-			repeater->slot[0].call_ended_at = time(NULL);
-			remotedb_update(repeater);
-			remotedb_update_stats_callend(repeater, 1);
-		}
+		if (repeater->slot[0].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeater->slot[0].last_packet_received_at > config_get_calltimeoutinsec())
+			dmr_handle_voicecall_timeout(repeater, 0);
 
-		// TODO
-		if (repeater->slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeater->slot[1].last_packet_received_at > config_get_calltimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: call timeout on ts2\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-			repeaters_state_change(repeater, 1, REPEATER_SLOT_STATE_IDLE);
-			repeater->slot[1].call_ended_at = time(NULL);
-			remotedb_update(repeater);
-			remotedb_update_stats_callend(repeater, 2);
-		}
+		if (repeater->slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeater->slot[1].last_packet_received_at > config_get_calltimeoutinsec())
+			dmr_handle_voicecall_timeout(repeater, 0);
 
 		if (repeater->auto_rssi_update_enabled_at > 0 && repeater->auto_rssi_update_enabled_at <= time(NULL)) {
 			if (config_get_rssiupdateduringcallinmsec() > 0) {
@@ -258,16 +247,11 @@ void repeaters_process(void) {
 			}
 		}
 
-		// TODO
-		if (repeater->slot[0].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeater->slot[0].data_header_received_at > config_get_datatimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts1\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-			repeaters_state_change(repeaters, 0, REPEATER_SLOT_STATE_IDLE);
-		}
+		if (repeater->slot[0].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeater->slot[0].data_header_received_at > config_get_datatimeoutinsec())
+			dmr_handle_data_timeout(repeater, 0);
 
-		if (repeater->slot[1].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeater->slot[1].data_header_received_at > config_get_datatimeoutinsec()) {
-			console_log(LOGLEVEL_IPSC "repeaters [%s]: data timeout on ts2\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-			repeaters_state_change(repeater, 1, REPEATER_SLOT_STATE_IDLE);
-		}
+		if (repeater->slot[1].state == REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING && time(NULL)-repeater->slot[1].data_header_received_at > config_get_datatimeoutinsec())
+			dmr_handle_data_timeout(repeater, 1);
 
 		repeater = repeater->next;
 	}

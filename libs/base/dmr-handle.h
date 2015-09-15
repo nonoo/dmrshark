@@ -18,6 +18,8 @@
 #ifndef DMR_HANDLE_H_
 #define DMR_HANDLE_H_
 
+#include "dmr.h"
+
 #include <libs/comm/ipscpacket.h>
 #include <libs/comm/repeaters.h>
 
@@ -25,5 +27,8 @@
 
 void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
 void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
+void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts);
+
+void dmr_handle_data_timeout(repeater_t *repeater, dmr_timeslot_t ts);
 
 #endif
