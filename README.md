@@ -113,6 +113,8 @@ mp3quality=0
 mp3vbr=0
 timeslot=1
 decodequality=3
+playrawfileatcallstart=call-start.raw
+playrawfileatcallend=call-end.raw
 
 [stream-hg5ruc-ts2]
 enabled=1
@@ -127,6 +129,8 @@ mp3quality=0
 mp3vbr=0
 timeslot=2
 decodequality=64
+playrawfileatcallstart=call-start.raw
+playrawfileatcallend=call-end.raw
 ```
 
 You can define as many voice streams as you want.
@@ -138,12 +142,14 @@ Voice stream configure variables:
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
 - **savedecodedtorawfile**: Set this to 1 if you want to save raw, but decoded voice data. Samples are saved as 8kHz IEEE 32bit floats.
-- **savedecodedtomp3file**: Set this to 1 if you want to save decoded voice data in MP3 files.
+- **savedecodedtomp3file**: Set this to 1 if you want to save decoded and streamed voice data in MP3 files.
 - **minmp3bitrate**: Minimum bitrate of the MP3 encoder in VBR mode.
 - **mp3bitrate**: Bitrate of the MP3 encoder (max. bitrate in VBR mode).
 - **mp3quality**: Quality of MP3 encoding. 0 - highest, 9 - lowest.
 - **mp3vbr**: Set this to 1 to enable VBR encoding mode.
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
+- **playrawfileatcallstart**: Plays this raw wave file at the start of a call. Sample format is 8kHz IEEE 32bit float.
+- **playrawfileatcallend**: Plays this raw wave file at the end of a call. Sample format is 8kHz IEEE 32bit float.
 
 ## Running
 
