@@ -14,8 +14,11 @@ CFLAGS := $(CFLAGS) -g -Wall -std=gnu99 -O4 -DGITHASH=\"$(GITHASH)\" \
 	$(shell pkg-config --cflags glib-2.0) \
 	-DARCH_X86 -funsigned-bitfields -funsigned-char -Wno-unused-result
 
-ifeq ($(DECODEVOICE), 1)
-CFLAGS := $(CFLAGS) -DDECODEVOICE
+ifeq ($(AMBEDECODEVOICE), 1)
+CFLAGS := $(CFLAGS) -DAMBEDECODEVOICE
+endif
+ifeq ($(MP3ENCODEVOICE), 1)
+CFLAGS := $(CFLAGS) -DMP3ENCODEVOICE
 endif
 
 LDAFTER := $(LDAFTER) $(shell pkg-config --libs glib-2.0)

@@ -21,7 +21,7 @@
 
 #include <libs/daemon/console.h>
 
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 
 static uint8_t voicestreams_decode_deinterleave_matrix_w[36] = {
 	0, 1, 0, 1, 0, 1,
@@ -94,4 +94,4 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 	return &decoded_frame;
 }
 
-#endif /* ifdef DECODEVOICE */
+#endif /* ifdef AMBEDECODEVOICE */

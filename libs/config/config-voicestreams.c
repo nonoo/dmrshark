@@ -187,6 +187,54 @@ int config_voicestreams_get_savedecodedtorawfile(char *streamname) {
 	return value;
 }
 
+int config_voicestreams_get_savedecodedtomp3file(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "savedecodedtomp3file";
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
+int config_voicestreams_get_mp3bitrate(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "mp3bitrate";
+	int defaultvalue = 32;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
+int config_voicestreams_get_mp3quality(char *streamname) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "mp3quality";
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 int config_voicestreams_get_timeslot(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
@@ -238,6 +286,13 @@ void config_voicestreams_init(void) {
 			free(tmp);
 			config_voicestreams_get_savetorawfile(voicestreams[i]);
 			config_voicestreams_get_savedecodedtorawfile(voicestreams[i]);
+			config_voicestreams_get_savedecodedtomp3file(voicestreams[i]);
+#ifndef MP3ENCODEVOICE
+			if (config_voicestreams_get_savedecodedtomp3file(voicestreams[i]))
+				console_log("config warning: voice stream %s has mp3 encoding enabled, but mp3 encoding is not compiled in\n", voicestreams[i]);
+#endif
+			config_voicestreams_get_mp3bitrate(voicestreams[i]);
+			config_voicestreams_get_mp3quality(voicestreams[i]);
 			config_voicestreams_get_timeslot(voicestreams[i]);
 			config_voicestreams_get_decodequality(voicestreams[i]);
 
@@ -248,7 +303,7 @@ void config_voicestreams_init(void) {
 	}
 
 	console_log("config: loaded %u voice stream configs\n", i);
-#ifndef DECODEVOICE
+#ifndef AMBEDECODEVOICE
 	if (i > 0)
 		console_log("config warning: voice streams defined in config but voice decoding is not compiled in\n");
 #endif

@@ -28,6 +28,7 @@ You'll need to have the following libs installed on your system to compile dmrsh
 - libsnmp-dev / net-snmp-devel
 - libmysqlclient-dev / mariadb-devel
 - [mbelib](https://github.com/szechyjs/mbelib) (optional)
+- libmp3lame-dev (optional)
 
 Instructions on compiling and installing:
 
@@ -45,7 +46,15 @@ Now you will have dmrshark installed to **/opt/dmrshark**.
 If you don't want to use libmbe, create **Makefile.config.inc** in the dmrshark source root directory, and add the following:
 
 ```
-DECODEVOICE := 0
+AMBEDECODEVOICE := 0
+```
+
+### libmp3lame
+
+If you don't want to use libmp3lame, create **Makefile.config.inc** in the dmrshark source root directory, and add the following:
+
+```
+MP3ENCODEVOICE := 0
 ```
 
 ## Configuration
@@ -97,6 +106,7 @@ repeaterhosts=1.2.3.4,repeater123.nonoo.hu
 savefiledir=
 savetorawfile=1
 savedecodedtorawfile=1
+savedecodedtomp3file=1
 timeslot=1
 decodequality=3
 
@@ -106,6 +116,7 @@ repeaterhosts=*
 savefiledir=
 savetorawfile=1
 savedecodedtorawfile=1
+savedecodedtomp3file=1
 timeslot=2
 decodequality=64
 ```
@@ -119,6 +130,7 @@ Voice stream configure variables:
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
 - **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
 - **savedecodedtorawfile**: Set this to 1 if you want to save raw, but decoded voice data. Samples are saved as 8kHz IEEE 32bit floats.
+- **savedecodedtomp3file**: Set this to 1 if you want to save decoded voice data in MP3 files.
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 
 ## Running

@@ -19,6 +19,7 @@
 
 #include "voicestreams.h"
 #include "voicestreams-process.h"
+#include "voicestreams-mp3.h"
 
 #include <libs/config/config-voicestreams.h>
 #include <libs/daemon/console.h>
@@ -117,7 +118,7 @@ void voicestreams_init(void) {
 	char **streamnames = config_voicestreams_get_streamnames();
 	char **streamnames_i = streamnames;
 	voicestream_t *new_vs;
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 	char mbeversion[25];
 #endif
 
@@ -146,11 +147,17 @@ void voicestreams_init(void) {
 		new_vs->savefiledir = config_voicestreams_get_savefiledir(new_vs->name);
 		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
 		new_vs->savedecodedtorawfile = config_voicestreams_get_savedecodedtorawfile(new_vs->name);
+		new_vs->savedecodedtomp3file = config_voicestreams_get_savedecodedtomp3file(new_vs->name);
+		new_vs->mp3bitrate = config_voicestreams_get_mp3bitrate(new_vs->name);
+		new_vs->mp3quality = config_voicestreams_get_mp3quality(new_vs->name);
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
+#ifdef MP3ENCODEVOICE
+		voicestreams_mp3_init(new_vs);
+#endif
 #endif
 
 		new_vs->next = voicestreams;
@@ -162,24 +169,28 @@ void voicestreams_init(void) {
 	}
 	config_voicestreams_free_streamnames(streamnames);
 
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 	mbe_printVersion(mbeversion);
 	console_log("voicestreams: using mbelib v%s for voice decoding\n", mbeversion);
 #endif
 }
 
 void voicestreams_deinit(void) {
-	voicestream_t *vs;
+	voicestream_t *next_vs;
 
 	console_log("voicestreams: deinit\n");
 
 	while (voicestreams != NULL) {
+#ifdef MP3ENCODEVOICE
+		voicestreams_mp3_deinit(voicestreams);
+#endif
+
 		free(voicestreams->name);
 		free(voicestreams->repeaterhosts);
 		free(voicestreams->savefiledir);
 
-		vs = voicestreams->next;
+		next_vs = voicestreams->next;
 		free(voicestreams);
-		voicestreams = vs;
+		voicestreams = next_vs;
 	}
 }

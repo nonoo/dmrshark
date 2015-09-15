@@ -20,6 +20,8 @@
 
 #include <libs/base/types.h>
 
+#include <stdarg.h>
+
 #define LOGLEVEL_DEBUG				"\x01"
 #define LOGLEVEL_DEBUG_VAL			0x01
 #define LOGLEVEL_IPSC				"\x02"
@@ -70,7 +72,8 @@ uint16_t console_get_bufferpos(void);
 void console_rxbuf_add(char inputchar, flag_t vt100supported);
 
 void console_addtologfile(char *msg, int msglen);
-void console_log(char *format, ...);
+void console_log(const char *format, ...);
+void console_log_va_list(const char *loglevel, const char *format, va_list argptr);
 
 void console_process(void);
 void console_init(void);

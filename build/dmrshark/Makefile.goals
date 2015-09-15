@@ -6,8 +6,11 @@ include ../../make/Makefile.target.inc
 LIBS := $(LIBS) base config daemon comm remotedb dmrpacket coding voicestreams
 PREBUILTLIBS := pcap snmp mysqlclient pthread
 
-ifeq ($(DECODEVOICE),1)
+ifeq ($(AMBEDECODEVOICE),1)
 PREBUILTLIBS := $(PREBUILTLIBS) mbe
+endif
+ifeq ($(MP3ENCODEVOICE),1)
+PREBUILTLIBS := $(PREBUILTLIBS) mp3lame
 endif
 
 include ../../make/Makefile.build.inc

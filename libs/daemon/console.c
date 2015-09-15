@@ -31,7 +31,6 @@
 #include <termios.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
@@ -216,12 +215,27 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 	}
 }
 
-static void console_log_display(char *text, va_list *argptr) {
+static int8_t console_loglevel_match(const char *format) {
+    uint8_t first_non_format_char_pos;
+    uint8_t i;
+
+	first_non_format_char_pos = 0;
+	while (console_isloglevelchar(format[first_non_format_char_pos]))
+		first_non_format_char_pos++;
+
+	for (i = 0; i < first_non_format_char_pos; i++) {
+		if (!console_isallowedtodisplay(format[i]))
+			return -1;
+	}
+	return first_non_format_char_pos;
+}
+
+static void console_log_display(const char *text, va_list argptr) {
 	char buffer[CONSOLELOGBUFFERSIZE];
 	size_t buffer_length = 0;
 
 	pthread_mutex_lock(&console_mutex);
-	vsnprintf(buffer, sizeof(buffer), text, *argptr);
+	vsnprintf(buffer, sizeof(buffer), text, argptr);
 	buffer_length = strlen(buffer);
 
 	printf("%s", buffer);
@@ -232,24 +246,28 @@ static void console_log_display(char *text, va_list *argptr) {
 	pthread_mutex_unlock(&console_mutex);
 }
 
-void console_log(char *format, ...) {
+void console_log(const char *format, ...) {
 	va_list argptr;
-    uint8_t first_non_format_char_pos;
-    uint8_t i;
+	int8_t first_non_format_char_pos;
 
     va_start(argptr, format);
 
-	first_non_format_char_pos = 0;
-	while (console_isloglevelchar(format[first_non_format_char_pos]))
-		first_non_format_char_pos++;
+	first_non_format_char_pos = console_loglevel_match(format);
+	if (first_non_format_char_pos < 0)
+		return;
 
-	for (i = 0; i < first_non_format_char_pos; i++) {
-		if (!console_isallowedtodisplay(format[i]))
-			return;
-	}
-	console_log_display(format+first_non_format_char_pos, &argptr);
+	console_log_display(format+first_non_format_char_pos, argptr);
 
     va_end(argptr);
+}
+
+void console_log_va_list(const char *loglevel, const char *format, va_list argptr) {
+	int8_t first_non_format_char_pos = console_loglevel_match(loglevel);
+
+	if (first_non_format_char_pos < 0)
+		return;
+
+	console_log_display(format, argptr);
 }
 
 void console_process(void) {

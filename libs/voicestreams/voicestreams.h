@@ -21,8 +21,11 @@
 #include <libs/base/types.h>
 
 #include <netinet/ip.h>
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 #include <mbelib.h>
+#ifdef MP3ENCODEVOICE
+#include <lame/lame.h>
+#endif
 #endif
 
 #define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT 160
@@ -34,6 +37,9 @@ typedef struct voicestream_st {
 	char *savefiledir;
 	flag_t savetorawfile;
 	flag_t savedecodedtorawfile;
+	flag_t savedecodedtomp3file;
+	uint8_t mp3bitrate;
+	uint8_t mp3quality;
 	flag_t timeslot;
 	uint8_t decodequality;
 
@@ -42,10 +48,16 @@ typedef struct voicestream_st {
 	int8_t rms_vol;
 	int8_t avg_rms_vol;
 
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 	mbe_parms cur_mp;
 	mbe_parms prev_mp;
 	mbe_parms prev_mp_enhanced;
+
+#ifdef MP3ENCODEVOICE
+	lame_global_flags *mp3_flags;
+	float mp3_buf[160];
+	uint16_t mp3_buf_pos;
+#endif
 #endif
 
 	struct repeater_t *currently_streaming_repeater;

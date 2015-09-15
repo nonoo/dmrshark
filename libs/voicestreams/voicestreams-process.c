@@ -20,6 +20,7 @@
 #include "voicestreams.h"
 #include "voicestreams-process.h"
 #include "voicestreams-decode.h"
+#include "voicestreams-mp3.h"
 
 #include <libs/daemon/console.h>
 #include <libs/comm/repeaters.h>
@@ -107,6 +108,34 @@ static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decode
 	}
 }
 
+static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
+	FILE *f;
+	char *fn;
+	size_t saved_items;
+	voicestreams_mp3_frame_t *mp3frame;
+
+	if (voicestream == NULL) // Calling the function with decoded_frame == NULL is allowed.
+		return;
+
+	if (voicestream->savedecodedtomp3file) {
+		mp3frame = voicestreams_mp3_encode(voicestream, decoded_frame);
+		if (mp3frame != NULL) {
+			if (decoded_frame == NULL)
+				voicestreams_mp3_encode_flush(voicestream, mp3frame); // This closes the call's mp3 segment.
+
+			fn = voicestreams_get_stream_filename(voicestream, ".mp3");
+			f = fopen(fn, "a");
+			if (!f) {
+				console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save mp3 frame to %s\n", voicestream->name, fn);
+				return;
+			}
+			saved_items = fwrite(mp3frame->bytes, 1, mp3frame->bytes_size, f);
+			fclose(f);
+			console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u mp3 frame bytes to %s\n", voicestream->name, saved_items, fn);
+		}
+	}
+}
+
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	FILE *f;
 	char *fn;
@@ -129,6 +158,8 @@ static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voice
 		fclose(f);
 		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u decoded voice packet bytes to %s\n", voicestream->name, saved_items*sizeof(decoded_frame->samples[0]), fn);
 	}
+
+	voicestreams_process_mp3(voicestream, decoded_frame);
 }
 
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -136,7 +167,7 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	dmrpacket_payload_voice_bits_t *voice_bits;
 	uint8_t i;
 	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 	voicestreams_decoded_frame_t *decoded_frame;
 #endif
 
@@ -174,7 +205,7 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	if (voicestream->savetorawfile)
 		voicestreams_process_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
 
-#ifdef DECODEVOICE
+#ifdef AMBEDECODEVOICE
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: decoding frame 0\n", voicestream->name);
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[0], voicestream);
 	voicestreams_process_decoded_frame(voicestream, decoded_frame);
@@ -199,13 +230,22 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_vol = voicestream->avg_rms_vol = voicestream->rms_vol_buf_pos = 0;
+	voicestreams_mp3_resetbuf(voicestream);
 }
 
 void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
+	uint8_t i;
+	voicestreams_decoded_frame_t zero_frame = { .samples = { 0, } };
+
 	if (!voicestream || !voicestream->enabled)
 		return;
 
 	voicestreams_process_rms_vol_calc(voicestream);
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 	voicestream->currently_streaming_repeater = NULL;
+
+	// Flushing out the buffer.
+	for (i = 0; i < 10; i++)
+		voicestreams_process_mp3(voicestream, &zero_frame);
+	voicestreams_process_mp3(voicestream, NULL);
 }
