@@ -302,6 +302,7 @@ void comm_process(void) {
 	}
 
 	repeaters_process();
+	httpserver_process();
 }
 
 flag_t comm_init(void) {

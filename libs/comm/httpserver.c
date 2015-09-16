@@ -31,6 +31,7 @@ static struct libwebsocket_context *httpserver_lws_context = NULL;
 
 typedef struct httpserver_client_st {
 	struct libwebsocket *wsi;
+	char host[100];
 	voicestream_t *voicestream;
 	uint8_t buf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	uint16_t bytesinbuf;
@@ -74,6 +75,22 @@ static uint16_t httpserver_sendtoclient(httpserver_client_t *client, uint8_t *bu
 	return bytestowritetobuf;
 }
 
+static char *httpserver_get_client_host_or_ip(struct libwebsocket_context *context, struct libwebsocket *wsi) {
+	static char clienthost[100];
+	static char clientip[INET6_ADDRSTRLEN];
+	int fd;
+
+	fd = libwebsocket_get_socket_fd(wsi);
+	if (fd >= 0)
+		libwebsockets_get_peer_addresses(context, wsi, fd, clienthost, sizeof(clienthost), clientip, sizeof(clientip));
+	if (clienthost[0] == 0) {
+		if (clientip[0] == 0)
+			snprintf(clientip, sizeof(clientip), "n/a");
+		return clientip;
+	}
+	return clienthost;
+}
+
 static int httpserver_http_callback(struct libwebsocket_context *context, struct libwebsocket *wsi,
 	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
 {
@@ -82,14 +99,9 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 	const char *requrl = (const char *)in;
 	flag_t pagefound = 0;
 	httpserver_client_t *httpserver_client = NULL;
-	char clienthost[100] = {0,};
-	char clientip[INET6_ADDRSTRLEN] = {0,};
 
 	if (context == NULL || wsi == NULL)
 		return -1;
-
-	libwebsockets_get_peer_addresses(context, wsi, libwebsocket_get_socket_fd(wsi), clienthost, sizeof(clienthost), clientip, sizeof(clientip));
-	console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: got request from %s: %s\n", clientip, clienthost, requrl);
 
 	switch (reason) {
 		case LWS_CALLBACK_HTTP: // Got a plain HTTP request.
@@ -98,14 +110,22 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 			}
 
+			httpserver_client = httpserver_get_client_by_wsi(wsi);
+			if (httpserver_client == NULL)
+				return -1;
+			strncpy(httpserver_client->host, httpserver_get_client_host_or_ip(context, wsi), sizeof(httpserver_client->host));
+
+			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: got request: %s ", httpserver_client->host, requrl);
+
 			// HTTP POST not allowed.
 			if (lws_hdr_total_length(wsi, WSI_TOKEN_POST_URI)) {
+				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(post request, not allowed, closing connection)\n");
 				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_FORBIDDEN, NULL);
 				return -1;
 			}
 
 			if (strcmp(requrl, "/") == 0) {
-				console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: got status page request\n", clientip);
+				console_log(LOGLEVEL_HTTPSERVER "(status page request)\n");
 				pagefound = 1;
 
 				// TODO: status page
@@ -116,6 +136,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			}
 
 			if (!pagefound) {
+				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(404)\n");
 				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_NOT_FOUND, NULL);
 				return -1;
 			}
@@ -124,12 +145,13 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			return -1;
 
 		case LWS_CALLBACK_WSI_CREATE:
-			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: adding new client\n", clientip);
+			console_log(LOGLEVEL_HTTPSERVER "httpserver: adding new client\n");
 			httpserver_client = (httpserver_client_t *)calloc(1, sizeof(httpserver_client_t));
 			if (!httpserver_client) {
-				console_log("httpserver [%s] error: can't allocate memory for the new client\n", clientip);
+				console_log("  error: can't allocate memory for the new client\n");
 				return -1;
 			}
+			strncpy(httpserver_client->host, "n/a", sizeof(httpserver_client->host));
 			httpserver_client->wsi = wsi;
 			if (httpserver_clients == NULL)
 				httpserver_clients = httpserver_client;
@@ -142,13 +164,12 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			break;
 
 		case LWS_CALLBACK_WSI_DESTROY:
-			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: closing session\n", clientip);
-
 			if (httpserver_clients == NULL)
 				break;
 
 			httpserver_client = httpserver_get_client_by_wsi(wsi);
 			if (httpserver_client) {
+				console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: closing session\n", httpserver_client->host);
 				// Removing from the linked list.
 				if (httpserver_client->prev)
 					httpserver_client->prev->next = httpserver_client->next;
@@ -189,29 +210,34 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	int res;
 	uint16_t datatosendsize;
 	int peerallowance;
-	char clienthost[100] = {0,};
-	char clientip[INET6_ADDRSTRLEN] = {0,};
 	httpserver_client_t *httpserver_client = NULL;
 
 	if (context == NULL || wsi == NULL)
 		return -1;
 
-	libwebsockets_get_peer_addresses(context, wsi, libwebsocket_get_socket_fd(wsi), clienthost, sizeof(clienthost), clientip, sizeof(clientip));
-
 	switch (reason) {
 		case LWS_CALLBACK_ESTABLISHED:
-			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client connected\n", clientip);
+			httpserver_client = httpserver_get_client_by_wsi(wsi);
+			if (httpserver_client == NULL)
+				return -1;
+			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client connected\n", httpserver_client->host);
 
 			// Schedule a callback for async tx.
 			libwebsocket_callback_on_writable(context, wsi);
 			break;
 
 		case LWS_CALLBACK_CLOSED:
-			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client disconnected\n", clientip);
+			httpserver_client = httpserver_get_client_by_wsi(wsi);
+			if (httpserver_client == NULL)
+				return -1;
+			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client disconnected\n", httpserver_client->host);
 			break;
 
 		case LWS_CALLBACK_RECEIVE: // One of the websocket clients sent us something.
-			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: rx: %s\n", (char *)in);
+			httpserver_client = httpserver_get_client_by_wsi(wsi);
+			if (httpserver_client == NULL)
+				return -1;
+			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: rx: %s\n", httpserver_client->host, (char *)in);
 			break;
 
 		case LWS_CALLBACK_SERVER_WRITEABLE: // One of the websocket clients got writable.
