@@ -4,7 +4,7 @@ include ../../make/Makefile.target.inc
 
 # Define the lib subdirs which are needed for this build.
 LIBS := $(LIBS) base config daemon comm remotedb dmrpacket coding voicestreams
-PREBUILTLIBS := pcap snmp mysqlclient pthread
+PREBUILTLIBS := pcap snmp mysqlclient pthread websockets
 
 ifeq ($(AMBEDECODEVOICE),1)
 PREBUILTLIBS := $(PREBUILTLIBS) mbe

@@ -93,6 +93,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.voicestreams = !loglevel.flags.voicestreams;
 			else if (strcmp(tok, "coding") == 0)
 				loglevel.flags.coding = !loglevel.flags.coding;
+			else if (strcmp(tok, "httpserver") == 0)
+				loglevel.flags.httpserver = !loglevel.flags.httpserver;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

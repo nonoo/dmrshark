@@ -44,22 +44,25 @@
 #define LOGLEVEL_VOICESTREAMS_VAL	0x0b
 #define LOGLEVEL_CODING				"\x0c"
 #define LOGLEVEL_CODING_VAL			0x0c
+#define LOGLEVEL_HTTPSERVER			"\x0e"
+#define LOGLEVEL_HTTPSERVER_VAL		0x0e
 
 // Don't forget to add new loglevels to the log command handler in command.c,
 // and to the loglevel display list in log.c!
 typedef union __attribute__((packed)) {
 	struct __attribute__((packed)) {
-		uint8_t debug			: 1;
-		uint8_t ipsc			: 1;
-		uint8_t comm_ip			: 1;
-		uint8_t dmr				: 1;
-		uint8_t dmrdata			: 1;
-		uint8_t snmp			: 1;
-		uint8_t repeaters		: 1;
-		uint8_t heartbeat		: 1;
-		uint8_t remotedb		: 1;
-		uint8_t voicestreams	: 1;
-		uint8_t coding			: 1;
+		uint16_t debug			: 1;
+		uint16_t ipsc			: 1;
+		uint16_t comm_ip		: 1;
+		uint16_t dmr			: 1;
+		uint16_t dmrdata		: 1;
+		uint16_t snmp			: 1;
+		uint16_t repeaters		: 1;
+		uint16_t heartbeat		: 1;
+		uint16_t remotedb		: 1;
+		uint16_t voicestreams	: 1;
+		uint16_t coding			: 1;
+		uint16_t httpserver		: 1;
 	} flags;
 	uint16_t raw;
 } loglevel_t;

@@ -21,6 +21,7 @@
 #include "ipsc.h"
 #include "snmp.h"
 #include "repeaters.h"
+#include "httpserver.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -348,6 +349,7 @@ flag_t comm_init(void) {
 		daemon_poll_addfd_read(pcap_dev);
 
 	snmp_init();
+	httpserver_init();
 
 	return 1;
 }
@@ -371,6 +373,7 @@ void comm_deinit(void) {
 		comm_pcap_file_handle = NULL;
 	}
 
+	httpserver_deinit();
 	snmp_deinit();
 	repeaters_deinit();
 }

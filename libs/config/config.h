@@ -57,6 +57,8 @@ int config_get_remotedbreconnecttrytimeoutinsec(void);
 int config_get_remotedbmaintenanceperiodinsec(void);
 int config_get_remotedbdeleteolderthansec(void);
 int config_get_updatestatstableenabled(void);
+int config_get_httpserverport(void);
+int config_get_httpserverenabled(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

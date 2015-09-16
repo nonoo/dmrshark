@@ -193,6 +193,7 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_REMOTEDB_VAL: return loglevel.flags.remotedb;
 		case LOGLEVEL_VOICESTREAMS_VAL: return loglevel.flags.voicestreams;
 		case LOGLEVEL_CODING_VAL: return loglevel.flags.coding;
+		case LOGLEVEL_HTTPSERVER_VAL: return loglevel.flags.httpserver;
 		default: return 1;
 	}
 }
@@ -210,6 +211,7 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_REMOTEDB_VAL:
 		case LOGLEVEL_VOICESTREAMS_VAL:
 		case LOGLEVEL_CODING_VAL:
+		case LOGLEVEL_HTTPSERVER_VAL:
 			return 1;
 		default: return 0;
 	}

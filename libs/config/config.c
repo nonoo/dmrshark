@@ -516,6 +516,40 @@ int config_get_updatestatstableenabled(void) {
 	return value;
 }
 
+int config_get_httpserverenabled(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "httpserverenabled";
+	int defaultvalue = 0;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 1;
+	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_httpserverport(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "httpserverenabled";
+	int defaultvalue = 8080;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 1;
+	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, "main", key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 
@@ -586,6 +620,8 @@ void config_init(char *configfilename) {
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();
 	config_get_updatestatstableenabled();
+	config_get_httpserverenabled();
+	config_get_httpserverport();
 
 	config_writeconfigfile();
 }
