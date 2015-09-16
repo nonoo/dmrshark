@@ -167,8 +167,6 @@ void voicestreams_init(void) {
 		new_vs->next = voicestreams;
 		voicestreams = new_vs;
 
-		console_log("  initialized\n");
-
 		streamnames_i++;
 	}
 	config_voicestreams_free_streamnames(streamnames);
