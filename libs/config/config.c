@@ -188,7 +188,7 @@ flag_t config_get_ttyconsoleenabled(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "ttyconsoleenabled";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 0;
@@ -205,7 +205,7 @@ int config_get_ttyconsolebaudrate(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "ttyconsolebaudrate";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 115200;
@@ -240,7 +240,7 @@ int config_get_repeaterinfoupdateinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "repeaterinfoupdateinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 300;
@@ -257,7 +257,7 @@ int config_get_repeaterinactivetimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "repeaterinactivetimeoutinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 30;
@@ -274,7 +274,7 @@ int config_get_rssiupdateduringcallinmsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "rssiupdateduringcallinmsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 500;
@@ -291,7 +291,7 @@ int config_get_calltimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "calltimeoutinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
@@ -308,7 +308,7 @@ int config_get_datatimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "datatimeoutinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 3;
@@ -451,7 +451,7 @@ int config_get_remotedbreconnecttrytimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "remotedbreconnecttrytimeoutinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 5;
@@ -468,7 +468,7 @@ int config_get_remotedbmaintenanceperiodinsec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "remotedbmaintenanceperiodinsec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 60;
@@ -486,7 +486,7 @@ int config_get_remotedbdeleteolderthansec(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "remotedbdeleteolderthansec";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 86400;
@@ -503,7 +503,7 @@ int config_get_updatestatstableenabled(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "updatestatstableenabled";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
@@ -520,7 +520,7 @@ int config_get_httpserverenabled(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "httpserverenabled";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
@@ -537,10 +537,10 @@ int config_get_httpserverport(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "httpserverport";
-	int defaultvalue = 8080;
+	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 1;
+	defaultvalue = 8080;
 	value = g_key_file_get_integer(keyfile, "main", key, &error);
 	if (error) {
 		value = defaultvalue;

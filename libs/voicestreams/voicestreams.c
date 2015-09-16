@@ -158,6 +158,8 @@ void voicestreams_init(void) {
 		new_vs->playrawfileatcallend = config_voicestreams_get_playrawfileatcallend(new_vs->name);
 		new_vs->rmsminsamplevalue = config_voicestreams_get_rmsminsamplevalue(new_vs->name);
 
+		new_vs->rms_vol = new_vs->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
+
 #ifdef AMBEDECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
 #ifdef MP3ENCODEVOICE

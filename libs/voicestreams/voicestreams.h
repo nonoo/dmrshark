@@ -28,7 +28,8 @@
 #endif
 #endif
 
-#define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT 160
+#define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT	160
+#define VOICESTREAMS_INVALID_RMS_VALUE					127
 
 typedef struct voicestream_st {
 	char *name;

@@ -159,9 +159,10 @@ int config_voicestreams_get_savetorawfile(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "savetorawfile";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = 0;
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -175,9 +176,10 @@ int config_voicestreams_get_savedecodedtorawfile(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "savedecodedtorawfile";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = 0;
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -191,9 +193,10 @@ int config_voicestreams_get_savedecodedtomp3file(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "savedecodedtomp3file";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = 0;
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -239,9 +242,10 @@ int config_voicestreams_get_mp3quality(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "mp3quality";
-	int defaultvalue = 0;
+	int defaultvalue;
 
 	pthread_mutex_lock(config_get_mutex());
+	defaultvalue = 0;
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
 	if (error) {
 		value = defaultvalue;

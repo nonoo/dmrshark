@@ -75,8 +75,8 @@ static void remotedb_addquery(char *query) {
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tableprefix = NULL;
 	char query[512] = {0,};
-	int8_t rms_vol = 127;
-	int8_t avg_rms_vol = 127;
+	int8_t rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
+	int8_t avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
 	if (repeater == NULL || timeslot > 2 || timeslot < 1 || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
 		return;

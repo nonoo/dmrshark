@@ -75,6 +75,7 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	rms_vol /= elements;
 	voicestream->rms_vol_buf_pos = 0;
 	if (isnan(rms_vol)) {
+		console_log("%d\n", voicestream->rms_vol);
 		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is 0, ignoring\n", voicestream->name);
 		return;
 	}
@@ -82,8 +83,12 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	rms_vol = 10*log10f(rms_vol/1.0);
 
 	voicestream->rms_vol = (int8_t)rms_vol;
-	voicestream->avg_rms_vol += voicestream->rms_vol;
-	voicestream->avg_rms_vol /= 2.0;
+	if (voicestream->avg_rms_vol == VOICESTREAMS_INVALID_RMS_VALUE)
+		voicestream->avg_rms_vol = voicestream->rms_vol;
+	else {
+		voicestream->avg_rms_vol += voicestream->rms_vol;
+		voicestream->avg_rms_vol /= 2.0;
+	}
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB, avg: %ddB\n", voicestream->name, voicestream->rms_vol, voicestream->avg_rms_vol);
 }
 
@@ -199,7 +204,8 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
-	voicestream->rms_vol = voicestream->avg_rms_vol = voicestream->rms_vol_buf_pos = 0;
+	voicestream->rms_vol = voicestream->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
+	voicestream->rms_vol_buf_pos = 0;
 	voicestreams_mp3_resetbuf(voicestream);
 
 	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
