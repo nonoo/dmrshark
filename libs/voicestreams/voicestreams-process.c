@@ -183,6 +183,38 @@ static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voice
 	voicestreams_process_mp3(voicestream, decoded_frame);
 }
 
+void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater) {
+	if (!voicestream || !voicestream->enabled)
+		return;
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
+
+	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
+	voicestream->rms_vol = voicestream->avg_rms_vol = voicestream->rms_vol_buf_pos = 0;
+	voicestreams_mp3_resetbuf(voicestream);
+
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
+}
+
+void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
+	uint8_t i;
+	voicestreams_decoded_frame_t zero_frame = { .samples = { 0, } };
+
+	if (!voicestream || !voicestream->enabled)
+		return;
+
+	voicestreams_process_rms_vol_calc(voicestream);
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallend);
+
+	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
+	voicestream->currently_streaming_repeater = NULL;
+
+	// Flushing out the buffer.
+	for (i = 0; i < 10; i++)
+		voicestreams_process_mp3(voicestream, &zero_frame);
+	voicestreams_process_mp3(voicestream, NULL);
+}
+
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	voicestream_t *voicestream;
 	dmrpacket_payload_voice_bits_t *voice_bits;
@@ -241,36 +273,4 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 #endif
 
 	// TODO: streaming
-}
-
-void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater) {
-	if (!voicestream || !voicestream->enabled)
-		return;
-
-	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
-
-	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
-	voicestream->rms_vol = voicestream->avg_rms_vol = voicestream->rms_vol_buf_pos = 0;
-	voicestreams_mp3_resetbuf(voicestream);
-
-	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
-}
-
-void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
-	uint8_t i;
-	voicestreams_decoded_frame_t zero_frame = { .samples = { 0, } };
-
-	if (!voicestream || !voicestream->enabled)
-		return;
-
-	voicestreams_process_rms_vol_calc(voicestream);
-	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallend);
-
-	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
-	voicestream->currently_streaming_repeater = NULL;
-
-	// Flushing out the buffer.
-	for (i = 0; i < 10; i++)
-		voicestreams_process_mp3(voicestream, &zero_frame);
-	voicestreams_process_mp3(voicestream, NULL);
 }

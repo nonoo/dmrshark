@@ -21,9 +21,9 @@
 #include <libs/comm/ipscpacket.h>
 #include <libs/comm/repeaters.h>
 
-void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater);
-
 void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater);
 void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater);
+
+void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater);
 
 #endif
