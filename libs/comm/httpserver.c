@@ -193,6 +193,9 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	char clientip[INET6_ADDRSTRLEN] = {0,};
 	httpserver_client_t *httpserver_client = NULL;
 
+	if (context == NULL || wsi == NULL)
+		return -1;
+
 	libwebsockets_get_peer_addresses(context, wsi, libwebsocket_get_socket_fd(wsi), clienthost, sizeof(clienthost), clientip, sizeof(clientip));
 
 	switch (reason) {

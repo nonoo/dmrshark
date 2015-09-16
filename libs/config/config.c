@@ -536,7 +536,7 @@ int config_get_httpserverenabled(void) {
 int config_get_httpserverport(void) {
 	GError *error = NULL;
 	int value = 0;
-	char *key = "httpserverenabled";
+	char *key = "httpserverport";
 	int defaultvalue = 8080;
 
 	pthread_mutex_lock(&config_mutex);
