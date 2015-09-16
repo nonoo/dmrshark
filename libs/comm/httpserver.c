@@ -187,7 +187,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	uint8_t txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING + HTTPSERVER_LWS_TXBUFFER_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 	uint8_t *txbuf = &txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING];
 	int res;
-	int datatosendsize;
+	uint16_t datatosendsize;
 	int peerallowance;
 	char clienthost[100] = {0,};
 	char clientip[INET6_ADDRSTRLEN] = {0,};
