@@ -75,7 +75,6 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	rms_vol /= elements;
 	voicestream->rms_vol_buf_pos = 0;
 	if (isnan(rms_vol)) {
-		console_log("%d\n", voicestream->rms_vol);
 		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is 0, ignoring\n", voicestream->name);
 		return;
 	}

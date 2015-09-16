@@ -67,6 +67,7 @@ void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, 
 }
 
 void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
+	voicestreams_process_call_end(repeater->slot[ts].voicestream, repeater);
 	console_log(LOGLEVEL_DMR "dmr [%s]: call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
 	repeater->slot[ts].call_ended_at = time(NULL);
