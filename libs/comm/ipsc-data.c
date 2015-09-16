@@ -37,7 +37,7 @@ void ipsc_data_handle_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, rep
 		return;
 
 	repeater->slot[ipscpacket->timeslot-1].data_blocks_received = 0;
-	memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(dmrpacket_data_block_t)*sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+	memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 	repeater->slot[ipscpacket->timeslot-1].data_header_received_at = time(NULL);
 
 	if (data_packet_header->common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {

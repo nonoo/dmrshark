@@ -234,7 +234,7 @@ void repeaters_process(void) {
 			dmr_handle_voicecall_timeout(repeater, 0);
 
 		if (repeater->slot[1].state == REPEATER_SLOT_STATE_CALL_RUNNING && time(NULL)-repeater->slot[1].last_packet_received_at > config_get_calltimeoutinsec())
-			dmr_handle_voicecall_timeout(repeater, 0);
+			dmr_handle_voicecall_timeout(repeater, 1);
 
 		if (repeater->auto_rssi_update_enabled_at > 0 && repeater->auto_rssi_update_enabled_at <= time(NULL)) {
 			if (config_get_rssiupdateduringcallinmsec() > 0) {
