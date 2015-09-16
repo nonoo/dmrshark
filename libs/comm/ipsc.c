@@ -59,6 +59,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	int ip_header_length = 0;
 	ipscpacket_t ipsc_packet = {0,};
 	repeater_t *repeater = NULL;
+	flag_t packet_from_us = 0;
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
@@ -84,19 +85,20 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		return;
 	}
 
-	if (udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
+	packet_from_us = comm_is_our_ipaddr(&ip_packet->ip_src);
+	if (!packet_from_us && udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
 		return;
 	}
 
-	if (ipscpacket_decode(udp_packet, &ipsc_packet)) {
+	if (ipscpacket_decode(udp_packet, &ipsc_packet, packet_from_us)) {
 		// The packet is for us?
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst))
 			repeater = repeaters_add(&ip_packet->ip_src);
 
 		// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
 		// host of the DMR master, and IP packets are just routed through.
-		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
+		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL) {
 			console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 			console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
 				repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
@@ -109,9 +111,6 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 			ipsc_handle(ip_packet, &ipsc_packet, repeater);
 		}
 
-		// Voice stream processing happens both for up and downlink data directions.
-		if (repeater == NULL) // TODO: check if voicestreams_processpacket() works when the master sends to a repeater
-			repeater = repeaters_findbyip(&ip_packet->ip_dst);
 		voicestreams_processpacket(&ipsc_packet, repeater);
 	}
 

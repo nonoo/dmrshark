@@ -77,7 +77,7 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 
 // Decodes the UDP packet given in udp_packet to ipsc_packet,
 // returns 1 if decoding was successful, otherwise returns 0.
-flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
+flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
 	ipscpacket_raw_t *ipscpacket_raw = (ipscpacket_raw_t *)((uint8_t *)udppacket + sizeof(struct udphdr));
 	int ipscpacket_raw_length = 0;
 	int i;
@@ -99,7 +99,7 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket) {
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
 	}
 
-	if (ipscpacket_raw->udp_source_port != udppacket->source) {
+	if (!packet_from_us && ipscpacket_raw->udp_source_port != udppacket->source) {
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
 			ipscpacket_raw->udp_source_port, udppacket->source);
 		return 0;

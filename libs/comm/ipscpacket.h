@@ -51,7 +51,7 @@ typedef struct {
 
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
 
-flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket);
+flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
 dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload);
