@@ -27,6 +27,7 @@ You'll need to have the following libs installed on your system to compile dmrsh
 - libpcap-dev / libpcap-devel
 - libsnmp-dev / net-snmp-devel
 - libmysqlclient-dev / mariadb-devel
+- [libwebsockets](https://libwebsockets.org/)
 - [mbelib](https://github.com/szechyjs/mbelib) (optional)
 - libmp3lame-dev (optional)
 
@@ -92,6 +93,8 @@ The file has the following configuration variables:
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
 - **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).
+- **httpserverenabled**: Set this to 1 to enable built-in HTTP/Websockets server, which is needed for streaming.
+- **httpserverport**: Port to bind the HTTP/Websockets server.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 
