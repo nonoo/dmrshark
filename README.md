@@ -122,18 +122,7 @@ playrawfileatcallend=call-end.raw
 [stream-hg5ruc-ts2]
 enabled=1
 repeaterhosts=*
-savefiledir=
-savetorawfile=1
-savedecodedtorawfile=1
-savedecodedtomp3file=1
-minmp3bitrate=32
-mp3bitrate=64
-mp3quality=0
-mp3vbr=0
-timeslot=2
-decodequality=64
-playrawfileatcallstart=call-start.raw
-playrawfileatcallend=call-end.raw
+...
 ```
 
 You can define as many voice streams as you want.
@@ -153,6 +142,7 @@ Voice stream configure variables:
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 - **playrawfileatcallstart**: Plays this raw wave file at the start of a call. Sample format is 8kHz IEEE 32bit float.
 - **playrawfileatcallend**: Plays this raw wave file at the end of a call. Sample format is 8kHz IEEE 32bit float.
+- **rmsminsamplevalue**: Minimum float value of the decoded voice stream to calculate RMS for. This is used for ignoring silence during RMS calculation.
 
 ## Running
 
