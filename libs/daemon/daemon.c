@@ -61,11 +61,6 @@ static void daemon_removepidfile(void) {
 
 static void daemon_sighandler(int signal) {
 	switch (signal) {
-		case SIGHUP:
-			console_log("daemon: SIGHUP received\n");
-			config_deinit();
-			config_init(NULL);
-			break;
 		case SIGINT:
 			if (base_flags.sigexit) {
 				console_log("daemon: SIGINT received again, exiting\n");
@@ -239,7 +234,7 @@ flag_t daemon_init(flag_t daemonize, flag_t consoleclient) {
 	daemon_consoleclient = consoleclient;
 	daemon_consoleserver = !consoleclient;
 
-	signal(SIGHUP, daemon_sighandler);
+	signal(SIGHUP, SIG_IGN);
 	signal(SIGINT, daemon_sighandler);
 	signal(SIGTERM, daemon_sighandler);
 	signal(SIGPIPE, SIG_IGN);
