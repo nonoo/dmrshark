@@ -99,7 +99,7 @@ int config_get_loglevel(void) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "loglevel";
-	int defaultvalue = 0;
+	int defaultvalue = 10;
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 0;

@@ -54,6 +54,7 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 
 static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	uint16_t i;
+	uint16_t elements = 0;
 	float rms_vol = 0;
 
 	if (voicestream == NULL)
@@ -64,10 +65,19 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 		return;
 	}
 
-	for (i = 0; i < voicestream->rms_vol_buf_pos; i++)
-		rms_vol += voicestream->rms_vol_buf[i]*voicestream->rms_vol_buf[i];
+	for (i = 0; i < voicestream->rms_vol_buf_pos; i++) {
+		if (fabsf(voicestream->rms_vol_buf[i]) > voicestream->rmsminsamplevalue) {
+			rms_vol += voicestream->rms_vol_buf[i]*voicestream->rms_vol_buf[i];
+			elements++;
+		}
+	}
 
-	rms_vol /= voicestream->rms_vol_buf_pos;
+	rms_vol /= elements;
+	voicestream->rms_vol_buf_pos = 0;
+	if (isnan(rms_vol)) {
+		console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is 0, ignoring\n", voicestream->name);
+		return;
+	}
 	rms_vol = sqrtf(rms_vol);
 	rms_vol = 10*log10f(rms_vol/1.0);
 
@@ -75,7 +85,6 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	voicestream->avg_rms_vol += voicestream->rms_vol;
 	voicestream->avg_rms_vol /= 2.0;
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB, avg: %ddB\n", voicestream->name, voicestream->rms_vol, voicestream->avg_rms_vol);
-	voicestream->rms_vol_buf_pos = 0;
 }
 
 static void voicestreams_process_rms_vol_calc_addtobuf(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {

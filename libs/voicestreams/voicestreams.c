@@ -156,6 +156,7 @@ void voicestreams_init(void) {
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 		new_vs->playrawfileatcallstart = config_voicestreams_get_playrawfileatcallstart(new_vs->name);
 		new_vs->playrawfileatcallend = config_voicestreams_get_playrawfileatcallend(new_vs->name);
+		new_vs->rmsminsamplevalue = config_voicestreams_get_rmsminsamplevalue(new_vs->name);
 
 #ifdef AMBEDECODEVOICE
 		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);

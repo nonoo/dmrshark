@@ -255,7 +255,7 @@ int config_voicestreams_get_mp3vbr(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "mp3vbr";
-	int defaultvalue = 0;
+	int defaultvalue = 1;
 
 	pthread_mutex_lock(config_get_mutex());
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
@@ -341,6 +341,22 @@ char *config_voicestreams_get_playrawfileatcallend(char *streamname) {
 	return value;
 }
 
+double config_voicestreams_get_rmsminsamplevalue(char *streamname) {
+	GError *error = NULL;
+	double value = 0;
+	char *key = "rmsminsamplevalue";
+	double defaultvalue = 0.015;
+
+	pthread_mutex_lock(config_get_mutex());
+	value = g_key_file_get_double(config_get_keyfile(), streamname, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_double(config_get_keyfile(), streamname, key, value);
+	}
+	pthread_mutex_unlock(config_get_mutex());
+	return value;
+}
+
 void config_voicestreams_init(void) {
 	int i;
 	char *tmp;
@@ -375,6 +391,7 @@ void config_voicestreams_init(void) {
 			free(tmp);
 			tmp = config_voicestreams_get_playrawfileatcallend(voicestreams[i]);
 			free(tmp);
+			config_voicestreams_get_rmsminsamplevalue(voicestreams[i]);
 
 			i++;
 			voicestreams_i++;

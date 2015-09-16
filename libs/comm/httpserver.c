@@ -321,7 +321,7 @@ void httpserver_process(void) {
 	int pfdcount;
 	struct pollfd *pfd;
 
-	if (!config_get_httpserverenabled())
+	if (!config_get_httpserverenabled() || httpserver_lws_context == NULL)
 		return;
 
 	pfdcount = daemon_poll_getpfdcount();
