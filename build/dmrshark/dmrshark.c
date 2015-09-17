@@ -39,7 +39,7 @@ static flag_t dmrshark_consoleclient = 0;
 static char *dmrshark_directory = NULL;
 
 static void dmrshark_printversion(void) {
-	console_log(APPNAME " by ha2non v%u.%u.%u-a%u ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
+	console_log(APPNAME " by ha2non v%u.%u.%u ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	console_log(__TIME__ " " __DATE__ " " GITHASH "\n");
 }
 
