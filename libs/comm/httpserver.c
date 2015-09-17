@@ -289,6 +289,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			httpserver_client = httpserver_get_client_by_wsi(wsi);
 			if (httpserver_client == NULL)
 				return -1;
+			strncpy(httpserver_client->host, httpserver_get_client_host_or_ip(context, wsi), sizeof(httpserver_client->host));
 			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client connected\n", httpserver_client->host);
 
 			// Schedule a callback for async tx.
