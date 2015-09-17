@@ -259,7 +259,7 @@ int config_voicestreams_get_mp3vbr(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
 	char *key = "mp3vbr";
-	int defaultvalue = 1;
+	int defaultvalue = 0;
 
 	pthread_mutex_lock(config_get_mutex());
 	value = g_key_file_get_integer(config_get_keyfile(), streamname, key, &error);
