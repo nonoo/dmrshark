@@ -24,6 +24,7 @@
 
 #include <libs/daemon/console.h>
 #include <libs/comm/repeaters.h>
+#include <libs/comm/httpserver.h>
 #include <libs/comm/ipsc.h>
 #include <libs/base/base.h>
 #include <libs/config/config-voicestreams.h>
@@ -122,6 +123,7 @@ static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decode
 }
 
 static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
+#ifdef MP3ENCODEVOICE
 	FILE *f;
 	char *fn;
 	size_t saved_items;
@@ -130,23 +132,27 @@ static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_de
 	if (voicestream == NULL) // Calling the function with decoded_frame == NULL is allowed.
 		return;
 
-	if (voicestream->savedecodedtomp3file) {
-		mp3frame = voicestreams_mp3_encode(voicestream, decoded_frame);
-		if (mp3frame != NULL) {
-			if (decoded_frame == NULL)
-				voicestreams_mp3_encode_flush(voicestream, mp3frame); // This closes the call's mp3 segment.
+	// It's safe to call this function with decoded_frame == NULL.
+	mp3frame = voicestreams_mp3_encode(voicestream, decoded_frame);
+	if (mp3frame == NULL)
+		return;
+	if (decoded_frame == NULL)
+		voicestreams_mp3_encode_flush(voicestream, mp3frame); // This closes the call's mp3 segment.
 
-			fn = voicestreams_get_stream_filename(voicestream, ".mp3");
-			f = fopen(fn, "a");
-			if (!f) {
-				console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save mp3 frame to %s\n", voicestream->name, fn);
-				return;
-			}
-			saved_items = fwrite(mp3frame->bytes, 1, mp3frame->bytes_size, f);
-			fclose(f);
-			console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u mp3 frame bytes to %s\n", voicestream->name, saved_items, fn);
+	if (voicestream->savedecodedtomp3file) {
+		fn = voicestreams_get_stream_filename(voicestream, ".mp3");
+		f = fopen(fn, "a");
+		if (!f) {
+			console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save mp3 frame to %s\n", voicestream->name, fn);
+			return;
 		}
+		saved_items = fwrite(mp3frame->bytes, 1, mp3frame->bytes_size, f);
+		fclose(f);
+		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u mp3 frame bytes to %s\n", voicestream->name, saved_items, fn);
 	}
+
+	httpserver_sendtoclients(voicestream, mp3frame->bytes, mp3frame->bytes_size);
+#endif
 }
 
 static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepath) {
@@ -285,6 +291,4 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	decoded_frame = voicestreams_decode_ambe_frame(&voice_bits->ambe_frames.frames[2], voicestream);
 	voicestreams_process_decoded_frame(voicestream, decoded_frame);
 #endif
-
-	// TODO: streaming
 }

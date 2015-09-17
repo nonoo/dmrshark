@@ -56,7 +56,7 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 	voicestream_t *wildcard_host_vs = NULL;
 
 	while (vs != NULL) {
-		if (vs->timeslot != timeslot) {
+		if (vs->timeslot != timeslot || !vs->enabled) {
 			vs = vs->next;
 			continue;
 		}
@@ -89,6 +89,18 @@ voicestream_t *voicestreams_get_stream_for_repeater(struct in_addr *ip, int time
 	}
 
 	return wildcard_host_vs;
+}
+
+voicestream_t *voicestreams_get_stream_by_name(char *name) {
+	voicestream_t *vs = voicestreams;
+
+	while (vs != NULL) {
+		if (strcmp(vs->name, name) == 0 && vs->enabled)
+			return vs;
+
+		vs = vs->next;
+	}
+	return NULL;
 }
 
 void voicestreams_printlist(void) {

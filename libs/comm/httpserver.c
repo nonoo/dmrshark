@@ -92,17 +92,29 @@ static char *httpserver_get_client_host_or_ip(struct libwebsocket_context *conte
 	return clienthost;
 }
 
+static uint16_t httpserver_calc_datatosendsize(struct libwebsocket *wsi, httpserver_client_t *httpserver_client) {
+	uint16_t datatosendsize;
+	int peerallowance;
+
+	datatosendsize = min(httpserver_client->bytesinbuf, HTTPSERVER_LWS_TXBUFFER_SIZE);
+	peerallowance = lws_get_peer_write_allowance(wsi);
+	if (peerallowance >= 0)
+		datatosendsize = min(datatosendsize, peerallowance);
+
+	return datatosendsize;
+}
+
 static int httpserver_http_callback(struct libwebsocket_context *context, struct libwebsocket *wsi,
 	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
 {
 	struct libwebsocket_pollargs *pa = (struct libwebsocket_pollargs *)in;
 	uint8_t txbuf[HTTPSERVER_LWS_TXBUFFER_SIZE];
-	const char *requrl = (const char *)in;
+	char *requrl = (char *)in;
 	flag_t pagefound = 0;
 	httpserver_client_t *httpserver_client = NULL;
 	uint16_t datatosendsize;
-	int peerallowance;
 	int bytes_sent;
+	char *tok;
 
 	if (context == NULL || wsi == NULL)
 		return -1;
@@ -128,7 +140,8 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 			}
 
-			if (strcmp(requrl, "/") == 0) {
+			tok = strtok(requrl, "/");
+			if (tok == NULL) {
 				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(status page request)\n");
 				pagefound = 1;
 
@@ -139,6 +152,22 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 					"Hello World!\r\n");
 				httpserver_client->close_on_buf_empty = 1;
 				httpserver_sendtoclient(httpserver_client, txbuf, strlen((char *)txbuf));
+			} else{
+				httpserver_client->voicestream = voicestreams_get_stream_by_name(tok);
+				if (httpserver_client->voicestream != NULL) { // Request is for an existing voicestream?
+					console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(request for %s)\n", tok);
+					pagefound = 1;
+					snprintf((char *)txbuf, sizeof(txbuf),
+						"HTTP/1.1 200 OK\r\n"
+						"Server: dmrshark v%u.%u.%u-a%u\r\n"
+						"Content-Type: audio/mpeg\r\n"
+						"Cache-Control: no-cache, no-store\r\n"
+						"Pragma: no-cache\r\n"
+						"Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n"
+						"Connection: close\r\n"
+						"\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
+					httpserver_sendtoclient(httpserver_client, txbuf, strlen((char *)txbuf));
+				}
 			}
 
 			if (!pagefound) {
@@ -157,10 +186,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 
 			while (httpserver_client->bytesinbuf > 0) {
-				datatosendsize = min(httpserver_client->bytesinbuf, HTTPSERVER_LWS_TXBUFFER_SIZE);
-				peerallowance = lws_get_peer_write_allowance(wsi);
-				if (peerallowance >= 0)
-					datatosendsize = min(datatosendsize, peerallowance);
+				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
 				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_HTTP);
 				if (bytes_sent < 0)
@@ -246,7 +272,6 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	uint8_t *txbuf = &txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING];
 	int bytes_sent;
 	uint16_t datatosendsize;
-	int peerallowance;
 	httpserver_client_t *httpserver_client = NULL;
 
 	if (context == NULL || wsi == NULL)
@@ -283,10 +308,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 				return -1;
 
 			while (httpserver_client->bytesinbuf > 0) {
-				datatosendsize = min(httpserver_client->bytesinbuf, HTTPSERVER_LWS_TXBUFFER_SIZE);
-				peerallowance = lws_get_peer_write_allowance(wsi);
-				if (peerallowance >= 0)
-					datatosendsize = min(datatosendsize, peerallowance);
+				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
 				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
 				if (bytes_sent < 0)
