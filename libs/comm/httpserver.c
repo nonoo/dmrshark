@@ -25,7 +25,7 @@
 
 #include <libwebsockets.h>
 
-#define HTTPSERVER_LWS_TXBUFFER_SIZE 32768
+#define HTTPSERVER_LWS_TXBUFFER_SIZE 65000
 
 static struct libwebsocket_context *httpserver_lws_context = NULL;
 
@@ -160,7 +160,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 					snprintf((char *)txbuf, sizeof(txbuf),
 						"HTTP/1.1 200 OK\r\n"
 						"Server: dmrshark v%u.%u.%u-a%u\r\n"
-						"icy-name: dmrshark %s\r\n"
+						"icy-name: dmrshark v%u.%u.%u-a%u - playing %s\r\n"
 						"ice-audio-info: ice-samplerate=8000;ice-channels=1\r\n"
 						"icy-description: dmrshark by ha2non - https://github.com/nonoo/dmrshark/\r\n"
 						"icy-genre: Speech\r\n"
@@ -168,12 +168,14 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 						"icy-pub: 1\r\n"
 						"icy-url: http://nonoo.hu/\r\n"
 						"Content-Type: audio/mpeg\r\n"
+						"Content-Length: -1\r\n"
 						"Accept-Ranges: bytes\r\n"
 						"Cache-Control: no-cache, no-store\r\n"
 						"Pragma: no-cache\r\n"
 						"Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n"
 						"Connection: close\r\n"
-						"\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID, tok);
+						"\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID,
+						VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID, tok);
 					httpserver_sendtoclient(httpserver_client, txbuf, strlen((char *)txbuf));
 				}
 			}
