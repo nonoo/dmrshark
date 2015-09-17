@@ -168,6 +168,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 						"icy-pub: 1\r\n"
 						"icy-url: http://nonoo.hu/\r\n"
 						"Content-Type: audio/mpeg\r\n"
+						"Accept-Ranges: bytes\r\n"
 						"Cache-Control: no-cache, no-store\r\n"
 						"Pragma: no-cache\r\n"
 						"Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n"
@@ -271,6 +272,21 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 	return 0;
 }
 
+static void httpserver_wesockets_parse_command_line(httpserver_client_t *httpserver_client, char *line, uint8_t *txbuf) {
+	char *wordtok = NULL;
+	char *wordtok_saveptr = NULL;
+
+	wordtok = strtok_r(line, " ", &wordtok_saveptr); // First word is the command.
+	if (strcmp("changestream", wordtok) == 0) {
+		wordtok = strtok_r(NULL, " ", &wordtok_saveptr);
+		httpserver_client->voicestream = voicestreams_get_stream_by_name(wordtok);
+		if (httpserver_client->voicestream != NULL)
+			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: stream changed to %s\n", httpserver_client->host, wordtok);
+		else
+			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s] error: stream %s not found\n", httpserver_client->host, wordtok);
+	}
+}
+
 // This function handles websocket voicestream callbacks.
 static int httpserver_websockets_voicestream_callback(struct libwebsocket_context *context, struct libwebsocket *wsi,
 	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
@@ -280,6 +296,8 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	int bytes_sent;
 	uint16_t datatosendsize;
 	httpserver_client_t *httpserver_client = NULL;
+	char *linetok = NULL;
+	char *linetok_saveptr = NULL;
 
 	if (context == NULL || wsi == NULL)
 		return -1;
@@ -308,6 +326,12 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			if (httpserver_client == NULL)
 				return -1;
 			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: rx: %s\n", httpserver_client->host, (char *)in);
+
+			linetok = strtok_r((char *)in, "\n", &linetok_saveptr);
+			while (linetok != NULL) {
+				httpserver_wesockets_parse_command_line(httpserver_client, linetok, txbuf);
+				linetok = strtok_r(NULL, "\n", &linetok_saveptr);
+			}
 			break;
 
 		case LWS_CALLBACK_SERVER_WRITEABLE: // One of the websocket clients got writable.
