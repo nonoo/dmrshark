@@ -230,7 +230,7 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 	voicestream->currently_streaming_repeater = NULL;
 
 	// Flushing out the buffer.
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 20; i++)
 		voicestreams_process_mp3(voicestream, &zero_frame);
 	voicestreams_process_mp3(voicestream, NULL);
 }
