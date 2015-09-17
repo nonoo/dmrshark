@@ -120,6 +120,12 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, fla
 		return 0;
 	}
 
+	if (ipscpacket_raw->calltype != DMR_CALL_TYPE_PRIVATE &&
+		ipscpacket_raw->calltype != DMR_CALL_TYPE_GROUP) {
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid call type (%.2x)\n", ipscpacket_raw->calltype);
+			return 0;
+	}
+
 	ipscpacket->slot_type = ipscpacket_raw->slot_type;
 	ipscpacket->call_type = ipscpacket_raw->calltype;
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;
