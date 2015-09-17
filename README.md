@@ -94,6 +94,7 @@ The file has the following configuration variables:
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
 - **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).
+- **ignoredtalkgroups**: Ignore these dst talk groups during IPSC packet processing (separated by commas).
 - **httpserverenabled**: Set this to 1 to enable built-in HTTP/Websockets server, which is needed for streaming.
 - **httpserverport**: Port to bind the HTTP/Websockets server.
 
