@@ -63,7 +63,9 @@ typedef struct voicestream_st {
 	lame_global_flags *mp3_flags;
 	// Raw bytes are stored here. These will get encoded to mp3 frames.
 	// Must be a multiple of VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT.
-	float mp3_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
+	// Note that browsers can't decode MP3 frames encoded from too small PCM chunks.
+	// That's why we multiply the default AMBE frame samples count.
+	float mp3_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25];
 	uint16_t mp3_buf_pos;
 #endif
 #endif
