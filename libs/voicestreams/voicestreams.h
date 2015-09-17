@@ -61,7 +61,9 @@ typedef struct voicestream_st {
 
 #ifdef MP3ENCODEVOICE
 	lame_global_flags *mp3_flags;
-	float mp3_buf[160];
+	// Raw bytes are stored here. These will get encoded to mp3 frames.
+	// Must be a multiple of VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT.
+	float mp3_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT];
 	uint16_t mp3_buf_pos;
 #endif
 #endif

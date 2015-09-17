@@ -40,6 +40,7 @@ voicestreams_mp3_frame_t *voicestreams_mp3_encode(voicestream_t *voicestream, vo
 	int res;
 
 	if (decoded_frame) {
+		// Putting the decoded frame to the mp3_buf.
 		if (voicestream->mp3_buf_pos < sizeof(voicestream->mp3_buf)/sizeof(voicestream->mp3_buf[0])) {
 			memcpy(voicestream->mp3_buf+voicestream->mp3_buf_pos, decoded_frame->samples, VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*sizeof(decoded_frame->samples[0]));
 			voicestream->mp3_buf_pos += VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT;
