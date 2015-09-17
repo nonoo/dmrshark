@@ -68,6 +68,7 @@ static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
 	tok = strtok(ignoredtgs, ",");
 	if (tok) {
 		do {
+			errno = 0;
 			ignoredtg = strtol(tok, &endptr, 10);
 			if (*endptr == 0 && errno == 0) {
 				if (ignoredtg == id) {

@@ -35,6 +35,7 @@ typedef struct httpserver_client_st {
 	voicestream_t *voicestream;
 	uint8_t buf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	uint16_t bytesinbuf;
+	flag_t close_on_buf_empty;
 
 	struct httpserver_client_st *next;
 	struct httpserver_client_st *prev;
@@ -95,10 +96,13 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
 {
 	struct libwebsocket_pollargs *pa = (struct libwebsocket_pollargs *)in;
-	uint8_t buf[256];
+	uint8_t txbuf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	const char *requrl = (const char *)in;
 	flag_t pagefound = 0;
 	httpserver_client_t *httpserver_client = NULL;
+	uint16_t datatosendsize;
+	int peerallowance;
+	int bytes_sent;
 
 	if (context == NULL || wsi == NULL)
 		return -1;
@@ -125,14 +129,16 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			}
 
 			if (strcmp(requrl, "/") == 0) {
-				console_log(LOGLEVEL_HTTPSERVER "(status page request)\n");
+				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(status page request)\n");
 				pagefound = 1;
 
 				// TODO: status page
-				snprintf((char *)buf, sizeof(buf),
+				snprintf((char *)txbuf, sizeof(txbuf),
 					"HTTP/1.0 200 OK\r\n"
 					"\r\n"
 					"Hello World!\r\n");
+				httpserver_client->close_on_buf_empty = 1;
+				httpserver_sendtoclient(httpserver_client, txbuf, strlen((char *)txbuf));
 			}
 
 			if (!pagefound) {
@@ -141,8 +147,39 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 			}
 
-			libwebsocket_write(wsi, buf, strlen((char *)buf), LWS_WRITE_HTTP);
-			return -1;
+			// Schedule a callback for async tx.
+			libwebsocket_callback_on_writable(context, wsi);
+			break;
+
+		case LWS_CALLBACK_HTTP_WRITEABLE: // One of the HTTP clients got writable.
+			httpserver_client = httpserver_get_client_by_wsi(wsi);
+			if (httpserver_client == NULL)
+				return -1;
+
+			while (httpserver_client->bytesinbuf > 0) {
+				datatosendsize = min(httpserver_client->bytesinbuf, HTTPSERVER_LWS_TXBUFFER_SIZE);
+				peerallowance = lws_get_peer_write_allowance(wsi);
+				if (peerallowance >= 0)
+					datatosendsize = min(datatosendsize, peerallowance);
+				memcpy(txbuf, httpserver_client->buf, datatosendsize);
+				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_HTTP);
+				if (bytes_sent < 0)
+					return -1;
+
+				// Shifting the buffer, so we can continue sending the data next time.
+				memmove(httpserver_client->buf, httpserver_client->buf+bytes_sent, sizeof(httpserver_client->buf)-bytes_sent);
+				httpserver_client->bytesinbuf -= bytes_sent;
+
+				if (lws_partial_buffered(wsi) || lws_send_pipe_choked(wsi))
+					break;
+			}
+
+			if (httpserver_client->bytesinbuf == 0 && httpserver_client->close_on_buf_empty)
+				return -1;
+
+			// Schedule a callback again for async tx.
+			libwebsocket_callback_on_writable(context, wsi);
+			break;
 
 		case LWS_CALLBACK_WSI_CREATE:
 			console_log(LOGLEVEL_HTTPSERVER "httpserver: adding new client\n");
@@ -207,7 +244,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 {
 	uint8_t txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING + HTTPSERVER_LWS_TXBUFFER_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 	uint8_t *txbuf = &txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING];
-	int res;
+	int bytes_sent;
 	uint16_t datatosendsize;
 	int peerallowance;
 	httpserver_client_t *httpserver_client = NULL;
@@ -251,13 +288,13 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 				if (peerallowance >= 0)
 					datatosendsize = min(datatosendsize, peerallowance);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
-				res = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
-				if (res < 0)
+				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
+				if (bytes_sent < 0)
 					return -1;
 
 				// Shifting the buffer, so we can continue sending the data next time.
-				memmove(httpserver_client->buf, httpserver_client->buf+res, sizeof(httpserver_client->buf)-res);
-				httpserver_client->bytesinbuf -= res;
+				memmove(httpserver_client->buf, httpserver_client->buf+bytes_sent, sizeof(httpserver_client->buf)-bytes_sent);
+				httpserver_client->bytesinbuf -= bytes_sent;
 
 				if (lws_partial_buffered(wsi) || lws_send_pipe_choked(wsi))
 					break;
