@@ -44,7 +44,7 @@ char *voicestreams_get_stream_filename(voicestream_t *voicestream, char *extensi
 	dir = voicestream->savefiledir;
 	if (dir == NULL || strlen(dir) == 0)
 		dir = ".";
-	snprintf(fn, sizeof(fn), "%s/%s-%.4u%.2u%.2u%s", dir, voicestream->name, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, extension);
+	snprintf(fn, sizeof(fn), "%s/dmrshark-%s-%.4u%.2u%.2u%s", dir, voicestream->name, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, extension);
 
 	return fn;
 }
