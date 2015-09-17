@@ -46,7 +46,9 @@ typedef char base_id_t[16]; // This have to fit into one EEPROM page (16 bytes b
 typedef uint8_t flag_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t sigexit		: 1;
+	uint8_t sigexit				: 1;
+	uint8_t sigterm_received	: 1;
+	uint8_t sigint_received		: 1;
 } base_flags_t;
 
 #endif

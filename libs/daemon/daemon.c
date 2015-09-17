@@ -67,7 +67,7 @@ static void daemon_sighandler(int signal) {
 				daemon_removepidfile();
 				exit(0);
 			}
-			console_log("daemon: SIGINT received\n");
+			base_flags.sigint_received = 1;
 			base_flags.sigexit = 1;
 			break;
 		case SIGTERM:
@@ -76,7 +76,7 @@ static void daemon_sighandler(int signal) {
 				daemon_removepidfile();
 				exit(0);
 			}
-			console_log("daemon: SIGTERM received\n");
+			base_flags.sigterm_received = 1;
 			base_flags.sigexit = 1;
 			break;
 	}
@@ -159,6 +159,15 @@ static flag_t daemon_isalreadyrunning(void) {
 }
 
 flag_t daemon_process(void) {
+	if (base_flags.sigint_received) {
+		base_flags.sigint_received = 0;
+		console_log("daemon: SIGINT received\n");
+	}
+	if (base_flags.sigterm_received) {
+		base_flags.sigterm_received = 0;
+		console_log("daemon: SIGTERM received\n");
+	}
+
 	daemon_poll_process();
 
 	if (daemon_is_consoleclient()) {
