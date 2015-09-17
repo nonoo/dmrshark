@@ -160,12 +160,19 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 					snprintf((char *)txbuf, sizeof(txbuf),
 						"HTTP/1.1 200 OK\r\n"
 						"Server: dmrshark v%u.%u.%u-a%u\r\n"
+						"icy-name: dmrshark %s\r\n"
+						"ice-audio-info: ice-samplerate=8000;ice-channels=1\r\n"
+						"icy-description: dmrshark by ha2non - https://github.com/nonoo/dmrshark/\r\n"
+						"icy-genre: Speech\r\n"
+						"icy-private: 0\r\n"
+						"icy-pub: 1\r\n"
+						"icy-url: http://nonoo.hu/\r\n"
 						"Content-Type: audio/mpeg\r\n"
 						"Cache-Control: no-cache, no-store\r\n"
 						"Pragma: no-cache\r\n"
 						"Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n"
 						"Connection: close\r\n"
-						"\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID);
+						"\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, APPID, tok);
 					httpserver_sendtoclient(httpserver_client, txbuf, strlen((char *)txbuf));
 				}
 			}
