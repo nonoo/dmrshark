@@ -28,6 +28,8 @@
 #include <string.h>
 #include <pthread.h>
 
+#define CONFIG_MAIN_SECTION_NAME "main"
+
 static pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
 static GKeyFile *keyfile = NULL;
 static GKeyFileFlags flags;
@@ -90,7 +92,7 @@ void config_writeconfigfile(void) {
 
 void config_set_loglevel(loglevel_t *loglevel) {
 	pthread_mutex_lock(&config_mutex);
-	g_key_file_set_integer(keyfile, "main", "loglevel", loglevel->raw);
+	g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, "loglevel", loglevel->raw);
 	pthread_mutex_unlock(&config_mutex);
 	config_writeconfigfile();
 }
@@ -103,10 +105,10 @@ int config_get_loglevel(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 0;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -120,11 +122,11 @@ char *config_get_logfilename(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = APPNAME ".log";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -138,11 +140,11 @@ char *config_get_pidfilename(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = APPNAME ".pid";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -156,11 +158,11 @@ char *config_get_daemonctlfile(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "/tmp/" APPNAME ".ctl";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -174,11 +176,11 @@ char *config_get_ttyconsoledev(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "/dev/ttyUSB0";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -192,10 +194,10 @@ flag_t config_get_ttyconsoleenabled(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 0;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return (value != 0 ? 1 : 0);
@@ -209,10 +211,10 @@ int config_get_ttyconsolebaudrate(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 115200;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -226,11 +228,11 @@ char *config_get_netdevicename(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "any";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -244,10 +246,10 @@ int config_get_repeaterinfoupdateinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 300;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -261,10 +263,10 @@ int config_get_repeaterinactivetimeoutinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 30;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -278,10 +280,10 @@ int config_get_rssiupdateduringcallinmsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 500;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -295,10 +297,10 @@ int config_get_calltimeoutinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -312,10 +314,10 @@ int config_get_datatimeoutinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 3;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -329,11 +331,11 @@ char *config_get_ignoredsnmprepeaterhosts(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -347,11 +349,29 @@ char *config_get_ignoredhosts(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+char *config_get_ignoredtalkgroups(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "ignoredtalkgroups";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "1,2,20";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -365,11 +385,11 @@ char *config_get_remotedbhost(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -383,11 +403,11 @@ char *config_get_remotedbuser(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = APPNAME;
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -401,11 +421,11 @@ char *config_get_remotedbpass(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = "";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -419,11 +439,11 @@ char *config_get_remotedbname(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = APPNAME;
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -437,11 +457,11 @@ char *config_get_remotedbtableprefix(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = APPNAME "-";
-	value = g_key_file_get_string(keyfile, "main", key, &error);
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
 		if (value)
-			g_key_file_set_string(keyfile, "main", key, value);
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -455,10 +475,10 @@ int config_get_remotedbreconnecttrytimeoutinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 5;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -472,10 +492,10 @@ int config_get_remotedbmaintenanceperiodinsec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 60;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -490,10 +510,10 @@ int config_get_remotedbdeleteolderthansec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 86400;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -507,10 +527,10 @@ int config_get_updatestatstableenabled(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -524,10 +544,10 @@ int config_get_httpserverenabled(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 1;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -541,10 +561,10 @@ int config_get_httpserverport(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 8080;
-	value = g_key_file_get_integer(keyfile, "main", key, &error);
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
-		g_key_file_set_integer(keyfile, "main", key, value);
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
 	}
 	pthread_mutex_unlock(&config_mutex);
 	return value;
@@ -606,6 +626,8 @@ void config_init(char *configfilename) {
 	temp = config_get_ignoredsnmprepeaterhosts();
 	free(temp);
 	temp = config_get_ignoredhosts();
+	free(temp);
+	temp = config_get_ignoredtalkgroups();
 	free(temp);
 	temp = config_get_remotedbhost();
 	free(temp);

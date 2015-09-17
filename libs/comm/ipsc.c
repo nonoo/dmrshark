@@ -35,6 +35,9 @@ static flag_t ipsc_isignoredip(struct in_addr *ipaddr) {
 	char *tok = NULL;
 	struct in_addr ignoredaddr;
 
+	if (ignoredhosts == NULL)
+		return 0;
+
 	tok = strtok(ignoredhosts, ",");
 	if (tok) {
 		do {
@@ -53,11 +56,72 @@ static flag_t ipsc_isignoredip(struct in_addr *ipaddr) {
 	return 0;
 }
 
+static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
+	char *ignoredtgs = config_get_ignoredtalkgroups();
+	char *tok = NULL;
+	int ignoredtg;
+	char *endptr;
+
+	if (ignoredtgs == NULL)
+		return 0;
+
+	tok = strtok(ignoredtgs, ",");
+	if (tok) {
+		do {
+			ignoredtg = strtol(tok, &endptr, 10);
+			if (*endptr == 0 && errno == 0) {
+				if (ignoredtg == id) {
+					free(ignoredtgs);
+					return 1;
+				}
+			} else
+				console_log(LOGLEVEL_DEBUG "ipsc: invalid ignored talk group %s\n", tok);
+
+			tok = strtok(NULL, ",");
+		} while (tok != NULL);
+	}
+	free(ignoredtgs);
+	return 0;
+}
+
+static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
+	flag_t talkgroup_ignored = 0;
+	repeater_t *repeater = NULL;
+
+	// The packet is for us?
+	if (comm_is_our_ipaddr(&ip_packet->ip_dst))
+		repeater = repeaters_add(&ip_packet->ip_src);
+
+	// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
+	// host of the DMR master, and IP packets are just routed through.
+	if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL) {
+		if (ipscpacket->call_type == DMR_CALL_TYPE_GROUP && ipsc_isignoredtalkgroup(ipscpacket->dst_id))
+			talkgroup_ignored = 1;
+
+		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
+			repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
+			ipscpacket->timeslot,
+			ipscpacket_get_readable_slot_type(ipscpacket->slot_type), ipscpacket->slot_type,
+			dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->call_type,
+			ipscpacket->dst_id,
+			ipscpacket->src_id);
+		if (talkgroup_ignored)
+			console_log(LOGLEVEL_IPSC " (talkgroup ignored)\n");
+		else {
+			console_log(LOGLEVEL_IPSC "\n");
+			ipsc_handle(ip_packet, ipscpacket, repeater);
+		}
+	}
+
+	voicestreams_processpacket(ipscpacket, repeater);
+}
+
 void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	uint8_t *packet = (uint8_t *)ip_packet;
 	struct udphdr *udp_packet = NULL;
 	int ip_header_length = 0;
-	ipscpacket_t ipsc_packet = {0,};
+	ipscpacket_t ipscpacket = {0,};
 	repeater_t *repeater = NULL;
 	flag_t packet_from_us = 0;
 
@@ -91,28 +155,8 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		return;
 	}
 
-	if (ipscpacket_decode(udp_packet, &ipsc_packet, packet_from_us)) {
-		// The packet is for us?
-		if (comm_is_our_ipaddr(&ip_packet->ip_dst))
-			repeater = repeaters_add(&ip_packet->ip_src);
-
-		// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
-		// host of the DMR master, and IP packets are just routed through.
-		if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL) {
-			console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-			console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u\n",
-				repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
-				ipsc_packet.timeslot,
-				ipscpacket_get_readable_slot_type(ipsc_packet.slot_type), ipsc_packet.slot_type,
-				dmr_get_readable_call_type(ipsc_packet.call_type), ipsc_packet.call_type,
-				ipsc_packet.dst_id,
-				ipsc_packet.src_id);
-
-			ipsc_handle(ip_packet, &ipsc_packet, repeater);
-		}
-
-		voicestreams_processpacket(&ipsc_packet, repeater);
-	}
+	if (ipscpacket_decode(udp_packet, &ipscpacket, packet_from_us))
+		ipsc_examinepacket(ip_packet, &ipscpacket, packet_from_us);
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst)) {
