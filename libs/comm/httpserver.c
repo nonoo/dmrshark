@@ -31,6 +31,7 @@ static struct libwebsocket_context *httpserver_lws_context = NULL;
 
 typedef struct httpserver_client_st {
 	struct libwebsocket *wsi;
+	struct libwebsocket_context *context;
 	char host[100];
 	flag_t is_on_websockets;
 	voicestream_t *voicestream;
@@ -73,6 +74,7 @@ static uint16_t httpserver_sendtoclient(httpserver_client_t *client, uint8_t *bu
 	if (bytestowritetobuf) {
 		memcpy(client->buf+client->bytesinbuf, buf, bytestowritetobuf);
 		client->bytesinbuf += bytestowritetobuf;
+		libwebsocket_callback_on_writable(client->context, client->wsi);
 	}
 	return bytestowritetobuf;
 }
@@ -186,9 +188,6 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_NOT_FOUND, NULL);
 				return -1;
 			}
-
-			// Schedule a callback for async tx.
-			libwebsocket_callback_on_writable(context, wsi);
 			break;
 
 		case LWS_CALLBACK_HTTP_WRITEABLE: // One of the HTTP clients got writable.
@@ -216,7 +215,8 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 
 			// Schedule a callback again for async tx.
-			libwebsocket_callback_on_writable(context, wsi);
+			if (httpserver_client->bytesinbuf > 0)
+				libwebsocket_callback_on_writable(context, wsi);
 			break;
 
 		case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED:
@@ -228,6 +228,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				return -1;
 			}
 			strncpy(httpserver_client->host, clienthost, sizeof(httpserver_client->host));
+			httpserver_client->context = context;
 			httpserver_client->wsi = wsi;
 			if (httpserver_clients == NULL)
 				httpserver_clients = httpserver_client;
@@ -315,9 +316,6 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			httpserver_client->is_on_websockets = 1;
 			strncpy(httpserver_client->host, httpserver_get_client_host_or_ip(context, wsi), sizeof(httpserver_client->host));
 			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client connected\n", httpserver_client->host);
-
-			// Schedule a callback for async tx.
-			libwebsocket_callback_on_writable(context, wsi);
 			break;
 
 		case LWS_CALLBACK_CLOSED:
@@ -361,7 +359,8 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			}
 
 			// Schedule a callback again for async tx.
-			libwebsocket_callback_on_writable(context, wsi);
+			if (httpserver_client->bytesinbuf > 0)
+				libwebsocket_callback_on_writable(context, wsi);
 			break;
 
 		default:
