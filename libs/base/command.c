@@ -29,6 +29,7 @@
 #include <libs/remotedb/remotedb.h>
 #include <libs/comm/comm.h>
 #include <libs/voicestreams/voicestreams.h>
+#include <libs/comm/httpserver.h>
 
 #include <string.h>
 #include <errno.h>
@@ -54,6 +55,7 @@ void command_process(char *input_buffer) {
 		console_log("  remotedbmaintain                - start db maintenance\n");
 		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
 		console_log("  loadpcap [pcapfile]             - reads and processes packets from pcap file\n");
+		console_log("  httplist                        - list http clients\n");
 		return;
 	}
 
@@ -157,6 +159,11 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		comm_pcapfile_open(tok);
+		return;
+	}
+
+	if (strcmp(tok, "httplist") == 0) {
+		httpserver_print_client_list();
 		return;
 	}
 

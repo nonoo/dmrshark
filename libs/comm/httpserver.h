@@ -24,6 +24,8 @@
 
 void httpserver_sendtoclients(voicestream_t *voicestream, uint8_t *buf, uint16_t bytestosend);
 
+void httpserver_print_client_list(void);
+
 void httpserver_process(void);
 
 void httpserver_init(void);

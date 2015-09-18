@@ -32,6 +32,7 @@ static struct libwebsocket_context *httpserver_lws_context = NULL;
 typedef struct httpserver_client_st {
 	struct libwebsocket *wsi;
 	char host[100];
+	flag_t is_on_websockets;
 	voicestream_t *voicestream;
 	uint8_t buf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	uint16_t bytesinbuf;
@@ -199,6 +200,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
 				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_HTTP);
+				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: sent %u bytes\n", httpserver_client->host, bytes_sent);
 				if (bytes_sent < 0)
 					return -1;
 
@@ -309,6 +311,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			httpserver_client = httpserver_get_client_by_wsi(wsi);
 			if (httpserver_client == NULL)
 				return -1;
+			httpserver_client->is_on_websockets = 1;
 			strncpy(httpserver_client->host, httpserver_get_client_host_or_ip(context, wsi), sizeof(httpserver_client->host));
 			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: websocket client connected\n", httpserver_client->host);
 
@@ -373,7 +376,7 @@ static struct libwebsocket_protocols lwsprotocols[] = {
 		"http-only",							// Name
 		httpserver_http_callback,				// Callback
 		0,										// Per session data size
-		128,									// RX buffer size // TODO
+		128,									// RX buffer size
 		0										// No buffer, all partial tx
 	},
 	{
@@ -409,6 +412,33 @@ static void httpserver_websockets_log(int level, const char *line) {
 		console_log(LOGLEVEL_HTTPSERVER "httpserver websockets: %s", line);
 }
 
+void httpserver_print_client_list(void) {
+	httpserver_client_t *client = httpserver_clients;
+	uint16_t i = 1;
+	char *streamname;
+
+	if (!config_get_httpserverenabled()) {
+		console_log("httpserver: not enabled\n");
+		return;
+	}
+
+	if (client == NULL) {
+		console_log("no clients connected\n");
+		return;
+	}
+
+	while (client) {
+		if (client->voicestream == NULL)
+			streamname = "n/a";
+		else
+			streamname = client->voicestream->name;
+
+		console_log("  #%u websockets: %u stream: %s host: %s\n", i++, client->is_on_websockets, streamname, client->host);
+
+		client = client->next;
+	}
+}
+
 void httpserver_process(void) {
 	int i;
 	int pfdcount;
@@ -441,8 +471,8 @@ void httpserver_init(void) {
 	lwsinfo.protocols = lwsprotocols;
 	lwsinfo.gid = lwsinfo.uid = -1;
 
-//	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO, httpserver_websockets_log);
-	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE, httpserver_websockets_log);
+	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO, httpserver_websockets_log);
+//	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE, httpserver_websockets_log);
 
 	httpserver_lws_context = libwebsocket_create_context(&lwsinfo);
 	if (httpserver_lws_context == NULL) {
