@@ -39,6 +39,9 @@ voicestreams_mp3_frame_t *voicestreams_mp3_encode(voicestream_t *voicestream, vo
 	static voicestreams_mp3_frame_t mp3frame;
 	int res;
 
+	if (voicestream->mp3_flags == NULL || voicestream == NULL)
+		return NULL;
+
 	if (decoded_frame) {
 		// Putting the decoded frame to the mp3_buf.
 		if (voicestream->mp3_buf_pos < sizeof(voicestream->mp3_buf)/sizeof(voicestream->mp3_buf[0])) {
@@ -64,7 +67,7 @@ voicestreams_mp3_frame_t *voicestreams_mp3_encode(voicestream_t *voicestream, vo
 void voicestreams_mp3_encode_flush(voicestream_t *voicestream, voicestreams_mp3_frame_t *mp3frame) {
 	int res;
 
-	if (mp3frame == NULL)
+	if (mp3frame == NULL || voicestream->mp3_flags == NULL)
 		return;
 
 	res = lame_encode_flush(voicestream->mp3_flags, mp3frame->bytes, mp3frame->bytes_size);
