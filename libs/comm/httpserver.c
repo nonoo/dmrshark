@@ -116,6 +116,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 	uint16_t datatosendsize;
 	int bytes_sent;
 	char *tok;
+	char *clienthost;
 
 	if (context == NULL || wsi == NULL)
 		return -1;
@@ -130,7 +131,6 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			httpserver_client = httpserver_get_client_by_wsi(wsi);
 			if (httpserver_client == NULL)
 				return -1;
-			strncpy(httpserver_client->host, httpserver_get_client_host_or_ip(context, wsi), sizeof(httpserver_client->host));
 
 			console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: got request: %s ", httpserver_client->host, requrl);
 
@@ -219,14 +219,15 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			libwebsocket_callback_on_writable(context, wsi);
 			break;
 
-		case LWS_CALLBACK_WSI_CREATE:
-			console_log(LOGLEVEL_HTTPSERVER "httpserver: adding new client\n");
+		case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED:
+			clienthost = httpserver_get_client_host_or_ip(context, wsi);
+			console_log(LOGLEVEL_HTTPSERVER "httpserver [%s]: adding new client\n", clienthost);
 			httpserver_client = (httpserver_client_t *)calloc(1, sizeof(httpserver_client_t));
 			if (!httpserver_client) {
 				console_log("  error: can't allocate memory for the new client\n");
 				return -1;
 			}
-			strncpy(httpserver_client->host, "n/a", sizeof(httpserver_client->host));
+			strncpy(httpserver_client->host, clienthost, sizeof(httpserver_client->host));
 			httpserver_client->wsi = wsi;
 			if (httpserver_clients == NULL)
 				httpserver_clients = httpserver_client;
