@@ -173,7 +173,6 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 						"icy-pub: 1\r\n"
 						"icy-url: http://nonoo.hu/\r\n"
 						"Content-Type: audio/mpeg\r\n"
-						"Content-Length: -1\r\n"
 						"Accept-Ranges: bytes\r\n"
 						"Cache-Control: no-cache, no-store\r\n"
 						"Pragma: no-cache\r\n"
