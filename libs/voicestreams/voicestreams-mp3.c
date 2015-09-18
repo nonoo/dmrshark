@@ -70,11 +70,12 @@ void voicestreams_mp3_encode_flush(voicestream_t *voicestream, voicestreams_mp3_
 	if (mp3frame == NULL || voicestream->mp3_flags == NULL)
 		return;
 
-	res = lame_encode_flush(voicestream->mp3_flags, mp3frame->bytes, mp3frame->bytes_size);
+	res = lame_encode_flush_nogap(voicestream->mp3_flags, mp3frame->bytes, mp3frame->bytes_size);
 	if (res < 0) {
 		voicestreams_mp3_handleerror(res);
 		return;
 	}
+	mp3frame->bytes_size = res;
 	lame_mp3_tags_fid(voicestream->mp3_flags, NULL);
 }
 
@@ -91,8 +92,12 @@ static void voicestreams_mp3_lamelog_err(const char *format, va_list ap) {
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams-mp3 error: lame says: ");
 	console_log_va_list(LOGLEVEL_VOICESTREAMS, format, ap);
 }
-
+#include <stdlib.h>
 void voicestreams_mp3_init(voicestream_t *voicestream) {
+	int res;
+	float silent_frame_data[1280] = {0,};
+	uint8_t silent_mp3_data[VOICESTREAMS_MP3_FRAME_BUFFER_SIZE];
+
 	voicestream->mp3_buf_pos = 0;
 
 	voicestream->mp3_flags = lame_init();
@@ -119,8 +124,22 @@ void voicestreams_mp3_init(voicestream_t *voicestream) {
 		lame_close(voicestream->mp3_flags);
 		voicestream->mp3_flags = NULL;
 		console_log("    error: failed to initialize libmp3lame\n");
-	} else
+	} else {
+		// Generating a silent frame which is used in plain HTTP streaming.
+		res = lame_encode_buffer_ieee_float(voicestream->mp3_flags, silent_frame_data, silent_frame_data, sizeof(silent_frame_data)/sizeof(silent_frame_data[0]), silent_mp3_data, sizeof(silent_mp3_data));
+		if (res < 0) {
+			console_log("voicestreams-mp3 warning: couldn't generate silent mp3 frame for http streaming\n");
+			voicestream->silent_mp3_frame.bytes_size = 0;
+			voicestreams_mp3_handleerror(res);
+		} else {
+			voicestream->silent_mp3_frame.bytes_size = res;
+			memcpy(voicestream->silent_mp3_frame.bytes, silent_mp3_data, res);
+			res = lame_encode_flush_nogap(voicestream->mp3_flags, silent_mp3_data, res);
+			memcpy(voicestream->silent_mp3_frame.bytes+voicestream->silent_mp3_frame.bytes_size, silent_mp3_data, res);
+			voicestream->silent_mp3_frame.bytes_size += res;
+		}
 		console_log("    initialized libmp3lame encoder\n");
+	}
 }
 
 void voicestreams_mp3_deinit(voicestream_t *voicestream) {

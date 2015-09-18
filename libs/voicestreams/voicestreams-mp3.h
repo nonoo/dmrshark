@@ -18,12 +18,8 @@
 #ifndef VOICESTREAMS_MP3_H_
 #define VOICESTREAMS_MP3_H_
 
+#include "voicestreams.h"
 #include "voicestreams-decode.h"
-
-typedef struct {
-	uint8_t bytes[17200]; // 8000 samples per sec., 1.25*8000 + 7200
-	uint16_t bytes_size;
-} voicestreams_mp3_frame_t;
 
 voicestreams_mp3_frame_t *voicestreams_mp3_encode(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame);
 void voicestreams_mp3_encode_flush(voicestream_t *voicestream, voicestreams_mp3_frame_t *mp3frame);

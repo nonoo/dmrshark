@@ -212,6 +212,7 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	voicestream->rms_vol = voicestream->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	voicestream->rms_vol_buf_pos = 0;
 	voicestreams_mp3_resetbuf(voicestream);
+	voicestream->streaming_active_call = 1;
 
 	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
 }
@@ -233,6 +234,8 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 	for (i = 0; i < 20; i++)
 		voicestreams_process_mp3(voicestream, &zero_frame);
 	voicestreams_process_mp3(voicestream, NULL);
+
+	voicestream->streaming_active_call = 0;
 }
 
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {

@@ -22,6 +22,7 @@
 #include <libs/config/config.h>
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
+#include <libs/voicestreams/voicestreams-mp3.h>
 
 #include <libwebsockets.h>
 
@@ -38,6 +39,7 @@ typedef struct httpserver_client_st {
 	uint8_t buf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	uint16_t bytesinbuf;
 	flag_t close_on_buf_empty;
+	struct timeval last_silent_frame_sent_time;
 
 	struct httpserver_client_st *next;
 	struct httpserver_client_st *prev;
@@ -440,12 +442,29 @@ void httpserver_print_client_list(void) {
 }
 
 void httpserver_process(void) {
+	httpserver_client_t *client = httpserver_clients;
+	struct timeval currtime = {0,};
+	struct timeval difftime = {0,};
 	int i;
 	int pfdcount;
 	struct pollfd *pfd;
 
 	if (!config_get_httpserverenabled() || httpserver_lws_context == NULL)
 		return;
+
+	// Sending silent MP3 frames to idle HTTP clients.
+	while (client) {
+		if (!client->is_on_websockets && client->voicestream != NULL && client->voicestream->silent_mp3_frame.bytes_size > 0 && !client->voicestream->streaming_active_call) {
+			gettimeofday(&currtime, NULL);
+			timersub(&currtime, &client->last_silent_frame_sent_time, &difftime);
+			if (difftime.tv_sec*1000+difftime.tv_usec/1000 > 100) { // Sending a frame every x ms.
+				i = httpserver_sendtoclient(client, client->voicestream->silent_mp3_frame.bytes, client->voicestream->silent_mp3_frame.bytes_size);
+				gettimeofday(&client->last_silent_frame_sent_time, NULL);
+			}
+			daemon_poll_setmaxtimeout(100);
+		}
+		client = client->next;
+	}
 
 	pfdcount = daemon_poll_getpfdcount();
 	pfd = daemon_poll_getpfd();
@@ -471,8 +490,8 @@ void httpserver_init(void) {
 	lwsinfo.protocols = lwsprotocols;
 	lwsinfo.gid = lwsinfo.uid = -1;
 
-	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO, httpserver_websockets_log);
-//	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE, httpserver_websockets_log);
+//	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO, httpserver_websockets_log);
+	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE, httpserver_websockets_log);
 
 	httpserver_lws_context = libwebsocket_create_context(&lwsinfo);
 	if (httpserver_lws_context == NULL) {

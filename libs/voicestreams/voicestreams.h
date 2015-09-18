@@ -31,9 +31,19 @@
 #define VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT	160
 #define VOICESTREAMS_INVALID_RMS_VALUE					127
 
+#ifdef MP3ENCODEVOICE
+ // 8000 samples per sec., 1.25*8000 + 7200
+#define VOICESTREAMS_MP3_FRAME_BUFFER_SIZE				17200
+typedef struct {
+	uint8_t bytes[VOICESTREAMS_MP3_FRAME_BUFFER_SIZE];
+	uint16_t bytes_size;
+} voicestreams_mp3_frame_t;
+#endif
+
 typedef struct voicestream_st {
 	char *name;
-	flag_t enabled;
+	flag_t enabled; // TODO
+	flag_t streaming_active_call;
 	char *repeaterhosts;
 	char *savefiledir;
 	flag_t savetorawfile;
@@ -61,6 +71,7 @@ typedef struct voicestream_st {
 
 #ifdef MP3ENCODEVOICE
 	lame_global_flags *mp3_flags;
+	voicestreams_mp3_frame_t silent_mp3_frame;
 	// Raw bytes are stored here. These will get encoded to mp3 frames.
 	// Must be a multiple of VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT.
 	// Note that browsers can't decode MP3 frames encoded from too small PCM chunks.
