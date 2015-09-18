@@ -95,7 +95,7 @@ static void voicestreams_mp3_lamelog_err(const char *format, va_list ap) {
 #include <stdlib.h>
 void voicestreams_mp3_init(voicestream_t *voicestream) {
 	int res;
-	float silent_frame_data[1280] = {0,};
+	float silent_frame_data[VOICESTREAMS_MP3_SILENT_FRAME_SAMPLES_NUM] = {0,};
 	uint8_t silent_mp3_data[VOICESTREAMS_MP3_FRAME_BUFFER_SIZE];
 
 	voicestream->mp3_buf_pos = 0;
@@ -125,10 +125,12 @@ void voicestreams_mp3_init(voicestream_t *voicestream) {
 		voicestream->mp3_flags = NULL;
 		console_log("    error: failed to initialize libmp3lame\n");
 	} else {
+		console_log("    initialized libmp3lame encoder\n");
+
 		// Generating a silent frame which is used in plain HTTP streaming.
 		res = lame_encode_buffer_ieee_float(voicestream->mp3_flags, silent_frame_data, silent_frame_data, sizeof(silent_frame_data)/sizeof(silent_frame_data[0]), silent_mp3_data, sizeof(silent_mp3_data));
 		if (res < 0) {
-			console_log("voicestreams-mp3 warning: couldn't generate silent mp3 frame for http streaming\n");
+			console_log("    warning: couldn't generate silent mp3 frame for http streaming\n");
 			voicestream->silent_mp3_frame.bytes_size = 0;
 			voicestreams_mp3_handleerror(res);
 		} else {
@@ -137,8 +139,8 @@ void voicestreams_mp3_init(voicestream_t *voicestream) {
 			res = lame_encode_flush_nogap(voicestream->mp3_flags, silent_mp3_data, res);
 			memcpy(voicestream->silent_mp3_frame.bytes+voicestream->silent_mp3_frame.bytes_size, silent_mp3_data, res);
 			voicestream->silent_mp3_frame.bytes_size += res;
+			console_log("    generated %u silent mp3 frame bytes from %u samples\n", voicestream->silent_mp3_frame.bytes_size, sizeof(silent_frame_data)/sizeof(silent_frame_data[0]));
 		}
-		console_log("    initialized libmp3lame encoder\n");
 	}
 }
 

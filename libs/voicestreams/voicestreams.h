@@ -34,6 +34,10 @@
 #ifdef MP3ENCODEVOICE
  // 8000 samples per sec., 1.25*8000 + 7200
 #define VOICESTREAMS_MP3_FRAME_BUFFER_SIZE				17200
+// We have to choose a value here which the MP3 encoder can encode. If the number
+// of frames are too small, the MP3 encoder won't be able to encode them.
+#define VOICESTREAMS_MP3_SILENT_FRAME_SAMPLES_NUM		1280
+#define VOICESTREAMS_MP3_SILENT_FRAME_LENGTH_IN_MS		(uint16_t)((VOICESTREAMS_MP3_SILENT_FRAME_SAMPLES_NUM/8000.0)*1000.0)
 typedef struct {
 	uint8_t bytes[VOICESTREAMS_MP3_FRAME_BUFFER_SIZE];
 	uint16_t bytes_size;
