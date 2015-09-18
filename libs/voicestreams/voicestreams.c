@@ -167,7 +167,9 @@ void voicestreams_init(void) {
 		new_vs->timeslot = config_voicestreams_get_timeslot(new_vs->name);
 		new_vs->decodequality = config_voicestreams_get_decodequality(new_vs->name);
 		new_vs->playrawfileatcallstart = config_voicestreams_get_playrawfileatcallstart(new_vs->name);
+		new_vs->rawfileatcallstartgain = config_voicestreams_get_rawfileatcallstartgain(new_vs->name);
 		new_vs->playrawfileatcallend = config_voicestreams_get_playrawfileatcallend(new_vs->name);
+		new_vs->rawfileatcallendgain = config_voicestreams_get_rawfileatcallendgain(new_vs->name);
 		new_vs->rmsminsamplevalue = config_voicestreams_get_rmsminsamplevalue(new_vs->name);
 
 		new_vs->rms_vol = new_vs->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;

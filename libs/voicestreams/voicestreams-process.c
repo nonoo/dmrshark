@@ -122,22 +122,11 @@ static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decode
 	}
 }
 
-static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 #ifdef MP3ENCODEVOICE
+static void voicestreams_savetomp3(voicestream_t *voicestream, voicestreams_mp3_frame_t *mp3frame) {
 	FILE *f;
 	char *fn;
 	size_t saved_items;
-	voicestreams_mp3_frame_t *mp3frame;
-
-	if (voicestream == NULL) // Calling the function with decoded_frame == NULL is allowed.
-		return;
-
-	// It's safe to call this function with decoded_frame == NULL.
-	mp3frame = voicestreams_mp3_encode(voicestream, decoded_frame);
-	if (mp3frame == NULL)
-		return;
-	if (decoded_frame == NULL)
-		voicestreams_mp3_encode_flush(voicestream, mp3frame); // This closes the call's mp3 segment.
 
 	if (voicestream->savedecodedtomp3file) {
 		fn = voicestreams_get_stream_filename(voicestream, ".mp3");
@@ -150,14 +139,37 @@ static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_de
 		fclose(f);
 		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: saved %u mp3 frame bytes to %s\n", voicestream->name, saved_items, fn);
 	}
+}
+#endif
 
+static void voicestreams_process_mp3(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
+#ifdef MP3ENCODEVOICE
+	voicestreams_mp3_frame_t *mp3frame;
+
+	if (voicestream == NULL) // Calling the function with decoded_frame == NULL is allowed.
+		return;
+
+	// It's safe to call this function with decoded_frame == NULL.
+	// In that case the MP3 buffer gets emptied.
+	mp3frame = voicestreams_mp3_encode(voicestream, decoded_frame);
+	if (mp3frame == NULL)
+		return;
+
+	voicestreams_savetomp3(voicestream, mp3frame);
 	httpserver_sendtoclients(voicestream, mp3frame->bytes, mp3frame->bytes_size);
+
+	if (decoded_frame == NULL) {
+		voicestreams_mp3_encode_flush(voicestream, mp3frame); // This closes the call's mp3 segment.
+		voicestreams_savetomp3(voicestream, mp3frame);
+		httpserver_sendtoclients(voicestream, mp3frame->bytes, mp3frame->bytes_size);
+	}
 #endif
 }
 
-static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepath) {
+static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepath, float gain) {
 	FILE *f;
 	voicestreams_decoded_frame_t frame;
+	uint8_t i;
 
 	if (voicestream == NULL || filepath == NULL || filepath[0] == 0)
 		return;
@@ -170,8 +182,11 @@ static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepat
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: playing raw file %s\n", voicestream->name, filepath);
 	while (!feof(f)) {
 		memset(frame.samples, 0, sizeof(frame.samples));
-		if (fread(frame.samples, 1, sizeof(frame.samples), f) > 0)
+		if (fread(frame.samples, 1, sizeof(frame.samples), f) > 0) {
+			for (i = 0; i < sizeof(frame.samples)/sizeof(frame.samples[0]); i++)
+				frame.samples[i] *= gain;
 			voicestreams_process_mp3(voicestream, &frame);
+		}
 	}
 	fclose(f);
 }
@@ -214,7 +229,7 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	voicestreams_mp3_resetbuf(voicestream);
 	voicestream->streaming_active_call = 1;
 
-	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart);
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart, voicestream->rawfileatcallstartgain);
 }
 
 void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repeater) {
@@ -225,7 +240,7 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 		return;
 
 	voicestreams_process_rms_vol_calc(voicestream);
-	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallend);
+	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallend, voicestream->rawfileatcallendgain);
 
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call end on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 	voicestream->currently_streaming_repeater = NULL;

@@ -60,7 +60,9 @@ typedef struct voicestream_st {
 	flag_t timeslot;
 	uint8_t decodequality;
 	char *playrawfileatcallstart;
+	float rawfileatcallstartgain;
 	char *playrawfileatcallend;
+	float rawfileatcallendgain;
 	float rmsminsamplevalue;
 
 	float rms_vol_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25]; // 0.5 sec. buffer

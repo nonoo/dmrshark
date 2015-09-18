@@ -119,7 +119,9 @@ mp3vbr=0
 timeslot=1
 decodequality=3
 playrawfileatcallstart=call-start.raw
+rawfileatcallstartgain=0.1
 playrawfileatcallend=call-end.raw
+rawfileatcallendgain=0.1
 
 [stream-hg5ruc-ts2]
 enabled=1
@@ -143,7 +145,9 @@ Voice stream configure variables:
 - **mp3vbr**: Set this to 1 to enable VBR encoding mode.
 - **decodequality**: Quality of AMBE2+ decoding, valid values are between 1 and 64, 1 is the worst and 64 is the best quality. Default value is 3. Note that increasing decoding quality increases used CPU time.
 - **playrawfileatcallstart**: Plays this raw wave file at the start of a call. Sample format is 8kHz IEEE 32bit float.
+- **rawfileatcallstartgain**: This gain (0.0-1.0) will be applied for the file to play at call start.
 - **playrawfileatcallend**: Plays this raw wave file at the end of a call. Sample format is 8kHz IEEE 32bit float.
+- **rawfileatcallendgain**: This gain (0.0-1.0) will be applied for the file to play at call end.
 - **rmsminsamplevalue**: Minimum float value of the decoded voice stream to calculate RMS for. This is used for ignoring silence during RMS calculation.
 
 ## Running

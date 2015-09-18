@@ -36,7 +36,9 @@ int config_voicestreams_get_mp3vbr(char *streamname);
 int config_voicestreams_get_timeslot(char *streamname);
 int config_voicestreams_get_decodequality(char *streamname);
 char *config_voicestreams_get_playrawfileatcallstart(char *streamname);
+double config_voicestreams_get_rawfileatcallstartgain(char *streamname);
 char *config_voicestreams_get_playrawfileatcallend(char *streamname);
+double config_voicestreams_get_rawfileatcallendgain(char *streamname);
 double config_voicestreams_get_rmsminsamplevalue(char *streamname);
 
 void config_voicestreams_init(void);
