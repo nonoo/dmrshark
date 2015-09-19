@@ -350,7 +350,7 @@ char *config_voicestreams_get_playrawfileatcallend(char *streamname) {
 		return NULL;
 
 	pthread_mutex_lock(config_get_mutex());
-	defaultvalue = "call-end.raw"; // TODO
+	defaultvalue = "call-end.raw";
 	value = g_key_file_get_string(config_get_keyfile(), streamname, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);

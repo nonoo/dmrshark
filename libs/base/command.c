@@ -38,6 +38,7 @@
 void command_process(char *input_buffer) {
 	extern base_flags_t base_flags;
 	loglevel_t loglevel;
+	voicestream_t *voicestream;
 
 	char *tok = strtok(input_buffer, " ");
 
@@ -56,6 +57,14 @@ void command_process(char *input_buffer) {
 		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
 		console_log("  loadpcap [pcapfile]             - reads and processes packets from pcap file\n");
 		console_log("  httplist                        - list http clients\n");
+		console_log("  streamenable [name]             - enable stream\n");
+		console_log("  streamdisable [name]            - disable stream\n");
+		console_log("  streamrecstart [name]           - enable saving raw AMBE data to file\n");
+		console_log("  streamrecstop [name]            - disable saving raw AMBE data to file\n");
+		console_log("  streamdecrecstart [name]        - enable saving raw decoded data to file\n");
+		console_log("  streamdecrecstop [name]         - disable saving raw decoded data to file\n");
+		console_log("  streammp3recstart [name]        - enable saving mp3 data to file\n");
+		console_log("  streammp3recstop [name]         - disable saving mp3 data to file\n");
 		return;
 	}
 
@@ -164,6 +173,134 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "httplist") == 0) {
 		httpserver_print_client_list();
+		return;
+	}
+
+	if (strcmp(tok, "streamenable") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->enabled = 1;
+		console_log("voicestream [%s]: enabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streamdisable") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->enabled = 0;
+		console_log("voicestream [%s]: disabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streamrecstart") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savetorawfile = 1;
+		console_log("voicestream [%s]: saving to raw file enabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streamrecstop") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savetorawfile = 0;
+		console_log("voicestream [%s]: saving to raw file disabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streamdecrecstart") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savedecodedtorawfile = 1;
+		console_log("voicestream [%s]: saving decoded data to raw file enabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streamdecrecstop") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savedecodedtorawfile = 0;
+		console_log("voicestream [%s]: saving decoded data to raw file disabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streammp3recstart") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savedecodedtomp3file = 1;
+		console_log("voicestream [%s]: saving decoded data to mp3 file enabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "streammp3recstop") == 0) {
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		voicestream = voicestreams_get_stream_by_name(tok);
+		if (voicestream == NULL) {
+			console_log("voicestream %s not found\n", tok);
+			return;
+		}
+		voicestream->savedecodedtomp3file = 0;
+		console_log("voicestream [%s]: saving decoded data to mp3 file disabled\n", tok);
 		return;
 	}
 

@@ -92,7 +92,7 @@ static void voicestreams_mp3_lamelog_err(const char *format, va_list ap) {
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams-mp3 error: lame says: ");
 	console_log_va_list(LOGLEVEL_VOICESTREAMS, format, ap);
 }
-#include <stdlib.h>
+
 void voicestreams_mp3_init(voicestream_t *voicestream) {
 	int res;
 	float silent_frame_data[VOICESTREAMS_MP3_SILENT_FRAME_SAMPLES_NUM] = {0,};

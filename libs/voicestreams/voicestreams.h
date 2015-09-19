@@ -46,7 +46,7 @@ typedef struct {
 
 typedef struct voicestream_st {
 	char *name;
-	flag_t enabled; // TODO
+	flag_t enabled;
 	flag_t streaming_active_call;
 	char *repeaterhosts;
 	char *savefiledir;

@@ -223,6 +223,9 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 
+#ifdef AMBEDECODEVOICE
+	mbe_initMbeParms(&voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced);
+#endif
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_vol = voicestream->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	voicestream->rms_vol_buf_pos = 0;
@@ -277,10 +280,7 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	}
 
 	voicestream = repeater->slot[ipscpacket->timeslot-1].voicestream;
-	if (voicestream == NULL)
-		return;
-
-	if (!voicestream->enabled)
+	if (voicestream == NULL || !voicestream->streaming_active_call || !voicestream->enabled)
 		return;
 
 	// Some listed repeater has already streaming on this stream?

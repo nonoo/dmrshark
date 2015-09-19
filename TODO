@@ -1,4 +1,3 @@
-- cpu usage high on websockets/http
 - Testing compiling without AMBE decoding/MP3 encoding enabled.
 - repeater voltage, pwr, swr sending to remote db
 - CSBK and Multi Block Control (MBC) message decoding

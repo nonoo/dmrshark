@@ -95,7 +95,7 @@ voicestream_t *voicestreams_get_stream_by_name(char *name) {
 	voicestream_t *vs = voicestreams;
 
 	while (vs != NULL) {
-		if (strcmp(vs->name, name) == 0 && vs->enabled)
+		if (strcmp(vs->name, name) == 0)
 			return vs;
 
 		vs = vs->next;
@@ -113,14 +113,27 @@ void voicestreams_printlist(void) {
 	console_log("voice streams:\n");
 
 	vs = voicestreams;
-	while (vs != NULL) { // TODO
-		console_log("%s: enabled: %u rptrhosts: %s ts: %u quality: %u savedir: %s saveraw: %u\n", vs->name,
+	while (vs != NULL) {
+		console_log("%s: enabled: %u rptrhosts: %s ts: %u quality: %u savedir: %s saveraw: %u savedecodedraw: %u savedecodedmp3: %u\n", vs->name,
 			vs->enabled,
 			vs->repeaterhosts,
 			vs->timeslot,
 			vs->decodequality,
 			(strlen(vs->savefiledir) == 0 ? "." : vs->savefiledir),
-			vs->savetorawfile);
+			vs->savetorawfile,
+			vs->savedecodedtorawfile,
+			vs->savedecodedtomp3file);
+		console_log("   minmp3br: %u mp3br: %u mp3quality: %u mp3vbr: %u rmsminsampval: %f\n",
+			vs->minmp3bitrate,
+			vs->mp3bitrate,
+			vs->mp3quality,
+			vs->mp3vbr,
+			vs->rmsminsamplevalue);
+		console_log("   callstartfile: %s (%f) callendfile: %s (%f)\n",
+			vs->playrawfileatcallstart,
+			vs->rawfileatcallstartgain,
+			vs->playrawfileatcallend,
+			vs->rawfileatcallendgain);
 
 		vs = vs->next;
 	}
@@ -174,11 +187,8 @@ void voicestreams_init(void) {
 
 		new_vs->rms_vol = new_vs->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
-#ifdef AMBEDECODEVOICE
-		mbe_initMbeParms(&new_vs->cur_mp, &new_vs->prev_mp, &new_vs->prev_mp_enhanced);
-#ifdef MP3ENCODEVOICE
+#if defined(AMBEDECODEVOICE) && defined(MP3ENCODEVOICE)
 		voicestreams_mp3_init(new_vs);
-#endif
 #endif
 
 		new_vs->next = voicestreams;
