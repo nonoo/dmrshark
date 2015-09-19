@@ -38,6 +38,17 @@
 #define OID_CALLSIGN		"1.3.6.1.4.1.40297.1.2.4.6.0"
 #define OID_DLFREQ			"1.3.6.1.4.1.40297.1.2.4.10.0"
 #define OID_ULFREQ			"1.3.6.1.4.1.40297.1.2.4.11.0"
+#define OID_PSUVOLTAGE		"1.3.6.1.4.1.40297.1.2.1.2.1.0"
+#define OID_PATEMPERATURE	"1.3.6.1.4.1.40297.1.2.1.2.2.0"
+#define OID_VSWR			"1.3.6.1.4.1.40297.1.2.1.2.4.0"
+#define OID_TXFWDPOWER		"1.3.6.1.4.1.40297.1.2.1.2.5.0"
+#define OID_TXREFPOWER		"1.3.6.1.4.1.40297.1.2.1.2.6.0"
+
+typedef union {
+	int v_int;
+	float v_float;
+	uint8_t v_bytes[4];
+} snmp_val_result_t;
 
 static iconv_t conv_utf16_utf8;
 static oid oid_rssi_ts1[MAX_OID_LEN];
@@ -56,21 +67,69 @@ static oid oid_dlfreq[MAX_OID_LEN];
 static size_t oid_dlfreq_length = 0;
 static oid oid_ulfreq[MAX_OID_LEN];
 static size_t oid_ulfreq_length = 0;
+static oid oid_psuvoltage[MAX_OID_LEN];
+static size_t oid_psuvoltage_length = 0;
+static oid oid_patemperature[MAX_OID_LEN];
+static size_t oid_patemperature_length = 0;
+static oid oid_vswr[MAX_OID_LEN];
+static size_t oid_vswr_length = 0;
+static oid oid_txfwdpower[MAX_OID_LEN];
+static size_t oid_txfwdpower_length = 0;
+static oid oid_txrefpower[MAX_OID_LEN];
+static size_t oid_txrefpower_length = 0;
 
 static struct snmp_session *snmp_session_repeaterinfo = NULL;
 static flag_t snmp_repeaterinfo_received = 0;
 
-static struct snmp_session *snmp_session_rssi = NULL;
-static flag_t snmp_rssi_received = 0;
+static struct snmp_session *snmp_session_repeaterstatus = NULL;
+static flag_t snmp_repeaterstatus_received = 0;
 
-static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
-	char value[15] = {0,};
+static snmp_val_result_t snmp_get_result_value(char *snmp_str) {
+	snmp_val_result_t result = { .v_int = 0, .v_float = 0 };
 	char *endptr = NULL;
-	int value_num = 0;
+
+	if (strstr(snmp_str, "INTEGER: ") == snmp_str) {
+		errno = 0;
+		result.v_int = strtol(snmp_str+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
+		if (*endptr != 0 || errno != 0)
+			console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: invalid value received: %s\n", snmp_str);
+		return result;
+	}
+
+	if (strstr(snmp_str, "Hex-STRING: ") == snmp_str) {
+		snmp_str[0] = '0';
+		snmp_str[1] = 'x';
+		snmp_str[2] = snmp_str[21];
+		snmp_str[3] = snmp_str[22];
+		snmp_str[4] = snmp_str[18];
+		snmp_str[5] = snmp_str[19];
+		snmp_str[6] = snmp_str[15];
+		snmp_str[7] = snmp_str[16];
+		snmp_str[8] = snmp_str[12];
+		snmp_str[9] = snmp_str[13];
+		snmp_str[10] = 0;
+		sscanf(snmp_str, "%x", &result.v_int);
+		return result;
+	}
+
+	if (strstr(snmp_str, "STRING: ") == snmp_str) {
+		result.v_bytes[0] = snmp_str[9];
+		result.v_bytes[1] = snmp_str[10];
+		result.v_bytes[2] = snmp_str[11];
+		result.v_bytes[3] = snmp_str[12];
+		return result;
+	}
+	console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: got unknown value string: %s\n", snmp_str);
+	return result;
+}
+
+static int snmp_get_repeaterstatus_cb(int operation, struct snmp_session *sp, int reqid, struct snmp_pdu *pdu, void *magic) {
+	char value[30] = {0,};
 	struct variable_list *vars = NULL;
 	repeater_t *repeater = NULL;
 	in_addr_t ipaddr;
 	flag_t dodbupdate = 0;
+	snmp_val_result_t val_result;
 
 	if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
 		if (pdu->errstat == SNMP_ERR_NOERROR) {
@@ -80,70 +139,114 @@ static int snmp_get_rssi_cb(int operation, struct snmp_session *sp, int reqid, s
 			for (vars = pdu->variables; vars; vars = vars->next_variable) {
 				if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts1, oid_rssi_ts1_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
-					errno = 0;
-					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
-					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: invalid ts1 rssi value received: %s\n", sp->peername);
-					else {
-						if (value_num > -200) {
-							if (repeater != NULL) {
-								repeater->slot[0].rssi = value_num;
-								if (repeater->slot[0].avg_rssi == 0)
-									repeater->slot[0].avg_rssi = value_num;
-								else
-									repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+value_num)/2.0;
-								dodbupdate = 1;
-							}
-							console_log(LOGLEVEL_SNMP "snmp [%s]: got ts1 rssi value %d\n", sp->peername, value_num);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_int > -200) {
+						if (repeater != NULL) {
+							repeater->slot[0].rssi = val_result.v_int;
+							if (repeater->slot[0].avg_rssi == 0)
+								repeater->slot[0].avg_rssi = val_result.v_int;
+							else
+								repeater->slot[0].avg_rssi = (repeater->slot[0].avg_rssi+val_result.v_int)/2.0;
+							dodbupdate = 1;
 						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got ts1 rssi value %d\n", sp->peername, val_result.v_int);
 					}
 				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_rssi_ts2, oid_rssi_ts2_length) == 0) {
 					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
-					errno = 0;
-					value_num = strtol(value+9, &endptr, 10); // +9: cutting "INTEGER: " text returned by snprint_value().
-					if (*endptr != 0 || errno != 0)
-						console_log(LOGLEVEL_SNMP LOGLEVEL_DEBUG "snmp: invalid ts2 rssi value received: %s\n", value);
-					else {
-						if (value_num > -200) {
-							if (repeater != NULL) {
-								repeater->slot[1].rssi = value_num;
-								if (repeater->slot[1].avg_rssi == 0)
-									repeater->slot[1].avg_rssi = value_num;
-								else
-									repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+value_num)/2.0;
-								dodbupdate = 1;
-							}
-							console_log(LOGLEVEL_SNMP "snmp [%s]: got ts2 rssi value %d\n", sp->peername, value_num);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_int > -200) {
+						if (repeater != NULL) {
+							repeater->slot[1].rssi = val_result.v_int;
+							if (repeater->slot[1].avg_rssi == 0)
+								repeater->slot[1].avg_rssi = val_result.v_int;
+							else
+								repeater->slot[1].avg_rssi = (repeater->slot[1].avg_rssi+val_result.v_int)/2.0;
+							dodbupdate = 1;
 						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got ts2 rssi value %d\n", sp->peername, val_result.v_int);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_psuvoltage, oid_psuvoltage_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_float >= 0) {
+						if (repeater != NULL) {
+							repeater->psuvoltage = val_result.v_float;
+							dodbupdate = 1;
+						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got psu voltage value %f\n", sp->peername, val_result.v_float);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_patemperature, oid_patemperature_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_float >= 0) {
+						if (repeater != NULL) {
+							repeater->patemperature = val_result.v_float;
+							dodbupdate = 1;
+						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got pa temperature value %f\n", sp->peername, val_result.v_float);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_vswr, oid_vswr_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_float >= 0) {
+						if (repeater != NULL) {
+							repeater->vswr = val_result.v_float;
+							dodbupdate = 1;
+						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got vswr value %f\n", sp->peername, val_result.v_float);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_txfwdpower, oid_txfwdpower_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_float >= 0) {
+						if (repeater != NULL) {
+							repeater->txfwdpower = val_result.v_float;
+							dodbupdate = 1;
+						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got tx fwd power value %f\n", sp->peername, val_result.v_float);
+					}
+				} else if (netsnmp_oid_equals(vars->name, vars->name_length, oid_txrefpower, oid_txrefpower_length) == 0) {
+					snprint_value(value, sizeof(value), vars->name, vars->name_length, vars);
+					val_result = snmp_get_result_value(value);
+					if (val_result.v_float >= 0) {
+						if (repeater != NULL) {
+							repeater->txrefpower = val_result.v_float;
+							dodbupdate = 1;
+						}
+						console_log(LOGLEVEL_SNMP "snmp [%s]: got tx ref power value %f\n", sp->peername, val_result.v_float);
 					}
 				}
 			}
 
-			if (dodbupdate)
+			if (dodbupdate) {
 				remotedb_update(repeater);
+				remotedb_update_repeater(repeater);
+			}
 
-			snmp_rssi_received = 1;
+			snmp_repeaterstatus_received = 1;
 		} else
-			console_log(LOGLEVEL_SNMP "snmp: rssi read error\n");
+			console_log(LOGLEVEL_SNMP "snmp: repeater status read error\n");
     } else
-    	console_log(LOGLEVEL_SNMP "snmp: rssi read timeout\n");
+    	console_log(LOGLEVEL_SNMP "snmp: repeater status read timeout\n");
 
 	return 1;
 }
 
-void snmp_start_read_rssi(char *host) {
+void snmp_start_read_repeaterstatus(char *host) {
 	struct snmp_pdu *pdu;
 	struct snmp_session session;
 	const char *community = "public";
 
-	if (oid_rssi_ts1_length == 0 || oid_rssi_ts2_length == 0)
-		return;
+	if (oid_rssi_ts1_length == 0 || oid_rssi_ts2_length == 0 || oid_psuvoltage_length == 0 ||
+		oid_patemperature_length == 0 || oid_vswr_length == 0 || oid_txfwdpower_length == 0 ||
+		oid_txrefpower_length == 0)
+			return;
 
-	snmp_rssi_received = 0;
+	snmp_repeaterstatus_received = 0;
 
-	if (snmp_session_rssi != NULL) {
-		snmp_close(snmp_session_rssi);
-		snmp_session_rssi = NULL;
+	if (snmp_session_repeaterstatus != NULL) {
+		snmp_close(snmp_session_repeaterstatus);
+		snmp_session_repeaterstatus = NULL;
 	}
 
 	snmp_sess_init(&session);
@@ -151,17 +254,22 @@ void snmp_start_read_rssi(char *host) {
 	session.peername = strdup(host);
 	session.community = (unsigned char *)strdup(community);
 	session.community_len = strlen(community);
-	session.callback = snmp_get_rssi_cb;
-	if (!(snmp_session_rssi = snmp_open(&session))) {
-		console_log(LOGLEVEL_SNMP "snmp error: error opening session to host %s\n", host);
+	session.callback = snmp_get_repeaterstatus_cb;
+	if (!(snmp_session_repeaterstatus = snmp_open(&session))) {
+		console_log(LOGLEVEL_SNMP "snmp error: error opening repeater status session to host %s\n", host);
 		return;
 	}
 
 	pdu = snmp_pdu_create(SNMP_MSG_GET);
 	snmp_add_null_var(pdu, oid_rssi_ts1, oid_rssi_ts1_length);
 	snmp_add_null_var(pdu, oid_rssi_ts2, oid_rssi_ts2_length);
-	if (!snmp_send(snmp_session_rssi, pdu))
-		console_log(LOGLEVEL_SNMP "snmp error: error sending rssi request to host %s\n", host);
+	snmp_add_null_var(pdu, oid_psuvoltage, oid_psuvoltage_length);
+	snmp_add_null_var(pdu, oid_patemperature, oid_patemperature_length);
+	snmp_add_null_var(pdu, oid_vswr, oid_vswr_length);
+	snmp_add_null_var(pdu, oid_txfwdpower, oid_txfwdpower_length);
+	snmp_add_null_var(pdu, oid_txrefpower, oid_txrefpower_length);
+	if (!snmp_send(snmp_session_repeaterstatus, pdu))
+		console_log(LOGLEVEL_SNMP "snmp error: error sending repeater status request to host %s\n", host);
 	free(session.peername);
 	free(session.community);
 }
@@ -356,11 +464,11 @@ void snmp_process(void) {
 		}
 	}
 
-	if (snmp_rssi_received) {
-		snmp_rssi_received = 0;
-		if (snmp_session_rssi != NULL) {
-			snmp_close(snmp_session_rssi);
-			snmp_session_rssi = NULL;
+	if (snmp_repeaterstatus_received) {
+		snmp_repeaterstatus_received = 0;
+		if (snmp_session_repeaterstatus != NULL) {
+			snmp_close(snmp_session_repeaterstatus);
+			snmp_session_repeaterstatus = NULL;
 		}
 	}
 
@@ -390,6 +498,21 @@ void snmp_init(void) {
 	oid_rssi_ts2_length = MAX_OID_LEN;
 	if (!read_objid(OID_RSSI_TS2, oid_rssi_ts2, &oid_rssi_ts2_length))
 		console_log("snmp error: can't parse ts2 rssi oid (%s)\n", OID_RSSI_TS2);
+	oid_psuvoltage_length = MAX_OID_LEN;
+	if (!read_objid(OID_PSUVOLTAGE, oid_psuvoltage, &oid_psuvoltage_length))
+		console_log("snmp error: can't parse psu voltage oid (%s)\n", OID_PSUVOLTAGE);
+	oid_patemperature_length = MAX_OID_LEN;
+	if (!read_objid(OID_PATEMPERATURE, oid_patemperature, &oid_patemperature_length))
+		console_log("snmp error: can't parse pa temperature oid (%s)\n", OID_PATEMPERATURE);
+	oid_vswr_length = MAX_OID_LEN;
+	if (!read_objid(OID_VSWR, oid_vswr, &oid_vswr_length))
+		console_log("snmp error: can't parse vswr oid (%s)\n", OID_VSWR);
+	oid_txfwdpower_length = MAX_OID_LEN;
+	if (!read_objid(OID_TXFWDPOWER, oid_txfwdpower, &oid_txfwdpower_length))
+		console_log("snmp error: can't parse tx fwd power oid (%s)\n", OID_TXFWDPOWER);
+	oid_txrefpower_length = MAX_OID_LEN;
+	if (!read_objid(OID_TXREFPOWER, oid_txrefpower, &oid_txrefpower_length))
+		console_log("snmp error: can't parse tx ref power oid (%s)\n", OID_TXREFPOWER);
 
 	oid_id_length = MAX_OID_LEN;
 	if (!read_objid(OID_ID, oid_id, &oid_id_length))
@@ -421,8 +544,8 @@ void snmp_deinit(void) {
 		snmp_session_repeaterinfo = NULL;
 	}
 
-	if (snmp_session_rssi != NULL) {
-		snmp_close(snmp_session_rssi);
-		snmp_session_rssi = NULL;
+	if (snmp_session_repeaterstatus != NULL) {
+		snmp_close(snmp_session_repeaterstatus);
+		snmp_session_repeaterstatus = NULL;
 	}
 }

@@ -61,6 +61,11 @@ typedef struct repeater_st {
 	char callsign_lowercase[25];
 	int dlfreq;
 	int ulfreq;
+	float psuvoltage;
+	float patemperature;
+	float vswr;
+	float txfwdpower;
+	float txrefpower;
 	repeater_slot_t slot[2];
 	time_t auto_rssi_update_enabled_at;
 

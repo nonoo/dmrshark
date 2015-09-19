@@ -49,7 +49,7 @@ void command_process(char *input_buffer) {
 		console_log("  ver                             - version\n");
 		console_log("  log (loglevel)                  - get/set loglevel\n");
 		console_log("  exit                            - exits the application\n");
-		console_log("  rssi [host]                     - reads rssi value from host using snmp\n");
+		console_log("  repstat [host]                  - reads repeater status from host using snmp\n");
 		console_log("  repinfo [host]                  - reads repeater info from host using snmp\n");
 		console_log("  replist                         - list repeaters\n");
 		console_log("  streamlist                      - list voice streams\n");
@@ -119,14 +119,14 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
-	if (strcmp(tok, "rssi") == 0) {
+	if (strcmp(tok, "repstat") == 0) {
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
 			log_cmdmissingparam();
 			return;
 		}
-		console_log("starting rssi read request to %s...\n", tok);
-		snmp_start_read_rssi(tok);
+		console_log("starting repeater status read request to %s...\n", tok);
+		snmp_start_read_repeaterstatus(tok);
 		return;
 	}
 

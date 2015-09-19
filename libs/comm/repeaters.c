@@ -204,7 +204,7 @@ void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repea
 	if (repeater->auto_rssi_update_enabled_at != 0 &&
 		repeater->slot[0].state != REPEATER_SLOT_STATE_CALL_RUNNING &&
 		repeater->slot[1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
-			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: stopping auto rssi update\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: stopping auto repeater status update\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 			repeater->auto_rssi_update_enabled_at = 0;
 	}
 }
@@ -241,7 +241,7 @@ void repeaters_process(void) {
 				gettimeofday(&currtime, NULL);
 				timersub(&currtime, &repeater->last_rssi_request_time, &difftime);
 				if (difftime.tv_sec*1000+difftime.tv_usec/1000 > config_get_rssiupdateduringcallinmsec()) {
-					snmp_start_read_rssi(comm_get_ip_str(&repeater->ipaddr));
+					snmp_start_read_repeaterstatus(comm_get_ip_str(&repeater->ipaddr));
 					repeater->last_rssi_request_time = currtime;
 				}
 			}

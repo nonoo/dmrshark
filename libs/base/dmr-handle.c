@@ -57,13 +57,14 @@ void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, 
 
 	if (repeater->auto_rssi_update_enabled_at == 0 && !repeater->snmpignored) {
 		console_log(LOGLEVEL_SNMP "snmp [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-		console_log(LOGLEVEL_SNMP "->%s]: starting auto rssi update\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
+		console_log(LOGLEVEL_SNMP "->%s]: starting auto repeater status update\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
 		repeater->auto_rssi_update_enabled_at = time(NULL)+1; // +1 - lets add a little delay to let the repeater read the correct RSSI.
 	}
 
 	voicestreams_process_call_start(repeater->slot[ipscpacket->timeslot-1].voicestream, repeater);
 
 	remotedb_update(repeater);
+	remotedb_update_repeater(repeater);
 }
 
 void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
@@ -72,6 +73,7 @@ void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
 	repeater->slot[ts].call_ended_at = time(NULL);
 	remotedb_update(repeater);
+	remotedb_update_repeater(repeater);
 	remotedb_update_stats_callend(repeater, ts+1);
 }
 

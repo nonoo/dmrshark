@@ -5,5 +5,4 @@
 - Inserting decoded SMS messages into a database table
 - GPS position data decoding
 - SMS sending
-- Serving raw and decoded voice data using a built-in websocket server
 - Voice sending

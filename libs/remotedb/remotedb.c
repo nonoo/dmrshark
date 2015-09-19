@@ -108,10 +108,13 @@ void remotedb_update_repeater(repeater_t *repeater) {
 		return;
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%srepeaters` (`callsign`, `id`, `type`, `fwversion`, `dlfreq`, `ulfreq`, `lastactive`) "
-		"values ('%s', %u, '%s', '%s', %u, %u, from_unixtime(%lld))",
+	snprintf(query, sizeof(query), "replace into `%srepeaters` (`callsign`, `id`, `type`, `fwversion`, `dlfreq`, `ulfreq`, "
+		"`psuvoltage`, `patemperature`, `vswr`, `txfwdpower`, `txrefpower`, `lastactive`) "
+		"values ('%s', %u, '%s', '%s', %u, %u, %f, %f, %f, %f, %f, from_unixtime(%lld))",
 		tableprefix, repeater->callsign, repeater->id, repeater->type, repeater->fwversion,
-		repeater->dlfreq, repeater->ulfreq, (long long)repeater->last_active_time);
+		repeater->dlfreq, repeater->ulfreq, repeater->psuvoltage, repeater->patemperature,
+		repeater->vswr, repeater->txfwdpower, repeater->txrefpower,
+		(long long)repeater->last_active_time);
 	free(tableprefix);
 
 	remotedb_addquery(query);

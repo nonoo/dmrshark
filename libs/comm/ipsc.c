@@ -20,6 +20,7 @@
 #include "ipscpacket.h"
 #include "comm.h"
 #include "ipsc-handle.h"
+#include "snmp.h"
 
 #include <libs/remotedb/remotedb.h>
 #include <libs/config/config.h>
@@ -163,12 +164,10 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		if (comm_is_our_ipaddr(&ip_packet->ip_dst)) {
 			console_log(LOGLEVEL_HEARTBEAT "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 			console_log(LOGLEVEL_HEARTBEAT "->%s]: got heartbeat\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
-			repeater = repeaters_findbyip(&ip_packet->ip_src);
-			if (repeater == NULL)
-				repeater = repeaters_add(&ip_packet->ip_src);
-			else if (time(NULL)-repeater->last_active_time > HEARTBEAT_PERIOD_IN_SEC/2) {
-				repeater->last_active_time = time(NULL);
+			repeater = repeaters_add(&ip_packet->ip_src);
+			if (repeater != NULL && !repeater->snmpignored) {
 				remotedb_update_repeater_lastactive(repeater);
+				snmp_start_read_repeaterstatus(comm_get_ip_str(&repeater->ipaddr));
 			}
 		}
 	}
