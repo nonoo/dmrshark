@@ -42,8 +42,9 @@ void dmrpacket_slot_type_insert_bits(dmrpacket_payload_bits_t *payload_bits, dmr
 	if (payload_bits == NULL || slot_type_bits == NULL)
 		return;
 
-	memcpy(payload_bits->bits, slot_type_bits->bits, sizeof(dmrpacket_slot_type_bits_t)/2);
-	memcpy(payload_bits->bits+98+10+48, &slot_type_bits->bits[sizeof(dmrpacket_slot_type_bits_t)/2], sizeof(dmrpacket_slot_type_bits_t)/2);
+	memcpy(payload_bits->bits+sizeof(dmrpacket_payload_info_bits_t)/2, slot_type_bits->bits, sizeof(dmrpacket_slot_type_bits_t)/2);
+	memcpy(payload_bits->bits+sizeof(dmrpacket_payload_info_bits_t)/2+sizeof(dmrpacket_slot_type_bits_t)/2+sizeof(dmrpacket_sync_bits_t),
+		&slot_type_bits->bits[sizeof(dmrpacket_slot_type_bits_t)/2], sizeof(dmrpacket_slot_type_bits_t)/2);
 }
 
 dmrpacket_slot_type_bits_t *dmrpacket_slot_type_construct_bits(dmr_color_code_t cc, dmrpacket_data_type_t data_type) {

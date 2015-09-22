@@ -273,6 +273,9 @@ void vbptc_16_11_construct(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_siz
 
 		vbptc->matrix[(vbptc->expected_rows-1)*16+col] = parity;
 	}
+
+	//console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "vbptc (16,11): constructed matrix:\n");
+	//vbptc_16_11_print_matrix(vbptc);
 }
 
 // Extracts data bits (discarding Hamming (16,11) and parity check bits) from the vbptc matrix.
@@ -298,6 +301,7 @@ void vbptc_16_11_get_interleaved_bits(vbptc_16_11_t *vbptc, uint16_t from_bit_nu
 	uint8_t row;
 	uint8_t col;
 	uint16_t bits_to_get;
+	uint16_t bits_got = 0;
 
 	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows == 0)
 		return;
@@ -306,11 +310,11 @@ void vbptc_16_11_get_interleaved_bits(vbptc_16_11_t *vbptc, uint16_t from_bit_nu
 
 	for (col = 0; col < 16; col++) {
 		for (row = 0; row < vbptc->expected_rows; row++) {
-			if (row*16+col >= bits_to_get)
+			if (bits_got >= bits_to_get)
 				break;
 
 			if (from_bit_number == 0)
-				bits[row*16+col] = vbptc->matrix[row*16+col];
+				bits[bits_got++] = vbptc->matrix[row*16+col];
 			else
 				from_bit_number--;
 		}

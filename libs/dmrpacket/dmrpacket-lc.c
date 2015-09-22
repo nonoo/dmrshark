@@ -82,6 +82,8 @@ dmrpacket_lc_t *dmrpacket_lc_decode_emb_signalling_lc(dmrpacket_emb_signalling_l
 	if (deinterleaved_emb_signalling_lc_bits == NULL)
 		return NULL;
 
+uint8_t i;for(i=0;i<sizeof(dmrpacket_emb_signalling_lc_bits_t);i++)console_log("%u",deinterleaved_emb_signalling_lc_bits->bits[i]);console_log("\n");//TODO
+
 	if (!dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc_bits))
 		return NULL;
 
@@ -105,13 +107,19 @@ dmrpacket_emb_signalling_lc_bits_t *dmrpacket_lc_construct_emb_signalling_lc(dmr
 
 	bytes = dmrpacket_lc_construct_lc(call_type, dst_id, src_id);
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 9; i++)
 		checksum += bytes[i];
-	bytes[9] = checksum % 31; // See DMR AI spec. page. 142.
-	bytes[9] <<= 3;
+	checksum %= 31; // See DMR AI spec. page. 142.
 
-	base_bytestobits(bytes, sizeof(bytes), data_bits.bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
+	data_bits.checksum[0] = (checksum >> 4) & 0x01;
+	data_bits.checksum[1] = (checksum >> 3) & 0x01;
+	data_bits.checksum[2] = (checksum >> 2) & 0x01;
+	data_bits.checksum[3] = (checksum >> 1) & 0x01;
+	data_bits.checksum[4] = checksum & 0x01;
 
+	base_bytestobits(bytes, 9, data_bits.bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
+// TODO: emb_deinterleave_lc, interleavelni kell
+for(i=0;i<5;i++)console_log("%u",data_bits.checksum[i]);console_log("\n");//TODO
 	return &data_bits;
 }
 
@@ -204,7 +212,7 @@ bptc_196_96_data_bits_t *dmrpacket_lc_construct_voice_lc_header(dmr_call_type_t 
 	bytes[10] ^= 0x96;
 	bytes[11] ^= 0x96;
 
-	base_bytestobits(bytes, sizeof(bytes), data_bits.bits, sizeof(bptc_196_96_data_bits_t));
+	base_bytestobits(bytes, 12, data_bits.bits, sizeof(bptc_196_96_data_bits_t));
 
 	return &data_bits;
 }
@@ -220,7 +228,7 @@ bptc_196_96_data_bits_t *dmrpacket_lc_construct_terminator_with_lc(dmr_call_type
 	bytes[10] ^= 0x99;
 	bytes[11] ^= 0x99;
 
-	base_bytestobits(bytes, sizeof(bytes), data_bits.bits, sizeof(bptc_196_96_data_bits_t));
+	base_bytestobits(bytes, 12, data_bits.bits, sizeof(bptc_196_96_data_bits_t));
 
 	return &data_bits;
 }

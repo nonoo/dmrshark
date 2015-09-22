@@ -16,6 +16,7 @@
 **/
 
 #include "dmrpacket-sync.h"
+#include "dmrpacket-slot-type.h"
 
 #include <libs/base/base.h>
 
@@ -40,7 +41,7 @@ dmrpacket_sync_bits_t *dmrpacket_sync_extract_bits(dmrpacket_payload_bits_t *pay
 	if (payload_bits == NULL)
 		return NULL;
 
-	memcpy(&sync_bits.bits, payload_bits->bits+98+10, sizeof(sync_bits.bits));
+	memcpy(&sync_bits.bits, payload_bits->bits+sizeof(dmrpacket_payload_info_bits_t)/2+sizeof(dmrpacket_slot_type_bits_t)/2, sizeof(sync_bits.bits));
 
 	return &sync_bits;
 }
@@ -49,7 +50,7 @@ void dmrpacket_sync_insert_bits(dmrpacket_payload_bits_t *payload_bits, dmrpacke
 	if (payload_bits == NULL || sync_bits == NULL)
 		return;
 
-	memcpy(payload_bits->bits+98+10, sync_bits->bits, sizeof(sync_bits->bits));
+	memcpy(payload_bits->bits+sizeof(dmrpacket_payload_info_bits_t)/2+sizeof(dmrpacket_slot_type_bits_t)/2, sync_bits->bits, sizeof(dmrpacket_sync_bits_t));
 }
 
 dmrpacket_sync_bits_t *dmrpacket_sync_construct_bits(dmrpacket_sync_pattern_type_t sync_pattern_type) {

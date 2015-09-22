@@ -92,7 +92,7 @@ flag_t dmrpacket_emb_check_checksum(dmrpacket_emb_signalling_lc_bits_t *emb_sign
 
 	checksum_calculated %= 31;
 
-	console_log(LOGLEVEL_DMRLC "    checksum received: %.2x calculated: %.2x (%s)\n", checksum_received, checksum_calculated,
+	console_log(LOGLEVEL_DMRLC "    checksum received: 0x%.2x calculated: 0x%.2x (%s)\n", checksum_received, checksum_calculated,
 		checksum_received != checksum_calculated ? "error" : "ok");
 
 	return (checksum_calculated == checksum_received);
@@ -115,8 +115,8 @@ dmrpacket_emb_bits_t *dmrpacket_emb_extract_from_sync(dmrpacket_sync_bits_t *syn
 	if (sync_bits == NULL)
 		return NULL;
 
-	memcpy(emb_bits.bits, sync_bits->bits, 8);
-	memcpy(&emb_bits.bits[8], &sync_bits->bits[40], 8);
+	memcpy(emb_bits.bits, sync_bits->bits, sizeof(dmrpacket_emb_bits_t)/2);
+	memcpy(emb_bits.bits+8, sync_bits->bits+sizeof(dmrpacket_emb_bits_t)/2+sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t), sizeof(dmrpacket_emb_bits_t)/2);
 
 	return &emb_bits;
 }
@@ -154,7 +154,7 @@ void dmrpacket_emb_insert_bits(dmrpacket_payload_bits_t *payload_bits, dmrpacket
 
 	memcpy(payload_bits->bits+sizeof(dmrpacket_payload_voice_bits_t)/2, emb_bits->bits, sizeof(dmrpacket_emb_bits_t)/2);
 	memcpy(payload_bits->bits+sizeof(dmrpacket_payload_voice_bits_t)/2+sizeof(dmrpacket_emb_bits_t)/2+sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t),
-		emb_bits->bits, sizeof(dmrpacket_emb_bits_t)/2);
+		emb_bits->bits+sizeof(dmrpacket_emb_bits_t)/2, sizeof(dmrpacket_emb_bits_t)/2);
 }
 
 dmrpacket_emb_bits_t *dmrpacket_emb_construct_bits(dmr_emb_lcss_t lcss) {

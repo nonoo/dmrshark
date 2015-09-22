@@ -348,7 +348,8 @@ dmrpacket_payload_info_bits_t *bptc_196_96_generate(bptc_196_96_data_bits_t *dat
 		payload_info_bits.bits[col+135+45+1] = error_vector.bits[3];
 	}
 
-	bptc_196_96_display_data_matrix(payload_info_bits.bits);
+	//console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "bptc (196,96): constructed matrix:\n");
+	//bptc_196_96_display_data_matrix(payload_info_bits.bits);
 
 	return &payload_info_bits;
 }

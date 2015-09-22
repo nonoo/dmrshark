@@ -20,6 +20,7 @@
 
 #include "dmrpacket-types.h"
 #include "dmrpacket-data.h"
+#include "dmrpacket-sync.h"
 
 #include <libs/base/dmr.h>
 
