@@ -20,6 +20,12 @@
 
 #include <libs/base/types.h>
 
+typedef struct {
+	flag_t bits[12];
+} golay_20_8_parity_bits_t;
+
+golay_20_8_parity_bits_t *golay_20_8_get_parity_bits(flag_t bits[8]);
+
 flag_t golay_20_8_check_and_repair(flag_t bits[20]);
 void golay_20_8_init(void);
 

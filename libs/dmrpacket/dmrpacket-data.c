@@ -17,6 +17,7 @@
 
 #include <config/defaults.h>
 
+#include "dmrpacket-data.h"
 #include "dmrpacket.h"
 
 #include <libs/coding/crc.h>
@@ -64,6 +65,20 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_deinterleave(dmrpacket_payloa
 		deint_info_bits.bits[i] = info_bits->bits[(i*181) % sizeof(info_bits->bits)];
 
 	return &deint_info_bits;
+}
+
+// Interleaves given info bits according to the used BPTC(196,96) interleaving in the DMR standard (see DMR AI spec. page 120).
+dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_interleave(dmrpacket_payload_info_bits_t *deint_info_bits) {
+	static dmrpacket_payload_info_bits_t int_info_bits;
+	int i;
+
+	if (deint_info_bits == NULL)
+		return NULL;
+
+	for (i = 0; i < sizeof(deint_info_bits->bits); i++)
+		int_info_bits.bits[(i*181) % sizeof(int_info_bits.bits)] = deint_info_bits->bits[i];
+
+	return &int_info_bits;
 }
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary) {

@@ -186,6 +186,7 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_IPSC_VAL: return loglevel.flags.ipsc;
 		case LOGLEVEL_COMM_IP_VAL: return loglevel.flags.comm_ip;
 		case LOGLEVEL_DMR_VAL: return loglevel.flags.dmr;
+		case LOGLEVEL_DMRLC_VAL: return loglevel.flags.dmrlc;
 		case LOGLEVEL_DMRDATA_VAL: return loglevel.flags.dmrdata;
 		case LOGLEVEL_SNMP_VAL: return loglevel.flags.snmp;
 		case LOGLEVEL_REPEATERS_VAL: return loglevel.flags.repeaters;
@@ -204,6 +205,7 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_IPSC_VAL:
 		case LOGLEVEL_COMM_IP_VAL:
 		case LOGLEVEL_DMR_VAL:
+		case LOGLEVEL_DMRLC_VAL:
 		case LOGLEVEL_DMRDATA_VAL:
 		case LOGLEVEL_SNMP_VAL:
 		case LOGLEVEL_REPEATERS_VAL:

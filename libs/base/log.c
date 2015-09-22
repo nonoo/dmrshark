@@ -51,6 +51,12 @@ void log_loglevel(loglevel_t *loglevel) {
 	else
 		console_log("off\n");
 
+	console_log("  dmrlc ");
+	if (loglevel->flags.dmrlc)
+		console_log("on\n");
+	else
+		console_log("off\n");
+
 	console_log("  dmrdata ");
 	if (loglevel->flags.dmrdata)
 		console_log("on\n");

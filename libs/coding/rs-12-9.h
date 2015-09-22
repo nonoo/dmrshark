@@ -41,11 +41,11 @@ typedef uint8_t rs_12_9_correct_errors_result_t;
 
 typedef struct {
 	uint8_t bytes[3];
-} rs12_9_checksum_t;
+} rs_12_9_checksum_t;
 
 void rs_12_9_calc_syndrome(rs_12_9_codeword_t *codeword, rs_12_9_poly_t *syndrome);
 flag_t rs_12_9_check_syndrome(rs_12_9_poly_t *syndrome);
 rs_12_9_correct_errors_result_t rs_12_9_correct_errors(rs_12_9_codeword_t *codeword, rs_12_9_poly_t *syndrome, uint8_t *errors_found);
-rs12_9_checksum_t *rs_12_9_calc_checksum(rs_12_9_codeword_t *codeword);
+rs_12_9_checksum_t *rs_12_9_calc_checksum(rs_12_9_codeword_t *codeword);
 
 #endif

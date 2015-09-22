@@ -18,15 +18,15 @@
 #ifndef IPSCPACKET_H_
 #define IPSCPACKET_H_
 
-#include "repeaters.h"
+#include <libs/base/dmr.h>
+#include <libs/dmrpacket/dmrpacket.h>
 
 #include <netinet/udp.h>
 
 #define IPSCPACKET_PAYLOAD_SIZE							34
 
-#define IPSCPACKET_SLOT_TYPE_CALL_START					0xDDDD
-#define IPSCPACKET_SLOT_TYPE_START						0xEEEE
-#define IPSCPACKET_SLOT_TYPE_CALL_END					0x2222
+#define IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER			0x1111
+#define IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC			0x2222
 #define IPSCPACKET_SLOT_TYPE_CSBK						0x3333
 #define IPSCPACKET_SLOT_TYPE_DATA_HEADER				0x4444
 #define IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA				0x5555
@@ -40,20 +40,57 @@
 typedef uint16_t ipscpacket_slot_type_t;
 
 typedef struct {
+	uint8_t bytes[IPSCPACKET_PAYLOAD_SIZE];
+} ipscpacket_payload_t;
+
+typedef struct __attribute__((packed)) {
+	uint16_t udp_source_port;
+	uint8_t reserved1[2];
+	uint8_t seq;
+	uint8_t reserved2[3];
+	uint8_t packet_type;
+	uint8_t reserved3[7];
+	uint16_t timeslot_raw; // 0x1111 if TS1, 0x2222 if TS2
+	uint16_t slot_type;
+	uint16_t delimiter; // Always 0x1111.
+	uint16_t frame_type;
+	uint8_t reserved4[2];
+	ipscpacket_payload_t payload;
+	uint8_t reserved5[2];
+	uint8_t calltype; // 0x00 - private call, 0x01 - group call
+	uint8_t reserved6;
+	uint8_t dst_id_raw1;
+	uint8_t dst_id_raw2;
+	uint8_t dst_id_raw3;
+	uint8_t reserved7;
+	uint8_t src_id_raw1;
+	uint8_t src_id_raw2;
+	uint8_t src_id_raw3;
+	uint8_t reserved8;
+} ipscpacket_raw_t;
+
+typedef struct {
 	dmr_timeslot_t timeslot;
 	ipscpacket_slot_type_t slot_type;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
-	uint8_t payload[IPSCPACKET_PAYLOAD_SIZE];
+	ipscpacket_payload_t payload;
 	dmrpacket_payload_bits_t payload_bits;
 } ipscpacket_t;
+
+typedef struct ipscrawpacketbuf_st {
+	ipscpacket_raw_t ipscpacket_raw;
+
+	struct ipscrawpacketbuf_st *next;
+} ipscrawpacketbuf_t;
 
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
 
 flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
-dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload);
+ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload);
+ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type_t calltype, dmr_id_t dst_id, dmr_id_t src_id);
 
 #endif

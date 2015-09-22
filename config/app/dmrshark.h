@@ -7,4 +7,6 @@
 #define CONFIGFILENAME				"dmrshark.cfg"
 #define CONSOLE_INPUTBUFFERSIZE		1024
 
+#define DMRSHARK_DEFAULT_SRCID		7777
+
 #endif

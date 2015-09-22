@@ -19,6 +19,7 @@
 #define BPTC_196_96_H_
 
 #include <libs/base/types.h>
+#include <libs/dmrpacket/dmrpacket-types.h>
 
 typedef struct {
 	flag_t bits[96];
@@ -26,5 +27,7 @@ typedef struct {
 
 flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]);
 bptc_196_96_data_bits_t *bptc_196_96_extractdata(flag_t deinterleaved_bits[196]);
+
+dmrpacket_payload_info_bits_t *bptc_196_96_generate(bptc_196_96_data_bits_t *data_bits);
 
 #endif

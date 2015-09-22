@@ -18,8 +18,11 @@
 #ifndef REPEATERS_H_
 #define REPEATERS_H_
 
+#include "ipscpacket.h"
+
 #include <libs/base/dmr.h>
-#include <libs/dmrpacket/dmrpacket.h>
+#include <libs/dmrpacket/dmrpacket-data-header.h>
+#include <libs/dmrpacket/dmrpacket-data.h>
 #include <libs/coding/vbptc-16-11.h>
 #include <libs/voicestreams/voicestreams.h>
 
@@ -46,6 +49,11 @@ typedef struct {
 	int data_blocks_received;
 	time_t data_header_received_at;
 	voicestream_t *voicestream;
+	ipscrawpacketbuf_t *ipscrawpacketbuf;
+	struct timeval last_ipsc_packet_sent_time;
+	// This holds the last received frame's number in a voice superframe if we are in a call.
+	uint8_t voice_frame_num;
+	vbptc_16_11_t emb_sig_lc_vbptc_storage; // This is where we store received embedded signalling lc fragments.
 } repeater_slot_t;
 
 typedef struct repeater_st {
@@ -77,11 +85,14 @@ char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr);
 char *repeaters_get_display_string(repeater_t *repeater);
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
+repeater_t *repeaters_findbyhost(char *host);
 repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type);
 repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
+
+void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 
 void repeaters_process(void);
 void repeaters_deinit(void);

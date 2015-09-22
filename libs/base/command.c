@@ -34,37 +34,51 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 void command_process(char *input_buffer) {
 	extern base_flags_t base_flags;
 	loglevel_t loglevel;
-	voicestream_t *voicestream;
-
+	union {
+		struct {
+			voicestream_t *voicestream;
+		} stream;
+		struct {
+			char *filename;
+			char *host;
+			repeater_t *repeater;
+			dmr_timeslot_t ts;
+			dmr_call_type_t calltype;
+			dmr_id_t dstid;
+		} play;
+	} d;
+	char *endptr = NULL;
 	char *tok = strtok(input_buffer, " ");
 
 	if (tok == NULL)
 		return;
 
 	if (strcmp(tok, "help") == 0 || strcmp(tok, "h") == 0) {
-		console_log("  ver                             - version\n");
-		console_log("  log (loglevel)                  - get/set loglevel\n");
-		console_log("  exit                            - exits the application\n");
-		console_log("  repstat [host]                  - reads repeater status from host using snmp\n");
-		console_log("  repinfo [host]                  - reads repeater info from host using snmp\n");
-		console_log("  replist                         - list repeaters\n");
-		console_log("  streamlist                      - list voice streams\n");
-		console_log("  remotedbmaintain                - start db maintenance\n");
-		console_log("  remotedbreplistmaintain         - start repeater list db maintenance\n");
-		console_log("  loadpcap [pcapfile]             - reads and processes packets from pcap file\n");
-		console_log("  httplist                        - list http clients\n");
-		console_log("  streamenable [name]             - enable stream\n");
-		console_log("  streamdisable [name]            - disable stream\n");
-		console_log("  streamrecstart [name]           - enable saving raw AMBE data to file\n");
-		console_log("  streamrecstop [name]            - disable saving raw AMBE data to file\n");
-		console_log("  streamdecrecstart [name]        - enable saving raw decoded data to file\n");
-		console_log("  streamdecrecstop [name]         - disable saving raw decoded data to file\n");
-		console_log("  streammp3recstart [name]        - enable saving mp3 data to file\n");
-		console_log("  streammp3recstop [name]         - disable saving mp3 data to file\n");
+		console_log("  ver                                        - version\n");
+		console_log("  log (loglevel)                             - get/set loglevel\n");
+		console_log("  exit                                       - exits the application\n");
+		console_log("  repstat [host]                             - reads repeater status from host using snmp\n");
+		console_log("  repinfo [host]                             - reads repeater info from host using snmp\n");
+		console_log("  replist                                    - list repeaters\n");
+		console_log("  streamlist                                 - list voice streams\n");
+		console_log("  remotedbmaintain                           - start db maintenance\n");
+		console_log("  remotedbreplistmaintain                    - start repeater list db maintenance\n");
+		console_log("  loadpcap [pcapfile]                        - reads and processes packets from pcap file\n");
+		console_log("  httplist                                   - list http clients\n");
+		console_log("  streamenable [name]                        - enable stream\n");
+		console_log("  streamdisable [name]                       - disable stream\n");
+		console_log("  streamrecstart [name]                      - enable saving raw AMBE data to file\n");
+		console_log("  streamrecstop [name]                       - disable saving raw AMBE data to file\n");
+		console_log("  streamdecrecstart [name]                   - enable saving raw decoded data to file\n");
+		console_log("  streamdecrecstop [name]                    - disable saving raw decoded data to file\n");
+		console_log("  streammp3recstart [name]                   - enable saving mp3 data to file\n");
+		console_log("  streammp3recstop [name]                    - disable saving mp3 data to file\n");
+		console_log("  play [file] [host] [ts] [calltype] [dstid] - play ambe file to given repeater host\n");
 		return;
 	}
 
@@ -90,6 +104,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.comm_ip = !loglevel.flags.comm_ip;
 			else if (strcmp(tok, "dmr") == 0)
 				loglevel.flags.dmr = !loglevel.flags.dmr;
+			else if (strcmp(tok, "dmrlc") == 0)
+				loglevel.flags.dmrlc = !loglevel.flags.dmrlc;
 			else if (strcmp(tok, "dmrdata") == 0)
 				loglevel.flags.dmrdata = !loglevel.flags.dmrdata;
 			else if (strcmp(tok, "snmp") == 0)
@@ -182,12 +198,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->enabled = 1;
+		d.stream.voicestream->enabled = 1;
 		console_log("voicestream [%s]: enabled\n", tok);
 		return;
 	}
@@ -198,12 +214,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->enabled = 0;
+		d.stream.voicestream->enabled = 0;
 		console_log("voicestream [%s]: disabled\n", tok);
 		return;
 	}
@@ -214,12 +230,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savetorawfile = 1;
+		d.stream.voicestream->savetorawfile = 1;
 		console_log("voicestream [%s]: saving to raw file enabled\n", tok);
 		return;
 	}
@@ -230,12 +246,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savetorawfile = 0;
+		d.stream.voicestream->savetorawfile = 0;
 		console_log("voicestream [%s]: saving to raw file disabled\n", tok);
 		return;
 	}
@@ -246,12 +262,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savedecodedtorawfile = 1;
+		d.stream.voicestream->savedecodedtorawfile = 1;
 		console_log("voicestream [%s]: saving decoded data to raw file enabled\n", tok);
 		return;
 	}
@@ -262,12 +278,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savedecodedtorawfile = 0;
+		d.stream.voicestream->savedecodedtorawfile = 0;
 		console_log("voicestream [%s]: saving decoded data to raw file disabled\n", tok);
 		return;
 	}
@@ -278,12 +294,12 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savedecodedtomp3file = 1;
+		d.stream.voicestream->savedecodedtomp3file = 1;
 		console_log("voicestream [%s]: saving decoded data to mp3 file enabled\n", tok);
 		return;
 	}
@@ -294,13 +310,73 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		voicestream = voicestreams_get_stream_by_name(tok);
-		if (voicestream == NULL) {
+		d.stream.voicestream = voicestreams_get_stream_by_name(tok);
+		if (d.stream.voicestream == NULL) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		voicestream->savedecodedtomp3file = 0;
+		d.stream.voicestream->savedecodedtomp3file = 0;
 		console_log("voicestream [%s]: saving decoded data to mp3 file disabled\n", tok);
+		return;
+	}
+
+	if (strcmp(tok, "play") == 0) {
+		d.play.filename = strtok(NULL, " ");
+		if (d.play.filename == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.play.host = strtok(NULL, " ");
+		if (d.play.host == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.play.repeater = repeaters_findbyhost(d.play.host);
+		if (d.play.repeater == NULL) {
+			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", tok);
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.play.ts = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0 || d.play.ts < 0 || d.play.ts > 1) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.play.calltype = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0 || d.play.calltype < 0 || d.play.calltype > 1) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.play.dstid = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+
+		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, d.play.calltype, d.play.dstid);
+		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_SRCID);
+		return;
+	}
+
+	if (strcmp(tok, "p") == 0) {
+		repeaters_play_ambe_file("ds.ambe", repeaters_findbyhost("ozike.ha5kdr.hu"), 0, DMR_CALL_TYPE_GROUP, 216, DMRSHARK_DEFAULT_SRCID);
 		return;
 	}
 

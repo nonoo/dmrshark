@@ -112,7 +112,7 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			console_log(LOGLEVEL_IPSC " (talkgroup ignored)\n");
 		else {
 			console_log(LOGLEVEL_IPSC "\n");
-			ipsc_handle(ip_packet, ipscpacket, repeater);
+			ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
 		}
 	}
 

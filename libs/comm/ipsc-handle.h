@@ -23,6 +23,6 @@
 
 #include <netinet/ip.h>
 
-void ipsc_handle(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
+void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater);
 
 #endif

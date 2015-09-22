@@ -24,14 +24,10 @@
 
 #include <string.h>
 
-typedef struct {
-	flag_t bits[12];
-} golay_20_8_parity_bits_t;
-
 static golay_20_8_parity_bits_t golay_20_8_data_parity_syndromes[256];
 
 // Returns the Golay(20,8) parity bits for the given byte.
-static golay_20_8_parity_bits_t *golay_20_8_get_parity_bits(flag_t bits[8]) {
+golay_20_8_parity_bits_t *golay_20_8_get_parity_bits(flag_t bits[8]) {
 	static golay_20_8_parity_bits_t parity;
 
 	// Multiplying the generator matrix with the given data bits.
@@ -84,7 +80,7 @@ static void golay_20_8_print_bits(flag_t *bits, uint8_t count, flag_t leave_spac
 
 // Repairs the 8 data bits using a precalculated parity syndrome table.
 // Returns 1 if repair was successful or there were no erroneous bits detected.
-static flag_t golay_20_8_check_and_repair_data(flag_t bits[20]) {
+/*static flag_t golay_20_8_check_and_repair_data(flag_t bits[20]) {
 	uint16_t col;
 	int16_t syndrome_location = -1;
 	golay_20_8_parity_bits_t *parity_bits = NULL;
@@ -189,24 +185,32 @@ static void golay_20_8_check_and_repair_parity(flag_t bits[20]) {
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "        minimum weight parity: ");
 	golay_20_8_print_bits(error_vector.bits, 12, 0);
 
-	memcpy(&bits[8], golay_20_8_data_parity_syndromes[minweightrow].bits, 12);
+	memcpy(bits+8, golay_20_8_data_parity_syndromes[minweightrow].bits, 12);
 
 	console_log(LOGLEVEL_CODING "    golay: parity errors found and repaired\n");
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "                        final: ");
 	golay_20_8_print_bits(bits, 20, 1);
-}
+}*/
 
 flag_t golay_20_8_check_and_repair(flag_t bits[20]) {
+	golay_20_8_parity_bits_t *parity_bits = NULL;
+
+	if (bits == NULL)
+		return 0;
+
 	console_log(LOGLEVEL_DEBUG LOGLEVEL_CODING "    golay:         input bits: ");
 	golay_20_8_print_bits(bits, 20, 1);
 
-	if (!golay_20_8_check_and_repair_data(bits)) {
+	parity_bits = golay_20_8_get_parity_bits(bits);
+	return (memcmp(parity_bits, bits+8, 12) == 0);
+
+/*	if (!golay_20_8_check_and_repair_data(bits)) {
 		golay_20_8_check_and_repair_parity(bits);
 		if (golay_20_8_check_and_repair_data(bits))
 			return 1;
 	} else
 		return 1;
-	return 0;
+	return 0;*/
 }
 
 void golay_20_8_init(void) {

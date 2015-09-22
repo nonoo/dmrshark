@@ -21,6 +21,7 @@
 #include "comm.h"
 
 #include <libs/daemon/console.h>
+#include <libs/dmrpacket/dmrpacket-data-34rate.h>
 
 #include <string.h>
 

@@ -1,5 +1,6 @@
 - Testing compiling without AMBE decoding/MP3 encoding enabled.
-- repeater voltage, pwr, swr sending to remote db
+- Rewriting Golay check
+- Quadratic residue error correction
 - CSBK and Multi Block Control (MBC) message decoding
 - Handling other DPF data types
 - Inserting decoded SMS messages into a database table

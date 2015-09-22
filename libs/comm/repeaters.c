@@ -20,6 +20,7 @@
 #include "repeaters.h"
 #include "comm.h"
 #include "snmp.h"
+#include "ipsc.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -30,6 +31,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static repeater_t *repeaters = NULL;
 
@@ -76,6 +78,15 @@ repeater_t *repeaters_findbyip(struct in_addr *ipaddr) {
 	return NULL;
 }
 
+repeater_t *repeaters_findbyhost(char *host) {
+	struct in_addr ipaddr;
+
+	if (comm_hostname_to_ip(host, &ipaddr))
+		return repeaters_findbyip(&ipaddr);
+	else
+		return NULL;
+}
+
 repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type) {
 	repeater_t *repeater = repeaters;
 
@@ -113,10 +124,27 @@ static flag_t repeaters_issnmpignoredforip(struct in_addr *ipaddr) {
 }
 
 static void repeaters_remove(repeater_t *repeater) {
+	ipscrawpacketbuf_t *pb_nextentry;
+
 	if (repeater == NULL)
 		return;
 
 	console_log("repeaters [%s]: removing\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+
+	vbptc_16_11_free(&repeater->slot[0].emb_sig_lc_vbptc_storage);
+	vbptc_16_11_free(&repeater->slot[1].emb_sig_lc_vbptc_storage);
+
+	// Freeing up IPSC packet buffers for both slots.
+	while (repeater->slot[0].ipscrawpacketbuf) {
+		pb_nextentry = repeater->slot[0].ipscrawpacketbuf->next;
+		free(repeater->slot[0].ipscrawpacketbuf);
+		repeater->slot[0].ipscrawpacketbuf = pb_nextentry;
+	}
+	while (repeater->slot[1].ipscrawpacketbuf) {
+		pb_nextentry = repeater->slot[1].ipscrawpacketbuf->next;
+		free(repeater->slot[1].ipscrawpacketbuf);
+		repeater->slot[1].ipscrawpacketbuf = pb_nextentry;
+	}
 
 	if (repeater->prev)
 		repeater->prev->next = repeater->next;
@@ -130,6 +158,7 @@ static void repeaters_remove(repeater_t *repeater) {
 }
 
 repeater_t *repeaters_add(struct in_addr *ipaddr) {
+	flag_t error = 0;
 	repeater_t *repeater = repeaters_findbyip(ipaddr);
 
 	if (ipaddr == NULL)
@@ -142,6 +171,24 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 			return NULL;
 		}
 		memcpy(&repeater->ipaddr, ipaddr, sizeof(struct in_addr));
+
+		// Expecting 8 rows of variable length BPTC coded embedded LC data.
+		// It will contain 77 data bits (without the Hamming (16,11) checksums
+		// and the last row of parity bits).
+		if (!vbptc_16_11_init(&repeater->slot[0].emb_sig_lc_vbptc_storage, 8))
+			error = 1;
+		else {
+			if (!vbptc_16_11_init(&repeater->slot[1].emb_sig_lc_vbptc_storage, 8)) {
+				vbptc_16_11_free(&repeater->slot[0].emb_sig_lc_vbptc_storage);
+				error = 1;
+			}
+		}
+		if (error) {
+			console_log("repeaters [%s]: can't add, not enough memory for embedded signalling lc storage\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+			free(repeater);
+			return NULL;
+		}
+
 		if (repeaters_issnmpignoredforip(ipaddr))
 			repeater->snmpignored = 1;
 
@@ -209,6 +256,124 @@ void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repea
 	}
 }
 
+static void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw) {
+	ipscrawpacketbuf_t *newpbentry;
+	ipscrawpacketbuf_t *pbentry;
+
+	if (repeater == NULL || ipscpacket_raw == NULL)
+		return;
+
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: adding entry to ts%u ipsc packet buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+
+	newpbentry = (ipscrawpacketbuf_t *)calloc(1, sizeof(ipscrawpacketbuf_t));
+	if (newpbentry == NULL) {
+		console_log(LOGLEVEL_REPEATERS "repeaters [%s] error: couldn't allocate memory for new ipsc packet buffer entry\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+		return;
+	}
+
+	memcpy(&newpbentry->ipscpacket_raw, ipscpacket_raw, sizeof(ipscpacket_raw_t));
+
+	pbentry = repeater->slot[ts].ipscrawpacketbuf;
+	if (pbentry == NULL)
+		repeater->slot[ts].ipscrawpacketbuf = newpbentry;
+	else {
+		// Searching for the last element in the packet buffer.
+		while (pbentry->next)
+			pbentry = pbentry->next;
+		pbentry->next = newpbentry;
+	}
+	daemon_poll_setmaxtimeout(0);
+}
+
+static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *ipscpacket_raw) {
+	struct sockaddr_in si_other;
+	int sockfd;
+	int slen = sizeof(si_other);
+
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+		return 0;
+	}
+
+	memset(&si_other, 0, sizeof(si_other));
+	si_other.sin_family = AF_INET;
+	si_other.sin_port = htons(62006);
+	memcpy(&si_other.sin_addr, &repeater->ipaddr, sizeof(struct in_addr));
+
+	errno = 0;
+	if (sendto(sockfd, (uint8_t *)ipscpacket_raw, sizeof(ipscpacket_raw_t), MSG_DONTWAIT, (struct sockaddr *)&si_other, slen) != sizeof(ipscpacket_raw_t)) {
+		close(sockfd);
+		return 0;
+	}
+	close(sockfd);
+	return 1;
+}
+
+void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
+	FILE *f;
+	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
+	uint8_t i, seqnum = 0;
+
+	if (ambe_file_name == NULL || repeater == NULL)
+		return;
+
+	f = fopen(ambe_file_name, "r");
+	if (!f) {
+		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: can't open %s for playing\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
+		return;
+	}
+
+	console_log(LOGLEVEL_REPEATERS "repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
+
+	for (i = 0; i < 5; i++)
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid)));
+
+	while (!feof(f)) {
+		memset(voice_bytes, 0, sizeof(voice_bytes));
+		fread(voice_bytes, 1, sizeof(voice_bytes), f);
+//		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_voice_frame(voice_bytes));
+	}
+	fclose(f);
+}
+
+static void repeaters_process_ipscrawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
+	uint8_t ip_packet_bytes[20+8+sizeof(ipscpacket_raw_t)];
+	struct ip *ip_packet = (struct ip *)ip_packet_bytes;
+	struct udphdr *udp_packet = (struct udphdr *)(ip_packet_bytes+20);
+	struct timeval currtime = {0,};
+	struct timeval difftime = {0,};
+	ipscrawpacketbuf_t *ipscrawpacketbuf_entry_to_send;
+
+	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipscrawpacketbuf == NULL)
+		return;
+
+	gettimeofday(&currtime, NULL);
+	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
+	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 20) { // Sending a frame every x ms.
+		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+		ipscrawpacketbuf_entry_to_send = repeater->slot[ts].ipscrawpacketbuf;
+		if (repeaters_send_ipscpacket(repeater, &ipscrawpacketbuf_entry_to_send->ipscpacket_raw)) {
+			// Constructing a fake IP packet for ipsc_processpacket()
+			comm_hostname_to_ip("0.0.0.0", &ip_packet->ip_src);
+			memcpy(&ip_packet->ip_dst, &repeater->ipaddr, sizeof(struct in_addr));
+			ip_packet->ip_hl = 5;
+			ip_packet->ip_sum = comm_calcipheaderchecksum(ip_packet, 20);
+			udp_packet->source = htons(62006);
+			udp_packet->dest = htons(62006);
+			udp_packet->len = htons(8+sizeof(ipscpacket_raw_t));
+			memcpy(ip_packet_bytes+20+8, &repeater->slot[ts].ipscrawpacketbuf->ipscpacket_raw, sizeof(ipscpacket_raw_t));
+			ipsc_processpacket(ip_packet, sizeof(ip_packet_bytes));
+
+			gettimeofday(&repeater->slot[ts].last_ipsc_packet_sent_time, NULL);
+			// Shifting the buffer.
+			repeater->slot[ts].ipscrawpacketbuf = repeater->slot[ts].ipscrawpacketbuf->next;
+			free(ipscrawpacketbuf_entry_to_send);
+		}
+	}
+	if (repeater->slot[ts].ipscrawpacketbuf != NULL)
+		daemon_poll_setmaxtimeout(20);
+}
+
 void repeaters_process(void) {
 	repeater_t *repeater = repeaters;
 	repeater_t *repeater_to_remove;
@@ -216,6 +381,9 @@ void repeaters_process(void) {
 	struct timeval difftime = {0,};
 
 	while (repeater) {
+		repeaters_process_ipscrawpacketbuf(repeater, 0);
+		repeaters_process_ipscrawpacketbuf(repeater, 1);
+
 		if (time(NULL)-repeater->last_active_time > config_get_repeaterinactivetimeoutinsec()) {
 			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: timed out\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 			repeater_to_remove = repeater;

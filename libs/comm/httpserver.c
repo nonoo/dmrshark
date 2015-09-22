@@ -456,7 +456,7 @@ void httpserver_process(void) {
 		if (!client->is_on_websockets && client->voicestream != NULL && client->voicestream->silent_mp3_frame.bytes_size > 0 && !client->voicestream->streaming_active_call) {
 			gettimeofday(&currtime, NULL);
 			timersub(&currtime, &client->last_silent_frame_sent_time, &difftime);
-			if (difftime.tv_sec*1000+difftime.tv_usec/1000 > VOICESTREAMS_MP3_SILENT_FRAME_LENGTH_IN_MS) { // Sending a frame every x ms.
+			if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= VOICESTREAMS_MP3_SILENT_FRAME_LENGTH_IN_MS) { // Sending a frame every x ms.
 				i = httpserver_sendtoclient(client, client->voicestream->silent_mp3_frame.bytes, client->voicestream->silent_mp3_frame.bytes_size);
 				gettimeofday(&client->last_silent_frame_sent_time, NULL);
 			}

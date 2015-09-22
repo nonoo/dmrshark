@@ -22,19 +22,25 @@
 
 #include <libs/daemon/console.h>
 #include <libs/base/dmr-handle.h>
-#include <libs/dmrpacket/dmrpacket.h>
+#include <libs/dmrpacket/dmrpacket-sync.h>
 
-static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
+void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
 
 	switch (ipscpacket->slot_type) {
+		case IPSCPACKET_SLOT_TYPE_CSBK:
+			dmr_handle_csbk(ip_packet, ipscpacket, repeater);
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER:
+			dmr_handle_voice_lc_header(ip_packet, ipscpacket, repeater);
+			break;
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_C:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
-		case IPSCPACKET_SLOT_TYPE_CALL_START:
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F:
 			if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
 				// Checking if this call is already running on another repeater. This can happen if dmrshark is running
 				// on a server which has multiple repeaters' traffic running through it.
@@ -52,8 +58,10 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 						dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
 					}
 			}
+			dmr_handle_voice_frame(ip_packet, ipscpacket, repeater);
 			break;
-		case IPSCPACKET_SLOT_TYPE_CALL_END:
+		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC:
+			dmr_handle_terminator_with_lc(ip_packet, ipscpacket, repeater);
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
@@ -73,15 +81,4 @@ static void ipsc_handle_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket
 	}
 
 	repeater->slot[ipscpacket->timeslot-1].last_packet_received_at = time(NULL);
-}
-
-static void ipsc_handle_sync_field(dmrpacket_payload_bits_t *packet_payload_bits) {
-	dmrpacket_sync_pattern_type_t sync_pattern_type = dmrpacket_get_sync_pattern_type(dmrpacket_extract_sync_field_bits(packet_payload_bits));
-	if (sync_pattern_type != DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN)
-		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  sync pattern type: %s\n", dmrpacket_get_readable_sync_pattern_type(sync_pattern_type));
-}
-
-void ipsc_handle(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
-	ipsc_handle_sync_field(&ipscpacket->payload_bits);
-	ipsc_handle_slot_type(ip_packet, ipscpacket, repeater);
 }

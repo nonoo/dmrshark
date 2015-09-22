@@ -26,7 +26,7 @@
 
 typedef struct {
 	flag_t bits[4];
-} hamming_error_vector_t;
+} bptc_196_96_error_vector_t;
 
 // Hamming(15, 11, 3) checking of a matrix row (15 total bits, 11 data bits, min. distance: 3)
 // See page 135 of the DMR Air Interface protocol specification for the generator matrix.
@@ -36,14 +36,26 @@ typedef struct {
 // of the parity check matrix, then xor each resulting row bits together with the corresponding
 // parity check bit. The xor result (error vector) should be 0, if it's not, it can be used
 // to determine the location of the erroneous bit using the generator matrix (P).
-static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
+void bptc_196_96_hamming_15_11_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
+	if (data_bits == NULL || error_vector == NULL)
+		return;
+
+	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8]);
+	error_vector->bits[1] = (data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9]);
+	error_vector->bits[2] = (data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[5] ^ data_bits[7] ^ data_bits[9] ^ data_bits[10]);
+	error_vector->bits[3] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7] ^ data_bits[10]);
+}
+
+static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return 0;
 
-	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8] ^ data_bits[11]);
-	error_vector->bits[1] = (data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9] ^ data_bits[12]);
-	error_vector->bits[2] = (data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[5] ^ data_bits[7] ^ data_bits[9] ^ data_bits[10] ^ data_bits[13]);
-	error_vector->bits[3] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7] ^ data_bits[10] ^ data_bits[14]);
+	bptc_196_96_hamming_15_11_3_get_parity_bits(data_bits, error_vector);
+
+	error_vector->bits[0] ^= data_bits[11];
+	error_vector->bits[1] ^= data_bits[12];
+	error_vector->bits[2] ^= data_bits[13];
+	error_vector->bits[3] ^= data_bits[14];
 
 	if (error_vector->bits[0] == 0 &&
 		error_vector->bits[1] == 0 &&
@@ -60,15 +72,27 @@ static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, hamming_
 	return 0;
 }
 
+void bptc_196_96_hamming_13_9_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
+	if (data_bits == NULL || error_vector == NULL)
+		return;
+
+	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[3] ^ data_bits[5] ^ data_bits[6]);
+	error_vector->bits[1] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7]);
+	error_vector->bits[2] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8]);
+	error_vector->bits[3] = (data_bits[0] ^ data_bits[2] ^ data_bits[4] ^ data_bits[5] ^ data_bits[8]);
+}
+
 // Hamming(13, 9, 3) checking of a matrix column (13 total bits, 9 data bits, min. distance: 3)
-static flag_t bptc_196_96_hamming_13_9_3_errorcheck(flag_t *data_bits, hamming_error_vector_t *error_vector) {
+static flag_t bptc_196_96_hamming_13_9_3_errorcheck(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return 0;
 
-	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[3] ^ data_bits[5] ^ data_bits[6] ^ data_bits[9]);
-	error_vector->bits[1] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7] ^ data_bits[10]);
-	error_vector->bits[2] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8] ^ data_bits[11]);
-	error_vector->bits[3] = (data_bits[0] ^ data_bits[2] ^ data_bits[4] ^ data_bits[5] ^ data_bits[8] ^ data_bits[12]);
+	bptc_196_96_hamming_13_9_3_get_parity_bits(data_bits, error_vector);
+
+	error_vector->bits[0] ^= data_bits[9];
+	error_vector->bits[1] ^= data_bits[10];
+	error_vector->bits[2] ^= data_bits[11];
+	error_vector->bits[3] ^= data_bits[12];
 
 	if (error_vector->bits[0] == 0 &&
 		error_vector->bits[1] == 0 &&
@@ -112,7 +136,7 @@ static void bptc_196_96_display_data_matrix(flag_t deinterleaved_bits[196]) {
 
 // Searches for the given error vector in the generator matrix.
 // Returns the erroneous bit number if the error vector is found, otherwise it returns -1.
-static int bptc_196_96_find_hamming_15_11_3_error_position(hamming_error_vector_t *error_vector) {
+static int bptc_196_96_find_hamming_15_11_3_error_position(bptc_196_96_error_vector_t *error_vector) {
 	static flag_t hamming_15_11_generator_matrix[] = {
 		1, 0, 0, 1,
 		1, 1, 0, 1,
@@ -146,7 +170,7 @@ static int bptc_196_96_find_hamming_15_11_3_error_position(hamming_error_vector_
 
 // Searches for the given error vector in the generator matrix.
 // Returns the erroneous bit number if the error vector is found, otherwise it returns -1.
-static int bptc_196_96_find_hamming_13_9_3_error_position(hamming_error_vector_t *error_vector) {
+static int bptc_196_96_find_hamming_13_9_3_error_position(bptc_196_96_error_vector_t *error_vector) {
 	static flag_t hamming_13_9_generator_matrix[] = {
 		1, 1, 1, 1,
 		1, 1, 1, 0,
@@ -181,7 +205,7 @@ static int bptc_196_96_find_hamming_13_9_3_error_position(hamming_error_vector_t
 
 // Checks data for errors and tries to repair them.
 flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
-	hamming_error_vector_t hamming_error_vector;
+	bptc_196_96_error_vector_t bptc_196_96_error_vector;
 	flag_t column_bits[13] = {0,};
 	uint8_t row, col;
 	int8_t wrongbitnr = -1;
@@ -199,10 +223,10 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 			column_bits[row] = deinterleaved_bits[col+row*15+1];
 		}
 
-		if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
+		if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &bptc_196_96_error_vector)) {
 			errors_found = 1;
 			// Error check failed, checking if we can determine the location of the bit error.
-			wrongbitnr = bptc_196_96_find_hamming_13_9_3_error_position(&hamming_error_vector);
+			wrongbitnr = bptc_196_96_find_hamming_13_9_3_error_position(&bptc_196_96_error_vector);
 			if (wrongbitnr < 0) {
 				result = 0;
 				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(13,9) check error, can't repair column #%u\n", col);
@@ -218,7 +242,7 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 					column_bits[row] = deinterleaved_bits[col+row*15+1];
 				}
 
-				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &hamming_error_vector)) {
+				if (!bptc_196_96_hamming_13_9_3_errorcheck(column_bits, &bptc_196_96_error_vector)) {
 					result = 0;
 					console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(13,9) check error, couldn't repair column #%u\n", col);
 				}
@@ -228,10 +252,10 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 
 	for (row = 0; row < 9; row++) {
 		// +1 because the first bit is R(3) and it's not used so we can ignore that.
-		if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
+		if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &bptc_196_96_error_vector)) {
 			errors_found = 1;
 			// Error check failed, checking if we can determine the location of the bit error.
-			wrongbitnr = bptc_196_96_find_hamming_15_11_3_error_position(&hamming_error_vector);
+			wrongbitnr = bptc_196_96_find_hamming_15_11_3_error_position(&bptc_196_96_error_vector);
 			if (wrongbitnr < 0) {
 				result = 0;
 				console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(15,11) check error in row %u, can't repair\n", row);
@@ -242,7 +266,7 @@ flag_t bptc_196_96_check_and_repair(flag_t deinterleaved_bits[196]) {
 
 				bptc_196_96_display_data_matrix(deinterleaved_bits);
 
-				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &hamming_error_vector)) {
+				if (!bptc_196_96_hamming_15_11_3_errorcheck(&deinterleaved_bits[row*15+1], &bptc_196_96_error_vector)) {
 					result = 0;
 					console_log(LOGLEVEL_CODING "    bptc (196,96): hamming(15,11) check error, couldn't repair row #%u\n", row);
 				}
@@ -278,4 +302,53 @@ bptc_196_96_data_bits_t *bptc_196_96_extractdata(flag_t deinterleaved_bits[196])
 	memcpy(&data_bits.bits[85], &deinterleaved_bits[121], 11);
 
 	return &data_bits;
+}
+
+// Generates 196 BPTC payload info bits from 96 data bits.
+dmrpacket_payload_info_bits_t *bptc_196_96_generate(bptc_196_96_data_bits_t *data_bits) {
+	static dmrpacket_payload_info_bits_t payload_info_bits;
+	bptc_196_96_error_vector_t error_vector;
+	uint8_t col, row;
+	uint8_t dbp;
+	flag_t column_bits[9] = {0,};
+
+	memset(payload_info_bits.bits, 0, sizeof(dmrpacket_payload_info_bits_t));
+
+	dbp = 0;
+	for (row = 0; row < 9; row++) {
+		if (row == 0) {
+			for (col = 3; col < 11; col++) {
+				// +1 because the first bit is R(3) and it's not used so we can ignore that.
+				payload_info_bits.bits[col+1] = data_bits->bits[dbp++];
+			}
+		} else {
+			for (col = 0; col < 11; col++) {
+				// +1 because the first bit is R(3) and it's not used so we can ignore that.
+				payload_info_bits.bits[col+row*15+1] = data_bits->bits[dbp++];
+			}
+		}
+		console_log("\n");
+
+		// +1 because the first bit is R(3) and it's not used so we can ignore that.
+		bptc_196_96_hamming_15_11_3_get_parity_bits(&payload_info_bits.bits[row*15+1], &error_vector);
+		payload_info_bits.bits[row*15+11+1] = error_vector.bits[0];
+		payload_info_bits.bits[row*15+12+1] = error_vector.bits[1];
+		payload_info_bits.bits[row*15+13+1] = error_vector.bits[2];
+		payload_info_bits.bits[row*15+14+1] = error_vector.bits[3];
+	}
+
+	for (col = 0; col < 15; col++) {
+		for (row = 0; row < 9; row++)
+			column_bits[row] = payload_info_bits.bits[col+row*15+1];
+
+		bptc_196_96_hamming_13_9_3_get_parity_bits(column_bits, &error_vector);
+		payload_info_bits.bits[col+135+1] = error_vector.bits[0];
+		payload_info_bits.bits[col+135+15+1] = error_vector.bits[1];
+		payload_info_bits.bits[col+135+30+1] = error_vector.bits[2];
+		payload_info_bits.bits[col+135+45+1] = error_vector.bits[3];
+	}
+
+	bptc_196_96_display_data_matrix(payload_info_bits.bits);
+
+	return &payload_info_bits;
 }

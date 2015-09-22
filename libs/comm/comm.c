@@ -58,6 +58,9 @@ flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr) {
 	struct in_addr **addr_list;
 	int i;
 
+	if (hostname == NULL || ipaddr == NULL)
+		return 0;
+
 	if ((he = gethostbyname(hostname)) == NULL)
 		return 0;
 

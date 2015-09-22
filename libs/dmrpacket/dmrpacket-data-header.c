@@ -17,7 +17,8 @@
 
 #include <config/defaults.h>
 
-#include "dmrpacket.h"
+#include "dmrpacket-data-header.h"
+#include "dmrpacket-data.h"
 
 #include <libs/coding/crc.h>
 #include <libs/base/base.h>

@@ -22,45 +22,24 @@
 #include <libs/base/base.h>
 #include <libs/daemon/console.h>
 #include <libs/base/dmr.h>
+#include <libs/coding/crc.h>
+#include <libs/dmrpacket/dmrpacket-data.h>
+#include <libs/dmrpacket/dmrpacket-lc.h>
+#include <libs/dmrpacket/dmrpacket-sync.h>
+#include <libs/dmrpacket/dmrpacket-slot-type.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <string.h>
 
-typedef struct __attribute__((packed)) {
-	uint16_t udp_source_port;
-	uint8_t reserved1[2];
-	uint8_t seq;
-	uint8_t reserved2[3];
-	uint8_t packet_type;
-	uint8_t reserved3[7];
-	uint16_t timeslot_raw; // 0x1111 if TS1, 0x2222 if TS2
-	uint16_t slot_type;
-	uint16_t delimiter; // Always 0x1111.
-	uint16_t frame_type;
-	uint8_t reserved4[2];
-	uint8_t payload[IPSCPACKET_PAYLOAD_SIZE];
-	uint8_t reserved5[2];
-	uint8_t calltype; // 0x00 - private call, 0x01 - group call
-	uint8_t reserved6;
-	uint8_t dst_id_raw1;
-	uint8_t dst_id_raw2;
-	uint8_t dst_id_raw3;
-	uint8_t reserved7;
-	uint8_t src_id_raw1;
-	uint8_t src_id_raw2;
-	uint8_t src_id_raw3;
-} ipscpacket_raw_t;
-
 #define IPSC_PACKET_SIZE1 72
 #define IPSC_PACKET_SIZE2 103
 
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 	switch (slot_type) {
-		case IPSCPACKET_SLOT_TYPE_CALL_START: return "call start";
-		case IPSCPACKET_SLOT_TYPE_START: return "start";
-		case IPSCPACKET_SLOT_TYPE_CALL_END: return "call end";
+		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER: return "voice lc header";
+		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC: return "terminator with lc";
 		case IPSCPACKET_SLOT_TYPE_CSBK: return "csbk"; // Control Signaling Block
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER: return "data header";
 		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA: return "1/2 rate data";
@@ -73,6 +52,26 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F: return "voice data f";
 		default: return "unknown";
 	}
+}
+
+// Swaps given payload bytes and then converts them to an uint8_t array of bits.
+static dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(ipscpacket_payload_t *payload) {
+	static dmrpacket_payload_bits_t payload_bits;
+	ipscpacket_payload_t swapped_bytes = { .bytes = { 0, } };
+	uint8_t i;
+
+	if (payload == NULL)
+		return NULL;
+
+	// Swapping the bytes.
+	for (i = 0; i < IPSCPACKET_PAYLOAD_SIZE-1; i += 2) {
+		swapped_bytes.bytes[i] = payload->bytes[i+1];
+		swapped_bytes.bytes[i+1] = payload->bytes[i];
+	}
+
+	base_bytestobits(swapped_bytes.bytes, IPSCPACKET_PAYLOAD_SIZE-1, payload_bits.bits, sizeof(payload_bits.bits));
+
+	return &payload_bits;
 }
 
 // Decodes the UDP packet given in udp_packet to ipsc_packet,
@@ -130,8 +129,8 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, fla
 	ipscpacket->call_type = ipscpacket_raw->calltype;
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;
 	ipscpacket->src_id = ipscpacket_raw->src_id_raw3 << 16 | ipscpacket_raw->src_id_raw2 << 8 | ipscpacket_raw->src_id_raw1;
-	memcpy(ipscpacket->payload, (uint8_t *)ipscpacket_raw->payload, IPSCPACKET_PAYLOAD_SIZE);
-	memcpy(&ipscpacket->payload_bits, ipscpacket_convertpayloadtobits(ipscpacket->payload), sizeof(dmrpacket_payload_bits_t));
+	memcpy(ipscpacket->payload.bytes, ipscpacket_raw->payload.bytes, IPSCPACKET_PAYLOAD_SIZE);
+	memcpy(&ipscpacket->payload_bits, ipscpacket_convertpayloadtobits(&ipscpacket->payload), sizeof(dmrpacket_payload_bits_t));
 
 	return 1;
 }
@@ -147,22 +146,69 @@ flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket) {
 	return 0;
 }
 
-// Swaps given payload bytes and then converts them to an uint8_t array of bits.
-dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(uint8_t *ipscpacket_payload) {
-	static dmrpacket_payload_bits_t payload_bits;
-	uint8_t swapped_bytes[IPSCPACKET_PAYLOAD_SIZE] = {0,};
-	uint8_t i;
+ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type,
+	dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload) {
 
-	if (ipscpacket_payload == NULL)
+	static ipscpacket_raw_t ipscpacket_raw;
+
+	if (ts < 0 || ts > 1 || calltype < 0 || calltype > 1 || payload == NULL)
 		return NULL;
 
-	// Swapping the bytes.
-	for (i = 0; i < IPSCPACKET_PAYLOAD_SIZE-1; i += 2) {
-		swapped_bytes[i] = *(ipscpacket_payload + i + 1);
-		swapped_bytes[i+1] = *(ipscpacket_payload + i);
-	}
+//TODO
+//00 00
+//00 00
+//00
+//00 00 00
+//01
+//00 05 01 02 00 00 00
+//22 22
+//11 11
+//11 11
+//00 00 ft
+//10 00 r4
+// sync bytes: 25 51 27 d0 05 f7
+//5d 18 10 98 05 05 9e d9 e8 ef c7 b8 a2 16 12 55 00 7d 76 5f 81 38 e3 29 98 ca 54 e5 5a 20 09 c0 00 e3
+//02 00
+//01
+//00
+//09 00 00 00 a2 12 00 00
 
-	base_bytestobits(swapped_bytes, IPSCPACKET_PAYLOAD_SIZE-1, payload_bits.bits, sizeof(payload_bits.bits));
+	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_raw_t));
 
-	return &payload_bits;
+	ipscpacket_raw.seq = seqnum;
+	ipscpacket_raw.packet_type = 0x01;
+	ipscpacket_raw.reserved3[1] = 0x05;
+	ipscpacket_raw.reserved3[2] = 0x01;
+	ipscpacket_raw.reserved3[3] = 0x02;
+	ipscpacket_raw.timeslot_raw = (ts == 0 ? 0x1111 : 0x2222);
+	ipscpacket_raw.slot_type = slot_type;
+	ipscpacket_raw.delimiter = 0x1111;
+	ipscpacket_raw.reserved4[0] = 0x10;
+	memcpy(&ipscpacket_raw.payload, payload, sizeof(ipscpacket_payload_t));
+	ipscpacket_raw.reserved5[0] = 0x02;
+	ipscpacket_raw.calltype = calltype;
+	ipscpacket_raw.dst_id_raw1 = (dstid & 0xff);
+	ipscpacket_raw.dst_id_raw2 = ((dstid >> 8) & 0xff);
+	ipscpacket_raw.dst_id_raw3 = ((dstid >> 16) & 0xff);
+	ipscpacket_raw.src_id_raw1 = (srcid & 0xff);
+	ipscpacket_raw.src_id_raw2 = ((srcid >> 8) & 0xff);
+	ipscpacket_raw.src_id_raw3 = ((srcid >> 16) & 0xff);
+
+	return &ipscpacket_raw;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+
+	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_lc_construct_voice_lc_header(call_type, dst_id, src_id)));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_CSBK));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE)); // TODO: ?
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
 }

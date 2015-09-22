@@ -63,7 +63,7 @@ static void vbptc_16_11_print_matrix(vbptc_16_11_t *vbptc) {
 }
 
 // Adds given embedded signalling data burst to the vbptc_16_11_matrix.
-// Returns 1 if the matrix is full.
+// Returns 0 if the matrix is full and data couldn't be added.
 // As the matrix is transmitted column by column, we store the incoming burst that way.
 flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t burst_data_length) {
 	uint16_t matrix_free_space;
@@ -75,7 +75,7 @@ flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t b
 
 	matrix_free_space = vbptc_16_11_get_matrix_free_space(vbptc);
 	if (matrix_free_space == 0)
-		return 1;
+		return 0;
 
 	bits_to_add = min(burst_data_length, matrix_free_space);
 
@@ -88,10 +88,7 @@ flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t b
 		}
 	}
 
-	if (vbptc_16_11_get_matrix_free_space(vbptc) == 0)
-		return 1;
-
-	return 0;
+	return 1;
 }
 
 // Hamming(16, 11, 4) checking of a matrix row (16 total bits, 11 data bits, min. distance: 4)
@@ -102,15 +99,28 @@ flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t b
 // of the parity check matrix, then xor each resulting row bits together with the corresponding
 // parity check bit. The xor result (error vector) should be 0, if it's not, it can be used
 // to determine the location of the erroneous bit using the generator matrix (P).
+static void vbptc_16_11_get_parity_bits(flag_t *data_bits, hamming_error_vector_t *error_vector) {
+	if (data_bits == NULL || error_vector == NULL)
+		return;
+
+	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8]);
+	error_vector->bits[1] = (data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9]);
+	error_vector->bits[2] = (data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[5] ^ data_bits[7] ^ data_bits[9] ^ data_bits[10]);
+	error_vector->bits[3] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7] ^ data_bits[10]);
+	error_vector->bits[4] = (data_bits[0] ^ data_bits[2] ^ data_bits[5] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9] ^ data_bits[10]);
+}
+
 static flag_t vbptc_16_11_check_row(flag_t *data_bits, hamming_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return 0;
 
-	error_vector->bits[0] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[5] ^ data_bits[7] ^ data_bits[8] ^ data_bits[11]);
-	error_vector->bits[1] = (data_bits[1] ^ data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9] ^ data_bits[12]);
-	error_vector->bits[2] = (data_bits[2] ^ data_bits[3] ^ data_bits[4] ^ data_bits[5] ^ data_bits[7] ^ data_bits[9] ^ data_bits[10] ^ data_bits[13]);
-	error_vector->bits[3] = (data_bits[0] ^ data_bits[1] ^ data_bits[2] ^ data_bits[4] ^ data_bits[6] ^ data_bits[7] ^ data_bits[10] ^ data_bits[14]);
-	error_vector->bits[4] = (data_bits[0] ^ data_bits[2] ^ data_bits[5] ^ data_bits[6] ^ data_bits[8] ^ data_bits[9] ^ data_bits[10] ^ data_bits[15]);
+	vbptc_16_11_get_parity_bits(data_bits, error_vector);
+
+	error_vector->bits[0] ^= data_bits[11];
+	error_vector->bits[1] ^= data_bits[12];
+	error_vector->bits[2] ^= data_bits[13];
+	error_vector->bits[3] ^= data_bits[14];
+	error_vector->bits[4] ^= data_bits[15];
 
 	if (error_vector->bits[0] == 0 &&
 		error_vector->bits[1] == 0 &&
