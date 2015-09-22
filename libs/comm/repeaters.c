@@ -27,6 +27,9 @@
 #include <libs/config/config.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/base/dmr-handle.h>
+#include <libs/base/base.h>
+#include <libs/dmrpacket/dmrpacket-emb.h>
+#include <libs/dmrpacket/dmrpacket-lc.h>
 
 #include <string.h>
 #include <sys/time.h>
@@ -289,7 +292,7 @@ static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *
 	struct sockaddr_in si_other;
 	int sockfd;
 	int slen = sizeof(si_other);
-
+return 1; // TODO
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return 0;
@@ -312,7 +315,12 @@ static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *
 void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
 	FILE *f;
 	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
-	uint8_t i, seqnum = 0;
+	dmrpacket_payload_voice_bits_t voice_bits;
+	uint8_t i;
+	uint8_t seqnum = 0;
+	uint8_t voice_frame_num = 0;
+	size_t bytes_read;
+	dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits;
 
 	if (ambe_file_name == NULL || repeater == NULL)
 		return;
@@ -325,14 +333,50 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 
 	console_log(LOGLEVEL_REPEATERS "repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
 
+	emb_signalling_lc_bits = dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid);
+	vbptc_16_11_clear(&repeater->slot[ts].emb_sig_lc_vbptc_storage);
+	vbptc_16_11_construct(&repeater->slot[ts].emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
+
 	for (i = 0; i < 5; i++)
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid)));
 
 	while (!feof(f)) {
-		memset(voice_bytes, 0, sizeof(voice_bytes));
-		fread(voice_bytes, 1, sizeof(voice_bytes), f);
-//		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_voice_frame(voice_bytes));
+		bytes_read = fread(voice_bytes, 1, sizeof(voice_bytes), f);
+		base_bytestobits(voice_bytes, bytes_read, voice_bits.raw.bits, min(bytes_read*8, sizeof(dmrpacket_payload_voice_bits_t)));
+
+		switch (voice_frame_num) {
+			case 0:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			case 1:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			case 2:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			case 3:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			case 4:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			case 5:
+				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, calltype, dstid, srcid,
+					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].emb_sig_lc_vbptc_storage)));
+				break;
+			default:
+				break;
+		}
+		voice_frame_num++;
+		if (voice_frame_num > 5)
+			voice_frame_num = 0;
 	}
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC, calltype, dstid, srcid, ipscpacket_construct_payload_terminator_with_lc(calltype, dstid, srcid)));
 	fclose(f);
 }
 

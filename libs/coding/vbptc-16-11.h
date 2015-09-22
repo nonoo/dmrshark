@@ -30,7 +30,9 @@ typedef struct {
 flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t burst_data_length);
 
 flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc);
+void vbptc_16_11_construct(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size);
 void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size);
+void vbptc_16_11_get_interleaved_bits(vbptc_16_11_t *vbptc, uint16_t from_bit_number, flag_t *bits, uint16_t bits_count);
 
 void vbptc_16_11_free(vbptc_16_11_t *vbptc);
 void vbptc_16_11_clear(vbptc_16_11_t *vbptc);

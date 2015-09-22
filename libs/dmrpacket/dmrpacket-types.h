@@ -15,24 +15,33 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#ifndef QUADRES_16_7_H_
-#define QUADRES_16_7_H_
+#ifndef DMRPACKET_TYPES_H_
+#define DMRPACKET_TYPES_H_
 
 #include <libs/base/types.h>
 
-typedef struct {
-	flag_t data[7];
-	flag_t parity[9];
-} quadres_16_7_codeword_t;
+typedef int8_t dmrpacket_dibit_t;
+typedef uint8_t dmrpacket_tribit_t;
 
 typedef struct {
-	flag_t bits[9];
-} quadres_16_7_parity_bits_t;
+	flag_t bits[98+10+48+10+98]; // See DMR AI spec. page 85.
+} dmrpacket_payload_bits_t;
 
-quadres_16_7_parity_bits_t *quadres_16_7_get_parity_bits(flag_t bits[7]);
+typedef struct {
+	flag_t bits[98*2];
+} dmrpacket_payload_info_bits_t;
 
-flag_t quadres_16_7_check(quadres_16_7_codeword_t *codeword);
+typedef struct {
+	flag_t bits[72];
+} dmrpacket_payload_ambe_frame_bits_t;
 
-void quadres_16_7_init(void);
+typedef union {
+	struct {
+		flag_t bits[108*2];
+	} raw;
+	struct {
+		dmrpacket_payload_ambe_frame_bits_t frames[3];
+	} ambe_frames;
+} dmrpacket_payload_voice_bits_t;
 
 #endif

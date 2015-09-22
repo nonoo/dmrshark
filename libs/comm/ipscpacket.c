@@ -206,8 +206,70 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type
 
 	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_lc_construct_voice_lc_header(call_type, dst_id, src_id)));
 	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
-	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_CSBK));
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_VOICE_LC_HEADER));
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE)); // TODO: ?
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+
+	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_lc_construct_terminator_with_lc(call_type, dst_id, src_id)));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE)); // TODO: ?
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id,
+	ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits) {
+
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_bits_t payload_bits;
+	dmrpacket_emb_signalling_lc_fragment_bits_t emb_signalling_lc_fragment_bits = { .bits = { 0, } };
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+
+	dmrpacket_insert_voice_bits(&payload_bits, voice_bits);
+
+	switch (slot_type) {
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
+			dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_VOICE));
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B:
+			dmrpacket_emb_insert_bits(&payload_bits, dmrpacket_emb_construct_bits(DMRPACKET_EMB_LCSS_FIRST_FRAGMENT));
+			vbptc_16_11_get_interleaved_bits(emb_signalling_lc_vbptc_bits, 0, emb_signalling_lc_fragment_bits.bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t));
+			dmrpacket_lc_insert_emb_signalling_lc_fragment_bits(&payload_bits, &emb_signalling_lc_fragment_bits);
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_C:
+			dmrpacket_emb_insert_bits(&payload_bits, dmrpacket_emb_construct_bits(DMRPACKET_EMB_LCSS_CONTINUATION));
+			vbptc_16_11_get_interleaved_bits(emb_signalling_lc_vbptc_bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t), emb_signalling_lc_fragment_bits.bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t));
+			dmrpacket_lc_insert_emb_signalling_lc_fragment_bits(&payload_bits, &emb_signalling_lc_fragment_bits);
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
+			dmrpacket_emb_insert_bits(&payload_bits, dmrpacket_emb_construct_bits(DMRPACKET_EMB_LCSS_CONTINUATION));
+			vbptc_16_11_get_interleaved_bits(emb_signalling_lc_vbptc_bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t)*2, emb_signalling_lc_fragment_bits.bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t));
+			dmrpacket_lc_insert_emb_signalling_lc_fragment_bits(&payload_bits, &emb_signalling_lc_fragment_bits);
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
+			dmrpacket_emb_insert_bits(&payload_bits, dmrpacket_emb_construct_bits(DMRPACKET_EMB_LCSS_LAST_FRAGMENT));
+			vbptc_16_11_get_interleaved_bits(emb_signalling_lc_vbptc_bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t)*3, emb_signalling_lc_fragment_bits.bits, sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t));
+			dmrpacket_lc_insert_emb_signalling_lc_fragment_bits(&payload_bits, &emb_signalling_lc_fragment_bits);
+			break;
+		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F:
+			dmrpacket_emb_insert_bits(&payload_bits, dmrpacket_emb_construct_bits(DMRPACKET_EMB_LCSS_SINGLE_FRAGMENT));
+			dmrpacket_lc_insert_emb_signalling_lc_fragment_bits(&payload_bits, &emb_signalling_lc_fragment_bits); // Note that this is a null fragment.
+			break;
+	}
+
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
 
 	return &ipscpacket_payload;

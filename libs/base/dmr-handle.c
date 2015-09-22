@@ -107,8 +107,9 @@ void dmr_handle_voice_lc_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, 
 		return;
 
 	console_log(LOGLEVEL_DMRLC "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got voice lc header\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
+	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got voice lc header: ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
 
+	console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 	packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
@@ -122,8 +123,9 @@ void dmr_handle_terminator_with_lc(struct ip *ip_packet, ipscpacket_t *ipscpacke
 		return;
 
 	console_log(LOGLEVEL_DMRLC "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got terminator with lc\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
+	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got terminator with lc: ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
 
+	console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 	packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
@@ -137,8 +139,9 @@ void dmr_handle_csbk(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t 
 		return;
 
 	console_log(LOGLEVEL_DMRLC "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got csbk\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
+	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got csbk: ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
 
+	console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 	packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
 	packet_payload_info_bits = dmrpacket_data_bptc_deinterleave(packet_payload_info_bits);
@@ -149,7 +152,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_sync_bits_t *sync_bits;
 	dmrpacket_sync_pattern_type_t sync_pattern_type;
 	dmrpacket_emb_t *emb;
-	dmrpacket_emb_signalling_lc_t emb_signalling_lc;
+	dmrpacket_emb_signalling_lc_bits_t emb_signalling_lc_bits;
 
 	if (ipscpacket == NULL)
 		return;
@@ -161,7 +164,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	sync_bits = dmrpacket_sync_extract_bits(&ipscpacket->payload_bits);
 	sync_pattern_type = dmrpacket_sync_get_sync_pattern_type(sync_bits);
 	if (sync_pattern_type != DMRPACKET_SYNC_PATTERN_TYPE_UNKNOWN) {
-		console_log(LOGLEVEL_DMRLC "sync: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(sync_pattern_type));
+		console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(sync_pattern_type));
 		repeater->slot[ipscpacket->timeslot-1].voice_frame_num = 0;
 		return;
 	}
@@ -190,7 +193,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 	// Handling embedded signalling LC.
 	if (emb->lcss == DMRPACKET_EMB_LCSS_SINGLE_FRAGMENT) {
-		if (dmrpacket_emb_is_null_fragment(dmrpacket_emb_signalling_extract_from_sync(sync_bits)))
+		if (dmrpacket_emb_is_null_fragment(dmrpacket_emb_signalling_lc_fragment_extract_from_sync(sync_bits)))
 			console_log(LOGLEVEL_DMRLC "  received null fragment\n");
 		else
 			console_log(LOGLEVEL_DMRLC "  received unknown single fragment\n");
@@ -206,7 +209,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		emb->lcss == DMRPACKET_EMB_LCSS_CONTINUATION ||
 		emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
 			if (vbptc_16_11_add_burst(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage,
-				(flag_t *)dmrpacket_emb_signalling_extract_from_sync(sync_bits), sizeof(dmrpacket_emb_signalling_binary_fragment_t))) {
+				(flag_t *)dmrpacket_emb_signalling_lc_fragment_extract_from_sync(sync_bits), sizeof(dmrpacket_emb_signalling_lc_fragment_bits_t))) {
 					console_log(LOGLEVEL_DMRLC "  added lc fragment to the storage\n");
 			} else
 				console_log(LOGLEVEL_DMRLC "  storage full, can't add lc fragment\n");
@@ -215,10 +218,10 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	if (emb->lcss == DMRPACKET_EMB_LCSS_LAST_FRAGMENT) {
 		console_log(LOGLEVEL_DMRLC "  got last lc fragment\n");
 		if (vbptc_16_11_check_and_repair(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage)) {
-			vbptc_16_11_get_data_bits(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc, sizeof(dmrpacket_emb_signalling_lc_t));
+			vbptc_16_11_get_data_bits(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc_bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
 
 			console_log(LOGLEVEL_DMRLC "  decoding embedded signalling lc:\n");
-			dmrpacket_lc_decode_emb_lc(dmrpacket_emb_deinterleave_lc(&emb_signalling_lc));
+			dmrpacket_lc_decode_emb_signalling_lc(dmrpacket_emb_deinterleave_lc(&emb_signalling_lc_bits));
 		}
 		vbptc_16_11_clear(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage);
 	}

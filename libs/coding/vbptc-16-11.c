@@ -62,15 +62,15 @@ static void vbptc_16_11_print_matrix(vbptc_16_11_t *vbptc) {
 	}
 }
 
-// Adds given embedded signalling data burst to the vbptc_16_11_matrix.
+// Adds embedded signalling data burst to the vbptc_16_11_matrix.
 // Returns 0 if the matrix is full and data couldn't be added.
-// As the matrix is transmitted column by column, we store the incoming burst that way.
+// The matrix is transmitted column by column (interleaved), so we are inserting data that way.
 flag_t vbptc_16_11_add_burst(vbptc_16_11_t *vbptc, flag_t *burst_data, uint8_t burst_data_length) {
 	uint16_t matrix_free_space;
 	uint16_t bits_to_add;
 	uint8_t i;
 
-	if (vbptc == NULL)
+	if (vbptc == NULL || vbptc->matrix == NULL)
 		return 0;
 
 	matrix_free_space = vbptc_16_11_get_matrix_free_space(vbptc);
@@ -188,7 +188,7 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 	flag_t errors_found = 0;
 	flag_t result = 1;
 
-	if (vbptc == NULL || vbptc->expected_rows < 2)
+	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows < 2)
 		return 0;
 
 	vbptc_16_11_print_matrix(vbptc);
@@ -236,20 +236,83 @@ flag_t vbptc_16_11_check_and_repair(vbptc_16_11_t *vbptc) {
 	return result;
 }
 
+void vbptc_16_11_construct(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size) {
+	uint16_t bits_to_add;
+	uint8_t row;
+	uint8_t col;
+	hamming_error_vector_t parity_bits;
+	flag_t parity;
+
+	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows == 0 || bits == NULL || bits_size == 0)
+		return;
+
+	vbptc_16_11_clear(vbptc);
+
+	// Adding data bits.
+	bits_to_add = min(bits_size, vbptc_16_11_get_matrix_free_space(vbptc));
+	for (col = 0; col < bits_to_add; col++) {
+		vbptc->matrix[vbptc->current_col+vbptc->current_row*16] = bits[col];
+		vbptc->current_col++;
+		if (vbptc->current_col == 11) {
+			vbptc->current_row++;
+			vbptc->current_col = 0;
+		}
+	}
+
+	// Calculating Hamming(16,11) paritys.
+	for (row = 0; row < vbptc->expected_rows-1; row++) { // -1 because the last row contains only single parity check bits.
+		vbptc_16_11_get_parity_bits(&vbptc->matrix[row*16], &parity_bits);
+		memcpy(&vbptc->matrix[row*16+11], parity_bits.bits, sizeof(hamming_error_vector_t));
+	}
+
+	// Calculating simple parity bits to the last row.
+	for (col = 0; col < 16; col++) {
+		parity = 0;
+		for (row = 0; row < vbptc->expected_rows-1; row++)
+			parity = (parity + vbptc->matrix[row*16+col]) % 2;
+
+		vbptc->matrix[(vbptc->expected_rows-1)*16+col] = parity;
+	}
+}
+
 // Extracts data bits (discarding Hamming (16,11) and parity check bits) from the vbptc matrix.
 void vbptc_16_11_get_data_bits(vbptc_16_11_t *vbptc, flag_t *bits, uint16_t bits_size) {
 	uint8_t row;
 	uint8_t col;
 
-	if (vbptc == NULL || vbptc->matrix == NULL)
+	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows == 0)
 		return;
 
-	for (row = 0; row < vbptc->expected_rows; row++) {
+	for (row = 0; row < vbptc->expected_rows-1; row++) { // -1 because the last row contains only single parity check bits.
 		for (col = 0; col < 11; col++) {
 			if (row*11+col >= bits_size)
 				break;
 
 			bits[row*11+col] = vbptc->matrix[row*16+col];
+		}
+	}
+}
+
+// Returns bits_count bits interleaved (top-to-bottom and left-to-right).
+void vbptc_16_11_get_interleaved_bits(vbptc_16_11_t *vbptc, uint16_t from_bit_number, flag_t *bits, uint16_t bits_count) {
+	uint8_t row;
+	uint8_t col;
+	uint16_t bits_to_get;
+
+	if (vbptc == NULL || vbptc->matrix == NULL || vbptc->expected_rows == 0)
+		return;
+
+	bits_to_get = min(vbptc->expected_rows*16, bits_count);
+
+	for (col = 0; col < 16; col++) {
+		for (row = 0; row < vbptc->expected_rows; row++) {
+			if (row*16+col >= bits_to_get)
+				break;
+
+			if (from_bit_number == 0)
+				bits[row*16+col] = vbptc->matrix[row*16+col];
+			else
+				from_bit_number--;
 		}
 	}
 }
@@ -269,7 +332,8 @@ void vbptc_16_11_clear(vbptc_16_11_t *vbptc) {
 		return;
 
 	vbptc->current_row = vbptc->current_col = 0;
-	memset(vbptc->matrix, 0, vbptc->expected_rows*16);
+	if (vbptc->matrix)
+		memset(vbptc->matrix, 0, vbptc->expected_rows*16);
 }
 
 // Allocates memory for the given number of expected bits.

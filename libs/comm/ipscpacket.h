@@ -20,6 +20,8 @@
 
 #include <libs/base/dmr.h>
 #include <libs/dmrpacket/dmrpacket.h>
+#include <libs/dmrpacket/dmrpacket-emb.h>
+#include <libs/coding/vbptc-16-11.h>
 
 #include <netinet/udp.h>
 
@@ -92,5 +94,8 @@ flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
 ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload);
 ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type_t calltype, dmr_id_t dst_id, dmr_id_t src_id);
+ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id);
+ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id,
+	ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits);
 
 #endif

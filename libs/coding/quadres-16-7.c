@@ -24,14 +24,10 @@
 
 #include <string.h>
 
-typedef struct {
-	flag_t bits[9];
-} quadres_16_7_parity_bits_t;
-
 static quadres_16_7_parity_bits_t quadres_16_7_valid_data_paritys[128];
 
 // Returns the quadratic residue (16,7,6) parity bits for the given byte.
-static quadres_16_7_parity_bits_t *quadres_16_7_get_parity_bits(flag_t bits[7]) {
+quadres_16_7_parity_bits_t *quadres_16_7_get_parity_bits(flag_t bits[7]) {
 	static quadres_16_7_parity_bits_t parity;
 
 	// Multiplying the generator matrix with the given data bits.
