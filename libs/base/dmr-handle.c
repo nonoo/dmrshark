@@ -221,7 +221,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 			vbptc_16_11_get_data_bits(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage, (flag_t *)&emb_signalling_lc_bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
 
 			console_log(LOGLEVEL_DMRLC "  decoding embedded signalling lc:\n");
-			dmrpacket_lc_decode_emb_signalling_lc(dmrpacket_emb_deinterleave_lc(&emb_signalling_lc_bits));
+			dmrpacket_lc_decode_emb_signalling_lc(dmrpacket_emb_signalling_lc_deinterleave(&emb_signalling_lc_bits));
 		}
 		vbptc_16_11_clear(&repeater->slot[ipscpacket->timeslot-1].emb_sig_lc_vbptc_storage);
 	}

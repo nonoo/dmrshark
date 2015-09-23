@@ -303,7 +303,7 @@ rs_12_9_checksum_t *rs_12_9_calc_checksum(rs_12_9_codeword_t *codeword) {
 	uint8_t i;
 	uint8_t feedback;
 
-	rs_12_9_checksum.bytes[0] = rs_12_9_checksum.bytes[1] = rs_12_9_checksum.bytes[2];
+	rs_12_9_checksum.bytes[0] = rs_12_9_checksum.bytes[1] = rs_12_9_checksum.bytes[2] = 0;
 
 	for (i = 0; i < 9; i++) {
 		feedback = codeword->data[i] ^ rs_12_9_checksum.bytes[0];

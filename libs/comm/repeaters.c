@@ -292,7 +292,7 @@ static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *
 	struct sockaddr_in si_other;
 	int sockfd;
 	int slen = sizeof(si_other);
-return 1; // TODO
+
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return 0;
@@ -339,7 +339,7 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 
 	console_log(LOGLEVEL_REPEATERS "repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
 
-	emb_signalling_lc_bits = dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid);
+	emb_signalling_lc_bits = dmrpacket_emb_signalling_lc_interleave(dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid));
 	vbptc_16_11_construct(&emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
 
 	for (i = 0; i < 5; i++)

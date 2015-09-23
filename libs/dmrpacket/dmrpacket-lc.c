@@ -82,8 +82,6 @@ dmrpacket_lc_t *dmrpacket_lc_decode_emb_signalling_lc(dmrpacket_emb_signalling_l
 	if (deinterleaved_emb_signalling_lc_bits == NULL)
 		return NULL;
 
-uint8_t i;for(i=0;i<sizeof(dmrpacket_emb_signalling_lc_bits_t);i++)console_log("%u",deinterleaved_emb_signalling_lc_bits->bits[i]);console_log("\n");//TODO
-
 	if (!dmrpacket_emb_check_checksum(deinterleaved_emb_signalling_lc_bits))
 		return NULL;
 
@@ -118,8 +116,6 @@ dmrpacket_emb_signalling_lc_bits_t *dmrpacket_lc_construct_emb_signalling_lc(dmr
 	data_bits.checksum[4] = checksum & 0x01;
 
 	base_bytestobits(bytes, 9, data_bits.bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
-// TODO: emb_deinterleave_lc, interleavelni kell
-for(i=0;i<5;i++)console_log("%u",data_bits.checksum[i]);console_log("\n");//TODO
 	return &data_bits;
 }
 

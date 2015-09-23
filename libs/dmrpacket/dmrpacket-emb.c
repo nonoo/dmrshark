@@ -48,7 +48,7 @@ flag_t dmrpacket_emb_is_null_fragment(dmrpacket_emb_signalling_lc_fragment_bits_
 	return is_null;
 }
 
-dmrpacket_emb_signalling_lc_bits_t *dmrpacket_emb_deinterleave_lc(dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits) {
+dmrpacket_emb_signalling_lc_bits_t *dmrpacket_emb_signalling_lc_deinterleave(dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits) {
 	static dmrpacket_emb_signalling_lc_bits_t deinterleaved_lc;
 	flag_t *bits = (flag_t *)emb_signalling_lc_bits;
 	uint8_t i;
@@ -57,7 +57,7 @@ dmrpacket_emb_signalling_lc_bits_t *dmrpacket_emb_deinterleave_lc(dmrpacket_emb_
 	if (emb_signalling_lc_bits == NULL)
 		return NULL;
 
-	for (i = 0, j = 0; i < 77; i++) {
+	for (i = 0, j = 0; i < sizeof(dmrpacket_emb_signalling_lc_bits_t); i++) {
 		switch (i) {
 			// See DMR AI. spec. page 124. for the structure of the embedded LC packet.
 			case 32: deinterleaved_lc.checksum[0] = bits[i]; break;
@@ -70,6 +70,30 @@ dmrpacket_emb_signalling_lc_bits_t *dmrpacket_emb_deinterleave_lc(dmrpacket_emb_
 	}
 
 	return &deinterleaved_lc;
+}
+
+dmrpacket_emb_signalling_lc_bits_t *dmrpacket_emb_signalling_lc_interleave(dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits) {
+	static dmrpacket_emb_signalling_lc_bits_t interleaved_lc;
+	flag_t *bits = (flag_t *)&interleaved_lc;
+	uint8_t i;
+	uint8_t j;
+
+	if (emb_signalling_lc_bits == NULL)
+		return NULL;
+
+	for (i = 0, j = 0; i < sizeof(dmrpacket_emb_signalling_lc_bits_t); i++) {
+		switch (i) {
+			// See DMR AI. spec. page 124. for the structure of the embedded LC packet.
+			case 32: bits[i] = emb_signalling_lc_bits->checksum[0]; break;
+			case 43: bits[i] = emb_signalling_lc_bits->checksum[1]; break;
+			case 54: bits[i] = emb_signalling_lc_bits->checksum[2]; break;
+			case 65: bits[i] = emb_signalling_lc_bits->checksum[3]; break;
+			case 76: bits[i] = emb_signalling_lc_bits->checksum[4]; break;
+			default: bits[i] = emb_signalling_lc_bits->bits[j++]; break;
+		}
+	}
+
+	return &interleaved_lc;
 }
 
 flag_t dmrpacket_emb_check_checksum(dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits) {
