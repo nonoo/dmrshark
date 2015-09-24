@@ -327,7 +327,6 @@ dmrpacket_payload_info_bits_t *bptc_196_96_generate(bptc_196_96_data_bits_t *dat
 				payload_info_bits.bits[col+row*15+1] = data_bits->bits[dbp++];
 			}
 		}
-		console_log("\n");
 
 		// +1 because the first bit is R(3) and it's not used so we can ignore that.
 		bptc_196_96_hamming_15_11_3_get_parity_bits(&payload_info_bits.bits[row*15+1], &error_vector);
