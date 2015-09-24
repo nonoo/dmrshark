@@ -23,6 +23,7 @@
 #include <libs/daemon/console.h>
 #include <libs/base/dmr-handle.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
+#include <libs/voicestreams/voicestreams-process.h>
 
 void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
@@ -59,6 +60,7 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 					}
 			}
 			dmr_handle_voice_frame(ip_packet, ipscpacket, repeater);
+			voicestreams_processpacket(ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC:
 			dmr_handle_terminator_with_lc(ip_packet, ipscpacket, repeater);

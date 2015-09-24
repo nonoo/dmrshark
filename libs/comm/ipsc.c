@@ -24,7 +24,6 @@
 
 #include <libs/remotedb/remotedb.h>
 #include <libs/config/config.h>
-#include <libs/voicestreams/voicestreams-process.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -115,8 +114,6 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
 		}
 	}
-
-	voicestreams_processpacket(ipscpacket, repeater);
 }
 
 void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {

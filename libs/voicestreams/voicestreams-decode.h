@@ -28,5 +28,6 @@ typedef struct {
 } voicestreams_decoded_frame_t;
 
 voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_ambe_frame_bits_t *ambe_frame_bits, voicestream_t *voicestream);
+void voicestreams_decode_ambe_init(voicestream_t *voicestream);
 
 #endif

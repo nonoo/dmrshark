@@ -83,7 +83,6 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 		z++;
 	}
 
-	mbe_initMbeParms(&voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced);
 	mbe_processAmbe3600x2450Framef(decoded_frame.samples, &errs, &errs2, err_str, deinterleaved_ambe_frame_bits, ambe_d, &voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced, voicestream->decodequality);
 
 	if (errs2 > 0)
@@ -93,6 +92,10 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 		decoded_frame.samples[j] /= 32767.0;
 
 	return &decoded_frame;
+}
+
+void voicestreams_decode_ambe_init(voicestream_t *voicestream) {
+	mbe_initMbeParms(&voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced);
 }
 
 #endif /* ifdef AMBEDECODEVOICE */

@@ -1,7 +1,7 @@
 - Testing compiling without AMBE decoding/MP3 encoding enabled.
-- Rewriting Golay check
+- Golay error correction
 - Quadratic residue error correction
-- CSBK and Multi Block Control (MBC) message decoding
+- Multi Block Control (MBC) message decoding
 - Handling other DPF data types
 - Inserting decoded SMS messages into a database table
 - GPS position data decoding

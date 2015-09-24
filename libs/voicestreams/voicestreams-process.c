@@ -228,6 +228,7 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	voicestream->rms_vol_buf_pos = 0;
 	voicestreams_mp3_resetbuf(voicestream);
 	voicestream->streaming_active_call = 1;
+	voicestreams_decode_ambe_init(voicestream);
 
 	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart, voicestream->rawfileatcallstartgain);
 }
