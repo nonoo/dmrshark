@@ -223,9 +223,6 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: call start on repeater %s\n", voicestream->name, repeaters_get_display_string(repeater));
 
-#ifdef AMBEDECODEVOICE
-	mbe_initMbeParms(&voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced);
-#endif
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_vol = voicestream->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	voicestream->rms_vol_buf_pos = 0;
