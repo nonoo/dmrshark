@@ -292,7 +292,7 @@ static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *
 	struct sockaddr_in si_other;
 	int sockfd;
 	int slen = sizeof(si_other);
-return 1;//TODO
+
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return 0;
@@ -305,6 +305,7 @@ return 1;//TODO
 
 	errno = 0;
 	if (sendto(sockfd, (uint8_t *)ipscpacket_raw, sizeof(ipscpacket_raw_t), MSG_DONTWAIT, (struct sockaddr *)&si_other, slen) != sizeof(ipscpacket_raw_t)) {
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet without blocking\n", repeaters_get_display_string_for_ip(&repeater->ipaddr)); // TODO
 		close(sockfd);
 		return 0;
 	}

@@ -132,7 +132,7 @@ static dmrpacket_lc_t *dmrpacket_lc_decode_full_lc(uint8_t bytes[12]) {
 	if (rs_12_9_check_syndrome(&syndrome) != 0)
 		result = rs_12_9_correct_errors((rs_12_9_codeword_t *)bytes, &syndrome, &errors_found);
 
-	console_log(LOGLEVEL_DMRLC "    reed-solomon checksum: %.6x (", bytes[9] << 16 | bytes[10] << 8 | bytes[11]);
+	console_log(LOGLEVEL_DMRLC "    reed-solomon checksum: 0x%.6x (", bytes[9] << 16 | bytes[10] << 8 | bytes[11]);
 	switch (result) {
 		default:
 		case RS_12_9_CORRECT_ERRORS_RESULT_NO_ERRORS_FOUND:

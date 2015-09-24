@@ -376,7 +376,7 @@ void command_process(char *input_buffer) {
 	}
 
 	if (strcmp(tok, "p") == 0) {
-		repeaters_play_ambe_file("ds.ambe", repeaters_findbyhost("ozike.ha5kdr.hu"), 0, DMR_CALL_TYPE_GROUP, 216, DMRSHARK_DEFAULT_SRCID);
+		repeaters_play_ambe_file("ds.ambe", repeaters_findbyhost("ozike.ha5kdr.hu"), 0, DMR_CALL_TYPE_GROUP, 9, DMRSHARK_DEFAULT_SRCID);
 		return;
 	}
 

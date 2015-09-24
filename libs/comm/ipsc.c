@@ -101,7 +101,7 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			talkgroup_ignored = 1;
 
 		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
+		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u ipsc slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
 			repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 			ipscpacket->timeslot,
 			ipscpacket_get_readable_slot_type(ipscpacket->slot_type), ipscpacket->slot_type,
