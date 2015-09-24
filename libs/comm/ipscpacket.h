@@ -23,9 +23,8 @@
 #include <libs/dmrpacket/dmrpacket-emb.h>
 #include <libs/coding/vbptc-16-11.h>
 
+#include <netinet/ip.h>
 #include <netinet/udp.h>
-
-#define IPSCPACKET_PAYLOAD_SIZE							34
 
 #define IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER			0x1111
 #define IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC			0x2222
@@ -42,7 +41,7 @@
 typedef uint16_t ipscpacket_slot_type_t;
 
 typedef struct {
-	uint8_t bytes[IPSCPACKET_PAYLOAD_SIZE];
+	uint8_t bytes[34];
 } ipscpacket_payload_t;
 
 typedef struct __attribute__((packed)) {
@@ -89,7 +88,7 @@ typedef struct ipscrawpacketbuf_st {
 
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
 
-flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
+flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
 ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload);

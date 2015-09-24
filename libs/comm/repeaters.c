@@ -292,7 +292,7 @@ static flag_t repeaters_send_ipscpacket(repeater_t *repeater, ipscpacket_raw_t *
 	struct sockaddr_in si_other;
 	int sockfd;
 	int slen = sizeof(si_other);
-
+return 1;//TODO
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return 0;
@@ -318,7 +318,7 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 	dmrpacket_payload_voice_bits_t voice_bits;
 	uint8_t i;
 	uint8_t seqnum = 0;
-	uint8_t voice_frame_num = 0;
+	uint8_t voice_frame_num = 2;
 	size_t bytes_read;
 	dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits;
 	vbptc_16_11_t emb_sig_lc_vbptc_storage;
@@ -327,22 +327,22 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 		return;
 
 	if (!vbptc_16_11_init(&emb_sig_lc_vbptc_storage, 8)) {
-		console_log(LOGLEVEL_REPEATERS "repeaters [%s] error: can't allocate memory for vbptc encoding\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+		console_log("repeaters [%s] error: can't allocate memory for vbptc encoding\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return;
 	}
 
 	f = fopen(ambe_file_name, "r");
 	if (!f) {
-		console_log(LOGLEVEL_REPEATERS "repeaters [%s] error: can't open %s for playing\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
+		console_log("repeaters [%s] error: can't open %s for playing\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
 		return;
 	}
 
-	console_log(LOGLEVEL_REPEATERS "repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
+	console_log("repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
 
 	emb_signalling_lc_bits = dmrpacket_emb_signalling_lc_interleave(dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid));
 	vbptc_16_11_construct(&emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 12; i++)
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid)));
 
 	while (!feof(f)) {
@@ -399,7 +399,8 @@ static void repeaters_process_ipscrawpacketbuf(repeater_t *repeater, dmr_timeslo
 
 	gettimeofday(&currtime, NULL);
 	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
-	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 20) { // Sending a frame every x ms.
+	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 60) { // Sending a frame every x ms.
+		gettimeofday(&repeater->slot[ts].last_ipsc_packet_sent_time, NULL);
 		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		ipscrawpacketbuf_entry_to_send = repeater->slot[ts].ipscrawpacketbuf;
 		if (repeaters_send_ipscpacket(repeater, &ipscrawpacketbuf_entry_to_send->ipscpacket_raw)) {
@@ -416,7 +417,6 @@ static void repeaters_process_ipscrawpacketbuf(repeater_t *repeater, dmr_timeslo
 			// Sending the packet to our IPSC processing loop too.
 			ipsc_processpacket(ip_packet, sizeof(ip_packet_bytes));
 
-			gettimeofday(&repeater->slot[ts].last_ipsc_packet_sent_time, NULL);
 			// Shifting the buffer.
 			repeater->slot[ts].ipscrawpacketbuf = repeater->slot[ts].ipscrawpacketbuf->next;
 			free(ipscrawpacketbuf_entry_to_send);

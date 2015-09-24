@@ -127,8 +127,8 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	repeater_t *repeater = NULL;
 	flag_t packet_from_us = 0;
 
-	console_log(LOGLEVEL_COMM_IP "  src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
-	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
+	console_log(LOGLEVEL_COMM_IP "  src: %s\n", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));
 	if (ipsc_isignoredip(&ip_packet->ip_src)) {
 		console_log(LOGLEVEL_COMM_IP "  src ip ignored, dropping\n");
 		return;
@@ -157,7 +157,7 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		return;
 	}
 
-	if (ipscpacket_decode(udp_packet, &ipscpacket, packet_from_us))
+	if (ipscpacket_decode(ip_packet, udp_packet, &ipscpacket, packet_from_us))
 		ipsc_examinepacket(ip_packet, &ipscpacket, packet_from_us);
 
 	if (ipscpacket_heartbeat_decode(udp_packet)) {

@@ -27,6 +27,7 @@
 #include <libs/dmrpacket/dmrpacket-lc.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/dmrpacket/dmrpacket-slot-type.h>
+#include <libs/comm/comm.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,26 +63,16 @@ static void ipscpacket_swap_payload_bytes(ipscpacket_payload_t *payload) {
 		return;
 
 	// Swapping the bytes.
-	for (i = 0; i < IPSCPACKET_PAYLOAD_SIZE-1; i += 2) {
+	for (i = 0; i < sizeof(ipscpacket_payload_t)-1; i += 2) {
 		temp_byte = payload->bytes[i];
 		payload->bytes[i] = payload->bytes[i+1];
 		payload->bytes[i+1] = temp_byte;
 	}
 }
 
-// Swaps given payload bytes and then converts them to an uint8_t array of bits.
-static dmrpacket_payload_bits_t *ipscpacket_convertpayloadtobits(ipscpacket_payload_t *payload) {
-	static dmrpacket_payload_bits_t payload_bits;
-
-	ipscpacket_swap_payload_bytes(payload);
-	base_bytestobits(payload->bytes, IPSCPACKET_PAYLOAD_SIZE-1, payload_bits.bits, sizeof(payload_bits.bits));
-
-	return &payload_bits;
-}
-
 // Decodes the UDP packet given in udp_packet to ipsc_packet,
 // returns 1 if decoding was successful, otherwise returns 0.
-flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
+flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
 	ipscpacket_raw_t *ipscpacket_raw = (ipscpacket_raw_t *)((uint8_t *)udppacket + sizeof(struct udphdr));
 	int ipscpacket_raw_length = 0;
 	int i;
@@ -97,7 +88,8 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, fla
 
 	loglevel = console_get_loglevel();
 	if (loglevel.flags.debug && loglevel.flags.ipsc) {
-		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decoding: ");
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket [%s->%s]: decoding: ", comm_get_ip_str(&ippacket->ip_src),
+			comm_get_ip_str(&ippacket->ip_dst));
 		for (i = 0; i < ipscpacket_raw_length; i++)
 			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x ", *((uint8_t *)ipscpacket_raw+i));
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
@@ -124,8 +116,7 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, fla
 		return 0;
 	}
 
-	if (ipscpacket_raw->calltype != DMR_CALL_TYPE_PRIVATE &&
-		ipscpacket_raw->calltype != DMR_CALL_TYPE_GROUP) {
+	if (ipscpacket_raw->calltype != DMR_CALL_TYPE_PRIVATE && ipscpacket_raw->calltype != DMR_CALL_TYPE_GROUP) {
 			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid call type (%.2x)\n", ipscpacket_raw->calltype);
 			return 0;
 	}
@@ -134,8 +125,44 @@ flag_t ipscpacket_decode(struct udphdr *udppacket, ipscpacket_t *ipscpacket, fla
 	ipscpacket->call_type = ipscpacket_raw->calltype;
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;
 	ipscpacket->src_id = ipscpacket_raw->src_id_raw3 << 16 | ipscpacket_raw->src_id_raw2 << 8 | ipscpacket_raw->src_id_raw1;
-	memcpy(ipscpacket->payload.bytes, ipscpacket_raw->payload.bytes, IPSCPACKET_PAYLOAD_SIZE);
-	memcpy(&ipscpacket->payload_bits, ipscpacket_convertpayloadtobits(&ipscpacket->payload), sizeof(dmrpacket_payload_bits_t));
+	memcpy(ipscpacket->payload.bytes, ipscpacket_raw->payload.bytes, sizeof(ipscpacket_payload_t));
+	ipscpacket_swap_payload_bytes(&ipscpacket->payload);
+	base_bytestobits(ipscpacket->payload.bytes, sizeof(ipscpacket_payload_t)-1, ipscpacket->payload_bits.bits, sizeof(dmrpacket_payload_bits_t));
+
+	if (loglevel.flags.ipsc && loglevel.flags.debug) {
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  udp source port: %u\n", ipscpacket_raw->udp_source_port);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved1: 0x%.2x%.2x\n", ipscpacket_raw->reserved1[0], ipscpacket_raw->reserved1[1]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  seq: %u\n", ipscpacket_raw->seq);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved2: 0x");
+		for (i = 0; i < sizeof(ipscpacket_raw->reserved2); i++)
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x", ipscpacket_raw->reserved2[i]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  packet type: 0x%.2x\n", ipscpacket_raw->packet_type);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved3: 0x");
+		for (i = 0; i < sizeof(ipscpacket_raw->reserved3); i++)
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x", ipscpacket_raw->reserved3[i]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  timeslot raw: 0x%.4x\n", ipscpacket_raw->timeslot_raw);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  slot type: 0x%.4x\n", ipscpacket_raw->slot_type);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  delimiter: 0x%.4x\n", ipscpacket_raw->delimiter);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  frame type: 0x%.4x\n", ipscpacket_raw->frame_type);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved4 0x%.2x%.2x\n", ipscpacket_raw->reserved4[0], ipscpacket_raw->reserved4[1]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  payload (swapped): ");
+		for (i = 0; i < sizeof(ipscpacket_payload_t); i++)
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x", ipscpacket->payload.bytes[i]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  payload (bits): ");
+		for (i = 0; i < sizeof(dmrpacket_payload_bits_t); i++)
+			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%u", ipscpacket->payload_bits.bits[i]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved5: 0x%.2x%.2x\n", ipscpacket_raw->reserved5[0], ipscpacket_raw->reserved5[1]);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  call type: 0x%.2x\n", ipscpacket_raw->calltype);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved6: 0x%.2x\n", ipscpacket_raw->reserved6);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  dst id raw: 0x%.2x%.2x%.2x\n", ipscpacket_raw->dst_id_raw1, ipscpacket_raw->dst_id_raw2, ipscpacket_raw->dst_id_raw3);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved7: 0x%.2x\n", ipscpacket_raw->reserved7);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  src id raw: 0x%.2x%.2x%.2x\n", ipscpacket_raw->src_id_raw1, ipscpacket_raw->src_id_raw2, ipscpacket_raw->src_id_raw3);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved8: 0x%.2x\n", ipscpacket_raw->reserved8);
+	}
 
 	return 1;
 }
@@ -209,7 +236,6 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type
 	dmrpacket_payload_bits_t payload_bits;
 
 	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
-
 	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_lc_construct_voice_lc_header(call_type, dst_id, src_id)));
 	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
 	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_VOICE_LC_HEADER));
