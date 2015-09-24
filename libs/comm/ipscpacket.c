@@ -117,8 +117,8 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 	}
 
 	if (ipscpacket_raw->calltype != DMR_CALL_TYPE_PRIVATE && ipscpacket_raw->calltype != DMR_CALL_TYPE_GROUP) {
-			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid call type (%.2x)\n", ipscpacket_raw->calltype);
-			return 0;
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, invalid call type (%.2x)\n", ipscpacket_raw->calltype);
+		return 0;
 	}
 
 	ipscpacket->slot_type = ipscpacket_raw->slot_type;
@@ -185,25 +185,6 @@ ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpa
 
 	if (ts < 0 || ts > 1 || calltype < 0 || calltype > 1 || payload == NULL)
 		return NULL;
-
-//TODO
-//00 00
-//00 00
-//00
-//00 00 00
-//01
-//00 05 01 02 00 00 00
-//22 22
-//11 11
-//11 11
-//00 00 ft
-//10 00 r4
-// sync bytes: 25 51 27 d0 05 f7
-//5d 18 10 98 05 05 9e d9 e8 ef c7 b8 a2 16 12 55 00 7d 76 5f 81 38 e3 29 98 ca 54 e5 5a 20 09 c0 00 e3
-//02 00
-//01
-//00
-//09 00 00 00 a2 12 00 00
 
 	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_raw_t));
 
