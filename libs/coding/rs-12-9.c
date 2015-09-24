@@ -23,7 +23,7 @@
 // Berlekamp-Peterson and Berlekamp-Massey Algorithms for error-location are
 // from Cain, Clark, "Error-Correction Coding For Digital Communications", pp. 205.
 
-#include <config/defaults.h>
+#include DEFAULTCONFIG
 
 #include "rs-12-9.h"
 

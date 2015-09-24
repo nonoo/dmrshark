@@ -15,7 +15,7 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include <config/defaults.h>
+#include DEFAULTCONFIG
 
 // To have SCM_CREDENTIALS definition in sys/socket.h
 #define _GNU_SOURCE

@@ -15,6 +15,8 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
+#include DEFAULTCONFIG
+
 #include "dmrpacket-sync.h"
 #include "dmrpacket-slot-type.h"
 

@@ -15,7 +15,7 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include <config/defaults.h>
+#include DEFAULTCONFIG
 
 #include "ipsc-handle.h"
 #include "ipsc-data.h"

@@ -15,7 +15,7 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include <config/defaults.h>
+#include DEFAULTCONFIG
 
 #include "quadres-16-7.h"
 

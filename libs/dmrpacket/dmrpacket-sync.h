@@ -15,8 +15,6 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include <config/defaults.h>
-
 #ifndef DMRPACKET_SYNC_H_
 #define DMRPACKET_SYNC_H_
 
