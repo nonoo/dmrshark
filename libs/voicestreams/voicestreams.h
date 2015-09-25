@@ -50,7 +50,7 @@ typedef struct voicestream_st {
 	flag_t streaming_active_call;
 	char *repeaterhosts;
 	char *savefiledir;
-	flag_t savetorawfile;
+	flag_t savetorawambefile;
 	flag_t savedecodedtorawfile;
 	flag_t savedecodedtomp3file;
 	uint8_t minmp3bitrate;

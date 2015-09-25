@@ -155,10 +155,10 @@ char *config_voicestreams_get_savefiledir(char *streamname) {
 	return value;
 }
 
-int config_voicestreams_get_savetorawfile(char *streamname) {
+int config_voicestreams_get_savetorawambefile(char *streamname) {
 	GError *error = NULL;
 	int value = 0;
-	char *key = "savetorawfile";
+	char *key = "savetorawambefile";
 	int defaultvalue;
 
 	pthread_mutex_lock(config_get_mutex());
@@ -410,7 +410,7 @@ void config_voicestreams_init(void) {
 			free(tmp);
 			tmp = config_voicestreams_get_savefiledir(voicestreams[i]);
 			free(tmp);
-			config_voicestreams_get_savetorawfile(voicestreams[i]);
+			config_voicestreams_get_savetorawambefile(voicestreams[i]);
 			config_voicestreams_get_savedecodedtorawfile(voicestreams[i]);
 			config_voicestreams_get_savedecodedtomp3file(voicestreams[i]);
 #ifndef MP3ENCODEVOICE

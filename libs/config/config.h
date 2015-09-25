@@ -60,6 +60,7 @@ int config_get_remotedbdeleteolderthansec(void);
 int config_get_updatestatstableenabled(void);
 int config_get_httpserverport(void);
 int config_get_httpserverenabled(void);
+struct in_addr *config_get_masteripaddr(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

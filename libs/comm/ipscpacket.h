@@ -68,6 +68,10 @@ typedef struct __attribute__((packed)) {
 	uint8_t src_id_raw2;
 	uint8_t src_id_raw3;
 	uint8_t reserved8;
+} ipscpacket_payload_raw_t;
+
+typedef struct {
+	uint8_t bytes[20+8+sizeof(ipscpacket_payload_raw_t)]; // 20 - ip header, 8 - udp header
 } ipscpacket_raw_t;
 
 typedef struct {
@@ -91,7 +95,8 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
 flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
 
-ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload);
+ipscpacket_raw_t *ipscpacket_construct_raw_packet(struct in_addr *dst_addr, ipscpacket_payload_raw_t *ipscpacket_payload_raw);
+ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload);
 ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type_t calltype, dmr_id_t dst_id, dmr_id_t src_id);
 ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id);
 ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id,

@@ -120,7 +120,7 @@ void voicestreams_printlist(void) {
 			vs->timeslot,
 			vs->decodequality,
 			(strlen(vs->savefiledir) == 0 ? "." : vs->savefiledir),
-			vs->savetorawfile,
+			vs->savetorawambefile,
 			vs->savedecodedtorawfile,
 			vs->savedecodedtomp3file);
 		console_log("   minmp3br: %u mp3br: %u mp3quality: %u mp3vbr: %u rmsminsampval: %f\n",
@@ -170,7 +170,7 @@ void voicestreams_init(void) {
 		new_vs->enabled = config_voicestreams_get_enabled(new_vs->name);
 		new_vs->repeaterhosts = config_voicestreams_get_repeaterhosts(new_vs->name);
 		new_vs->savefiledir = config_voicestreams_get_savefiledir(new_vs->name);
-		new_vs->savetorawfile = config_voicestreams_get_savetorawfile(new_vs->name);
+		new_vs->savetorawambefile = config_voicestreams_get_savetorawambefile(new_vs->name);
 		new_vs->savedecodedtorawfile = config_voicestreams_get_savedecodedtorawfile(new_vs->name);
 		new_vs->savedecodedtomp3file = config_voicestreams_get_savedecodedtomp3file(new_vs->name);
 		new_vs->minmp3bitrate = config_voicestreams_get_minmp3bitrate(new_vs->name);

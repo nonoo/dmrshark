@@ -97,6 +97,7 @@ The file has the following configuration variables:
 - **ignoredtalkgroups**: Ignore these dst talk groups during IPSC packet processing (separated by commas).
 - **httpserverenabled**: Set this to 1 to enable built-in HTTP/Websockets server, which is needed for streaming.
 - **httpserverport**: Port to bind the HTTP/Websockets server.
+- **masteripaddr**: Set this to the IP address of the DMR master software. This IP will be the source address for outgoing dmrshark packets to the repeaters.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 
@@ -136,7 +137,7 @@ Voice stream configure variables:
 - **repeaterhosts**: Host names/IP addresses of the repeaters which are the sources of the stream. You can use the "*" wildcard to match all hosts.
 - **timeslot**: Timeslot of the repeater which we want to process.
 - **savefiledir**: Captured voice files will be saved to this directory. If empty, files will be saved to the current directory.
-- **savetorawfile**: Set this to 1 if you want to save raw AMBE2+ voice data.
+- **savetorawambefile**: Set this to 1 if you want to save raw AMBE2+ voice data.
 - **savedecodedtorawfile**: Set this to 1 if you want to save raw, but decoded voice data. Samples are saved as 8kHz IEEE 32bit floats.
 - **savedecodedtomp3file**: Set this to 1 if you want to save decoded and streamed voice data in MP3 files.
 - **minmp3bitrate**: Minimum bitrate of the MP3 encoder in VBR mode.

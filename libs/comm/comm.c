@@ -138,16 +138,22 @@ flag_t comm_is_our_ipaddr(struct in_addr *ipaddr) {
 }
 
 // http://www.binarytides.com/raw-udp-sockets-c-linux/
-uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size) {
+uint16_t comm_calcipheaderchecksum(struct ip *ipheader) {
 	uint8_t i;
 	uint16_t nextval;
 	uint32_t checksum = 0;
+	uint16_t ip_hdr_len;
 
-	for (i = 0; i < ipheader_size; i += 2) {
+	if (ipheader == NULL)
+		return 0;
+
+	ip_hdr_len = ipheader->ip_hl*4;
+
+	for (i = 0; i < ip_hdr_len; i += 2) {
 		if (i == 10) // Skipping CRC field.
 			continue;
 
-		if (ipheader_size-i == 1) // Last odd byte
+		if (ip_hdr_len-i == 1) // Last odd byte
 			nextval = *(uint8_t *)((uint8_t *)ipheader+i);
 		else
 			nextval = *(uint16_t *)((uint8_t *)ipheader+i);
@@ -162,13 +168,16 @@ uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size) {
 }
 
 // http://www.tcpipguide.com/free/t_UDPMessageFormat-2.htm
-uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, struct udphdr *udpheader) {
+uint16_t comm_calcudpchecksum(struct ip *ipheader, struct udphdr *udpheader) {
 	uint16_t i;
 	uint8_t *u8;
 	uint16_t nextval;
 	uint8_t *udppayload = (uint8_t *)udpheader+sizeof(struct udphdr);
 	uint32_t checksum;
 	uint16_t payload_size;
+
+	if (ipheader == NULL || udpheader == NULL)
+		return 0;
 
 	// Pseudo header
 	u8 = &(((uint8_t *)&ipheader->ip_src)[0]);
@@ -275,7 +284,7 @@ void comm_process(void) {
 			packet = comm_get_ip_packet_from_pcap_packet(packet, comm_pcap_handle, &ip_packet_length);
 			if (packet) {
 				comm_log_packet(packet, ip_packet_length);
-				ipsc_processpacket((struct ip *)packet, ip_packet_length);
+				ipsc_processpacket((ipscpacket_raw_t *)packet, ip_packet_length);
 			}
 		}
 	}
@@ -288,7 +297,7 @@ void comm_process(void) {
 			packet = comm_get_ip_packet_from_pcap_packet(packet, comm_pcap_file_handle, &ip_packet_length);
 			if (packet) {
 				comm_log_packet(packet, ip_packet_length);
-				ipsc_processpacket((struct ip *)packet, ip_packet_length);
+				ipsc_processpacket((ipscpacket_raw_t *)packet, ip_packet_length);
 			}
 		} else {
 			console_log("comm: finished processing pcap file.\n");

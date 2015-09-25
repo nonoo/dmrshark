@@ -18,10 +18,12 @@
 #ifndef IPSC_H_
 #define IPSC_H_
 
+#include "ipscpacket.h"
+
 #include <libs/base/types.h>
 
 #include <netinet/udp.h>
 
-void ipsc_processpacket(struct ip *ip_packet, uint16_t length);
+void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length);
 
 #endif

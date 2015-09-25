@@ -26,7 +26,7 @@ void config_voicestreams_free_streamnames(char **streamnames);
 int config_voicestreams_get_enabled(char *streamname);
 char *config_voicestreams_get_repeaterhosts(char *streamname);
 char *config_voicestreams_get_savefiledir(char *streamname);
-int config_voicestreams_get_savetorawfile(char *streamname);
+int config_voicestreams_get_savetorawambefile(char *streamname);
 int config_voicestreams_get_savedecodedtorawfile(char *streamname);
 int config_voicestreams_get_savedecodedtomp3file(char *streamname);
 int config_voicestreams_get_minmp3bitrate(char *streamname);

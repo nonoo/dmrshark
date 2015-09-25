@@ -34,7 +34,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
+static void voicestreams_process_savetorawambefile(uint8_t *voice_bytes, uint8_t voice_bytes_count, voicestream_t *voicestream) {
 	FILE *f;
 	char *fn;
 	size_t saved_bytes;
@@ -42,7 +42,7 @@ static void voicestreams_process_savetorawfile(uint8_t *voice_bytes, uint8_t voi
 	if (voice_bytes == NULL || voice_bytes_count == 0 || voicestream == NULL)
 		return;
 
-	fn = voicestreams_get_stream_filename(voicestream, ".raw");
+	fn = voicestreams_get_stream_filename(voicestream, ".ambe");
 	f = fopen(fn, "a");
 	if (!f) {
 		console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s] error: can't save voice packet to %s\n", voicestream->name, fn);
@@ -291,8 +291,8 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	for (i = 0; i < sizeof(voice_bits->raw.bits); i += 8)
 		voice_bytes[i/8] = base_bitstobyte(&voice_bits->raw.bits[i]);
 
-	if (voicestream->savetorawfile)
-		voicestreams_process_savetorawfile(voice_bytes, sizeof(voice_bytes), voicestream);
+	if (voicestream->savetorawambefile)
+		voicestreams_process_savetorawambefile(voice_bytes, sizeof(voice_bytes), voicestream);
 
 #ifdef AMBEDECODEVOICE
 	console_log(LOGLEVEL_VOICESTREAMS LOGLEVEL_DEBUG "voicestreams [%s]: decoding frame 0\n", voicestream->name);

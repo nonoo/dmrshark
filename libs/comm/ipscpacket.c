@@ -28,6 +28,7 @@
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/dmrpacket/dmrpacket-slot-type.h>
 #include <libs/comm/comm.h>
+#include <libs/config/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,7 +74,7 @@ static void ipscpacket_swap_payload_bytes(ipscpacket_payload_t *payload) {
 // Decodes the UDP packet given in udp_packet to ipsc_packet,
 // returns 1 if decoding was successful, otherwise returns 0.
 flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
-	ipscpacket_raw_t *ipscpacket_raw = (ipscpacket_raw_t *)((uint8_t *)udppacket + sizeof(struct udphdr));
+	ipscpacket_payload_raw_t *ipscpacket_raw = (ipscpacket_payload_raw_t *)((uint8_t *)udppacket + sizeof(struct udphdr));
 	int ipscpacket_raw_length = 0;
 	int i;
 	loglevel_t loglevel;
@@ -178,15 +179,39 @@ flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket) {
 	return 0;
 }
 
-ipscpacket_raw_t *ipscpacket_construct(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type,
+// Constructs a raw IPSC packet (IP packet) from given raw IPSC packet payload.
+ipscpacket_raw_t *ipscpacket_construct_raw_packet(struct in_addr *dst_addr, ipscpacket_payload_raw_t *ipscpacket_payload_raw) {
+	static ipscpacket_raw_t ipscpacket_raw;
+	struct iphdr *ip_packet = (struct iphdr *)ipscpacket_raw.bytes;
+	struct udphdr *udp_packet = (struct udphdr *)(ipscpacket_raw.bytes+20);
+
+	memcpy(&ip_packet->saddr, config_get_masteripaddr(), sizeof(struct in_addr));
+	memcpy(&ip_packet->daddr, dst_addr, sizeof(struct in_addr));
+	ip_packet->ihl = 5;
+	ip_packet->version = 4;
+	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(ipscpacket_payload_raw_t));
+	ip_packet->id = htonl(7777);
+	ip_packet->ttl = 255;
+	ip_packet->protocol = IPPROTO_UDP;
+	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);
+	udp_packet->source = htons(62006);
+	udp_packet->dest = htons(62006);
+	udp_packet->len = htons(sizeof(struct udphdr) + sizeof(ipscpacket_payload_raw_t));
+	memcpy(ipscpacket_raw.bytes+20+8, ipscpacket_payload_raw, sizeof(ipscpacket_payload_raw_t));
+	udp_packet->check = comm_calcudpchecksum((struct ip *)ip_packet, udp_packet);
+
+	return &ipscpacket_raw;
+}
+
+ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_timeslot_t ts, ipscpacket_slot_type_t slot_type,
 	dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, ipscpacket_payload_t *payload) {
 
-	static ipscpacket_raw_t ipscpacket_raw;
+	static ipscpacket_payload_raw_t ipscpacket_raw;
 
 	if (ts < 0 || ts > 1 || calltype < 0 || calltype > 1 || payload == NULL)
 		return NULL;
 
-	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_raw_t));
+	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_payload_raw_t));
 
 	ipscpacket_raw.seq = seqnum;
 	ipscpacket_raw.packet_type = 0x01;

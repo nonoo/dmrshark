@@ -17,7 +17,7 @@
 
 #include DEFAULTCONFIG
 
-#include "ipscpacket.h"
+#include "ipsc.h"
 #include "comm.h"
 #include "ipsc-handle.h"
 #include "snmp.h"
@@ -116,8 +116,8 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 	}
 }
 
-void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
-	uint8_t *packet = (uint8_t *)ip_packet;
+void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {
+	struct ip *ip_packet = (struct ip *)ipscpacket_raw->bytes;
 	struct udphdr *udp_packet = NULL;
 	int ip_header_length = 0;
 	ipscpacket_t ipscpacket = {0,};
@@ -132,13 +132,16 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 	}
 	ip_header_length = ip_packet->ip_hl*4; // http://www.governmentsecurity.org/forum/topic/16447-calculate-ip-size/
 	console_log(LOGLEVEL_COMM_IP "  ip header length: %u\n", ip_header_length);
-	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet, ip_header_length)) {
+	if (ip_packet->ip_sum != comm_calcipheaderchecksum(ip_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  ip checksum mismatch, dropping\n");
 		return;
 	}
-	packet += ip_header_length;
 
-	udp_packet = (struct udphdr *)packet;
+	udp_packet = (struct udphdr *)(ipscpacket_raw->bytes + ip_header_length);
+	if (ntohs(ip_packet->ip_len) != ip_header_length+ntohs(udp_packet->len)) {
+		console_log(LOGLEVEL_COMM_IP "  ip length (%u) and udp length (%u+%u) mismatch, dropping\n", ntohs(ip_packet->ip_len), ip_header_length+ntohs(udp_packet->len));
+		return;
+	}
 	console_log(LOGLEVEL_COMM_IP "  srcport: %u\n", ntohs(udp_packet->source));
 	console_log(LOGLEVEL_COMM_IP "  dstport: %u\n", ntohs(udp_packet->dest));
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
@@ -148,12 +151,12 @@ void ipsc_processpacket(struct ip *ip_packet, uint16_t length) {
 		return;
 	}
 
-	packet_from_us = comm_is_our_ipaddr(&ip_packet->ip_src);
-	if (!packet_from_us && udp_packet->check != comm_calcudpchecksum(ip_packet, ip_packet->ip_hl*4, udp_packet)) {
+	if (udp_packet->check != comm_calcudpchecksum(ip_packet, udp_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
 		return;
 	}
 
+	packet_from_us = comm_is_our_ipaddr(&ip_packet->ip_src);
 	if (ipscpacket_decode(ip_packet, udp_packet, &ipscpacket, packet_from_us))
 		ipsc_examinepacket(ip_packet, &ipscpacket, packet_from_us);
 

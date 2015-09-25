@@ -157,7 +157,7 @@ dmrpacket_emb_t *dmrpacket_emb_decode(dmrpacket_emb_bits_t *emb_bits) {
 		console_log("    checksum error\n");
 		return NULL;
 	}
-	console_log("    checksum ok\n");
+	console_log(LOGLEVEL_DMRLC "    checksum ok\n");
 
 	if (emb_bits->bits[4] != 0) {
 		console_log(LOGLEVEL_DMRLC "    error: pi is not 0\n");

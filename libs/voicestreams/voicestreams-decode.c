@@ -95,6 +95,9 @@ voicestreams_decoded_frame_t *voicestreams_decode_ambe_frame(dmrpacket_payload_a
 }
 
 void voicestreams_decode_ambe_init(voicestream_t *voicestream) {
+	if (voicestream == NULL)
+		return;
+
 	mbe_initMbeParms(&voicestream->cur_mp, &voicestream->prev_mp, &voicestream->prev_mp_enhanced);
 }
 

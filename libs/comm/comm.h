@@ -27,8 +27,8 @@ flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr);
 char *comm_get_ip_str(struct in_addr *ipaddr);
 char *comm_get_our_ipaddr(void);
 flag_t comm_is_our_ipaddr(struct in_addr *ipaddr);
-uint16_t comm_calcipheaderchecksum(struct ip *ipheader, int ipheader_size);
-uint16_t comm_calcudpchecksum(struct ip *ipheader, int ipheader_size, struct udphdr *udpheader);
+uint16_t comm_calcipheaderchecksum(struct ip *ipheader);
+uint16_t comm_calcudpchecksum(struct ip *ipheader, struct udphdr *udpheader);
 
 void comm_pcapfile_open(char *filename);
 

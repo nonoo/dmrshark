@@ -86,6 +86,7 @@ char *repeaters_get_display_string(repeater_t *repeater);
 
 repeater_t *repeaters_findbyip(struct in_addr *ipaddr);
 repeater_t *repeaters_findbyhost(char *host);
+repeater_t *repeaters_findbycallsign(char *callsign);
 repeater_t *repeaters_get_active(dmr_id_t src_id, dmr_id_t dst_id, dmr_call_type_t call_type);
 repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);

@@ -22,6 +22,7 @@
 
 #include <libs/base/types.h>
 #include <libs/daemon/daemon.h>
+#include <libs/comm/comm.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -570,8 +571,37 @@ int config_get_httpserverport(void) {
 	return value;
 }
 
+struct in_addr *config_get_masteripaddr(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "masteripaddr";
+	char *defaultvalue = NULL;
+	struct in_addr *result;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+
+	result = (struct in_addr *)malloc(sizeof(struct in_addr));
+	if (!result) {
+		free(value);
+		return NULL;
+	}
+	comm_hostname_to_ip(value, result);
+	free(value);
+	pthread_mutex_unlock(&config_mutex);
+	return result;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
+	char *tmp_str;
+	struct in_addr *tmp_addr;
 
 	console_log("config: init\n");
 
@@ -606,44 +636,46 @@ void config_init(char *configfilename) {
 
 	// We read everything, a default value will be set for non-existent keys in the config file.
 	config_get_loglevel();
-	char *temp = config_get_logfilename();
-	free(temp);
-	temp = config_get_pidfilename();
-	free(temp);
-	temp = config_get_daemonctlfile();
-	free(temp);
-	temp = config_get_ttyconsoledev();
-	free(temp);
+	tmp_str = config_get_logfilename();
+	free(tmp_str);
+	tmp_str = config_get_pidfilename();
+	free(tmp_str);
+	tmp_str = config_get_daemonctlfile();
+	free(tmp_str);
+	tmp_str = config_get_ttyconsoledev();
+	free(tmp_str);
 	config_get_ttyconsoleenabled();
 	config_get_ttyconsolebaudrate();
-	temp = config_get_netdevicename();
-	free(temp);
+	tmp_str = config_get_netdevicename();
+	free(tmp_str);
 	config_get_repeaterinfoupdateinsec();
 	config_get_repeaterinactivetimeoutinsec();
 	config_get_rssiupdateduringcallinmsec();
 	config_get_calltimeoutinsec();
 	config_get_datatimeoutinsec();
-	temp = config_get_ignoredsnmprepeaterhosts();
-	free(temp);
-	temp = config_get_ignoredhosts();
-	free(temp);
-	temp = config_get_ignoredtalkgroups();
-	free(temp);
-	temp = config_get_remotedbhost();
-	free(temp);
-	temp = config_get_remotedbuser();
-	free(temp);
-	temp = config_get_remotedbpass();
-	free(temp);
-	temp = config_get_remotedbname();
-	free(temp);
-	temp = config_get_remotedbtableprefix();
-	free(temp);
+	tmp_str = config_get_ignoredsnmprepeaterhosts();
+	free(tmp_str);
+	tmp_str = config_get_ignoredhosts();
+	free(tmp_str);
+	tmp_str = config_get_ignoredtalkgroups();
+	free(tmp_str);
+	tmp_str = config_get_remotedbhost();
+	free(tmp_str);
+	tmp_str = config_get_remotedbuser();
+	free(tmp_str);
+	tmp_str = config_get_remotedbpass();
+	free(tmp_str);
+	tmp_str = config_get_remotedbname();
+	free(tmp_str);
+	tmp_str = config_get_remotedbtableprefix();
+	free(tmp_str);
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();
 	config_get_updatestatstableenabled();
 	config_get_httpserverenabled();
 	config_get_httpserverport();
+	tmp_addr = config_get_masteripaddr();
+	free(tmp_addr);
 
 	config_writeconfigfile();
 }

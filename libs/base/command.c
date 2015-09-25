@@ -59,26 +59,26 @@ void command_process(char *input_buffer) {
 		return;
 
 	if (strcmp(tok, "help") == 0 || strcmp(tok, "h") == 0) {
-		console_log("  ver                                        - version\n");
-		console_log("  log (loglevel)                             - get/set loglevel\n");
-		console_log("  exit                                       - exits the application\n");
-		console_log("  repstat [host]                             - reads repeater status from host using snmp\n");
-		console_log("  repinfo [host]                             - reads repeater info from host using snmp\n");
-		console_log("  replist                                    - list repeaters\n");
-		console_log("  streamlist                                 - list voice streams\n");
-		console_log("  remotedbmaintain                           - start db maintenance\n");
-		console_log("  remotedbreplistmaintain                    - start repeater list db maintenance\n");
-		console_log("  loadpcap [pcapfile]                        - reads and processes packets from pcap file\n");
-		console_log("  httplist                                   - list http clients\n");
-		console_log("  streamenable [name]                        - enable stream\n");
-		console_log("  streamdisable [name]                       - disable stream\n");
-		console_log("  streamrecstart [name]                      - enable saving raw AMBE data to file\n");
-		console_log("  streamrecstop [name]                       - disable saving raw AMBE data to file\n");
-		console_log("  streamdecrecstart [name]                   - enable saving raw decoded data to file\n");
-		console_log("  streamdecrecstop [name]                    - disable saving raw decoded data to file\n");
-		console_log("  streammp3recstart [name]                   - enable saving mp3 data to file\n");
-		console_log("  streammp3recstop [name]                    - disable saving mp3 data to file\n");
-		console_log("  play [file] [host] [ts] [calltype] [dstid] - play ambe file to given repeater host\n");
+		console_log("  ver                                                            - version\n");
+		console_log("  log (loglevel)                                                 - get/set loglevel\n");
+		console_log("  exit                                                           - exits the application\n");
+		console_log("  repstat [host]                                                 - reads repeater status from host using snmp\n");
+		console_log("  repinfo [host]                                                 - reads repeater info from host using snmp\n");
+		console_log("  replist                                                        - list repeaters\n");
+		console_log("  streamlist                                                     - list voice streams\n");
+		console_log("  remotedbmaintain                                               - start db maintenance\n");
+		console_log("  remotedbreplistmaintain                                        - start repeater list db maintenance\n");
+		console_log("  loadpcap [pcapfile]                                            - reads and processes packets from pcap file\n");
+		console_log("  httplist                                                       - list http clients\n");
+		console_log("  streamenable [name]                                            - enable stream\n");
+		console_log("  streamdisable [name]                                           - disable stream\n");
+		console_log("  streamrecstart [name]                                          - enable saving raw AMBE data to file\n");
+		console_log("  streamrecstop [name]                                           - disable saving raw AMBE data to file\n");
+		console_log("  streamdecrecstart [name]                                       - enable saving raw decoded data to file\n");
+		console_log("  streamdecrecstop [name]                                        - disable saving raw decoded data to file\n");
+		console_log("  streammp3recstart [name]                                       - enable saving mp3 data to file\n");
+		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
+		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
 		return;
 	}
 
@@ -235,8 +235,8 @@ void command_process(char *input_buffer) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		d.stream.voicestream->savetorawfile = 1;
-		console_log("voicestream [%s]: saving to raw file enabled\n", tok);
+		d.stream.voicestream->savetorawambefile = 1;
+		console_log("voicestream [%s]: saving to raw ambe file enabled\n", tok);
 		return;
 	}
 
@@ -251,7 +251,7 @@ void command_process(char *input_buffer) {
 			console_log("voicestream %s not found\n", tok);
 			return;
 		}
-		d.stream.voicestream->savetorawfile = 0;
+		d.stream.voicestream->savetorawambefile = 0;
 		console_log("voicestream [%s]: saving to raw file disabled\n", tok);
 		return;
 	}
@@ -332,6 +332,8 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		d.play.repeater = repeaters_findbyhost(d.play.host);
+		if (d.play.repeater == NULL)
+			d.play.repeater = repeaters_findbycallsign(d.play.host);
 		if (d.play.repeater == NULL) {
 			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", tok);
 			return;
@@ -352,12 +354,10 @@ void command_process(char *input_buffer) {
 			log_cmdmissingparam();
 			return;
 		}
-		errno = 0;
-		d.play.calltype = strtol(tok, &endptr, 10);
-		if (*endptr != 0 || errno != 0 || d.play.calltype < 0 || d.play.calltype > 1) {
-			log_cmdinvalidparam();
-			return;
-		}
+		if (*tok == 'p')
+			d.play.calltype = DMR_CALL_TYPE_PRIVATE;
+		if (*tok == 'g')
+			d.play.calltype = DMR_CALL_TYPE_GROUP;
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
 			log_cmdmissingparam();
@@ -370,7 +370,7 @@ void command_process(char *input_buffer) {
 			return;
 		}
 
-		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, d.play.calltype, d.play.dstid);
+		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, dmr_get_readable_call_type(d.play.calltype), d.play.dstid);
 		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_SRCID);
 		return;
 	}
