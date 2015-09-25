@@ -98,7 +98,7 @@ repeater_t *repeaters_findbycallsign(char *callsign) {
 		return NULL;
 
 	while (repeater) {
-		if (strcmp(repeater->callsign, callsign) == 0)
+		if (strcasecmp(repeater->callsign, callsign) == 0)
 			return repeater;
 
 		repeater = repeater->next;

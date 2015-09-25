@@ -335,7 +335,7 @@ void command_process(char *input_buffer) {
 		if (d.play.repeater == NULL)
 			d.play.repeater = repeaters_findbycallsign(d.play.host);
 		if (d.play.repeater == NULL) {
-			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", tok);
+			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", d.play.host);
 			return;
 		}
 		tok = strtok(NULL, " ");
@@ -344,7 +344,7 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		errno = 0;
-		d.play.ts = strtol(tok, &endptr, 10);
+		d.play.ts = strtol(tok, &endptr, 10)-1;
 		if (*endptr != 0 || errno != 0 || d.play.ts < 0 || d.play.ts > 1) {
 			log_cmdinvalidparam();
 			return;
@@ -372,11 +372,6 @@ void command_process(char *input_buffer) {
 
 		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, dmr_get_readable_call_type(d.play.calltype), d.play.dstid);
 		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_SRCID);
-		return;
-	}
-
-	if (strcmp(tok, "p") == 0) {
-		repeaters_play_ambe_file("ds.ambe", repeaters_findbyhost("ozike.ha5kdr.hu"), 0, DMR_CALL_TYPE_GROUP, 9, DMRSHARK_DEFAULT_SRCID);
 		return;
 	}
 
