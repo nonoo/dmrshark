@@ -51,6 +51,13 @@ void command_process(char *input_buffer) {
 			dmr_call_type_t calltype;
 			dmr_id_t dstid;
 		} play;
+		struct {
+			char *host;
+			repeater_t *repeater;
+			dmr_timeslot_t ts;
+			dmr_call_type_t calltype;
+			dmr_id_t dstid;
+		} sms;
 	} d;
 	char *endptr = NULL;
 	char *tok = strtok(input_buffer, " ");
@@ -79,6 +86,7 @@ void command_process(char *input_buffer) {
 		console_log("  streammp3recstart [name]                                       - enable saving mp3 data to file\n");
 		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
 		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
+		console_log("  sms [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]   - send SMS to given repeater host\n");
 		return;
 	}
 
@@ -372,6 +380,63 @@ void command_process(char *input_buffer) {
 
 		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, dmr_get_readable_call_type(d.play.calltype), d.play.dstid);
 		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_DMR_ID);
+		return;
+	}
+
+	if (strcmp(tok, "sms") == 0) {
+		d.play.host = strtok(NULL, " ");
+		if (d.play.host == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.play.repeater = repeaters_findbyhost(d.play.host);
+		if (d.play.repeater == NULL)
+			d.play.repeater = repeaters_findbycallsign(d.play.host);
+		if (d.play.repeater == NULL) {
+			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", d.play.host);
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.play.ts = strtol(tok, &endptr, 10)-1;
+		if (*endptr != 0 || errno != 0 || d.play.ts < 0 || d.play.ts > 1) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		if (*tok == 'p')
+			d.play.calltype = DMR_CALL_TYPE_PRIVATE;
+		if (*tok == 'g')
+			d.play.calltype = DMR_CALL_TYPE_GROUP;
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.play.dstid = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, "\n");
+
+		console_log("sending sms to %s ts %u calltype %u dstid %u msg: %s\n", d.play.host, d.play.ts+1, dmr_get_readable_call_type(d.play.calltype), d.play.dstid, tok);
+		repeaters_send_sms(d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_DMR_ID, tok);
+		return;
+	}
+
+	// TODO: remove
+	if (strcmp(tok, "s") == 0) {
+		repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "teszt sms");
 		return;
 	}
 
