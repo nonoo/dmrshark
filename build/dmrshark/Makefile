@@ -16,7 +16,7 @@ test: all kill
 	@sudo ./`ls -1 -t | grep build | head -n1` -r
 
 valgrind: all kill
-	@sudo valgrind --leak-check=full ./`ls -1 -t | grep build | head -n1` -f
+	@sudo valgrind --leak-check=full --track-origins=yes ./`ls -1 -t | grep build | head -n1` -f
 
 valgrind-memcheck: all kill
 	@sudo valgrind --tool=memcheck --leak-check=full ./`ls -1 -t | grep build | head -n1` -f
