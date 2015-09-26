@@ -275,6 +275,7 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format) {
 	iconv_t iconv_handle;
 	int result;
+	uint16_t msg_length = 0;
 	size_t insize = 0;
 	char inbuf[DMRPACKET_MAX_FRAGMENTSIZE];
 	char *inptr = inbuf;
@@ -286,6 +287,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	if (fragment == NULL)
 		return NULL;
 
+	memset(outbuf, 0, sizeof(outbuf));
 	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
 
 	switch (dd_format) {
@@ -326,6 +328,9 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 			break;
 	}
 
+	// Storing the message length as iconv will overwrite it.
+	msg_length = insize;
+
 	iconv_handle = iconv_open("utf-8", dmrpacket_data_header_get_readable_dd_format(dd_format));
 	if (iconv_handle == (iconv_t)-1) {
 		if (errno == EINVAL) {
@@ -340,8 +345,8 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
 	iconv_close(iconv_handle);
 	if (result < 0) {
-		console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-		return NULL;
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+		memcpy(outbuf, inbuf, msg_length);
 	}
 
 	return outbuf;

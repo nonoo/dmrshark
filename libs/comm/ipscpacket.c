@@ -187,6 +187,11 @@ ipscpacket_raw_t *ipscpacket_construct_raw_packet(struct in_addr *dst_addr, ipsc
 	struct udphdr *udp_packet = (struct udphdr *)(ipscpacket_raw.bytes+20);
 	struct in_addr *master_ip_addr = config_get_masteripaddr();
 
+	if (master_ip_addr == NULL) {
+		console_log("ipscpacket error: can't construct raw packet for sending as master ip address is not set in the config\n");
+		return NULL;
+	}
+
 	memcpy(&ip_packet->saddr, master_ip_addr, sizeof(struct in_addr));
 	free(master_ip_addr);
 	memcpy(&ip_packet->daddr, dst_addr, sizeof(struct in_addr));

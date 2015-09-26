@@ -588,11 +588,10 @@ struct in_addr *config_get_masteripaddr(void) {
 	}
 
 	result = (struct in_addr *)malloc(sizeof(struct in_addr));
-	if (!result) {
-		free(value);
-		return NULL;
+	if (result && !comm_hostname_to_ip(value, result)) {
+		free(result);
+		result = NULL;
 	}
-	comm_hostname_to_ip(value, result);
 	free(value);
 	pthread_mutex_unlock(&config_mutex);
 	return result;

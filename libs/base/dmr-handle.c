@@ -110,7 +110,7 @@ void dmr_handle_data_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	if (repeater == NULL)
 		return;
 
-	console_log(LOGLEVEL_DMR "dmr [%s]: data timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts);
+	console_log(LOGLEVEL_DMR "dmr [%s]: data timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
 }
 

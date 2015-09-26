@@ -516,7 +516,10 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	uint16_t bytes_stored_in_blocks = 0;
 	uint8_t bytes_to_store;
 	uint8_t pad_octets = 0;
-
+	uint8_t number_of_csbk_preambles_to_send = 10; // TODO
+//TODO: szetszedni
+//TODO: ack lekezeles, hogy ne legyen data timeout
+//TODO: selective ack lekezeles
 	if (repeater == NULL || msg == NULL)
 		return;
 
@@ -525,8 +528,11 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), (calltype == DMR_CALL_TYPE_GROUP ? "group" : "private"), dstid, ts+1, msg);
 
 	// Constructing the message fragment.
-	fragment.bytes_stored = min(strlen(msg), DMRPACKET_MAX_FRAGMENTSIZE);
-	memcpy(fragment.bytes, msg, fragment.bytes_stored);
+	memset(fragment.bytes, 0, DMRPACKET_MAX_FRAGMENTSIZE);
+	fragment.bytes_stored = min(2+strlen(msg)*2, DMRPACKET_MAX_FRAGMENTSIZE);
+	// Ignoring the first two bytes and placing empty bytes between each character.
+	for (i = 2, j = 0; i < fragment.bytes_stored; i += 2, j++)
+		fragment.bytes[i] = msg[j];
 
 	// See DMR AI spec. page. 73. - confirmed rate 3/4
 	data_blocks_needed = ceil(fragment.bytes_stored / 16.0);
@@ -605,7 +611,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA;
 
 	data_header.short_data_defined.appended_blocks = data_blocks_needed;
-	data_header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8;
+	data_header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
 	data_header.short_data_defined.resync = 1;
 	data_header.short_data_defined.full_message = 1;
 	data_header.short_data_defined.bit_padding = 0;
@@ -613,16 +619,18 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	// Constructing the CSBK preamble.
 	csbk.last_block = 1;
 	csbk.csbko = DMRPACKET_CSBKO_PREAMBLE;
-	csbk.data.preamble.data_follows = 0;
+	csbk.data.preamble.data_follows = 1;
 	csbk.data.preamble.dst_is_group = (calltype == DMR_CALL_TYPE_GROUP);
-	csbk.data.preamble.csbk_blocks_to_follow = data_blocks_needed+1; // +1 - header
+	csbk.data.preamble.csbk_blocks_to_follow = number_of_csbk_preambles_to_send+data_blocks_needed+1; // +1 - header
 	csbk.dst_id = dstid;
 	csbk.src_id = srcid;
 
 	// Sending CSBK preambles.
-	ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < number_of_csbk_preambles_to_send; i++) {
+		csbk.data.preamble.csbk_blocks_to_follow--;
+		ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK, calltype, dstid, srcid, ipscpacket_payload)));
+	}
 
 	// Sending data header.
 	ipscpacket_payload = ipscpacket_construct_payload_sms_header(&data_header);
