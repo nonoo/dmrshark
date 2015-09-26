@@ -5,7 +5,9 @@ dmrshark uses libpcap to analyse the traffic of a Hytera IPSC network.
 It can be used for:
 
 - Tracking and decoding voice calls, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
-- Saving decoded voice data to raw or MP3 files.
+- Saving raw AMBE and decoded voice data to raw or MP3 files.
+- Playing back previously recorded AMBE voice files to repeaters.
+- Echo service.
 - Measure actual and average RMS volume of the calls, and upload them to a remote database, so users can adjust their mic gain settings.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
@@ -110,7 +112,7 @@ You can also define voice streams as .ini structure groups. Example:
 enabled=1
 repeaterhosts=1.2.3.4,repeater123.nonoo.hu
 savefiledir=
-savetorawfile=1
+savetorawambefile=1
 savedecodedtorawfile=1
 savedecodedtomp3file=1
 minmp3bitrate=32
