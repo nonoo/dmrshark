@@ -21,6 +21,7 @@
 #include <libs/base/dmr.h>
 #include <libs/dmrpacket/dmrpacket.h>
 #include <libs/dmrpacket/dmrpacket-emb.h>
+#include <libs/dmrpacket/dmrpacket-csbk.h>
 #include <libs/coding/vbptc-16-11.h>
 
 #include <netinet/ip.h>
@@ -101,5 +102,6 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type
 ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id);
 ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id,
 	ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits);
+ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk, dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id);
 
 #endif

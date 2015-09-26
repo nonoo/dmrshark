@@ -88,29 +88,29 @@ dmrpacket_csbk_t *dmrpacket_csbk_decode(bptc_196_96_data_bits_t *data_bits) {
 		case DMRPACKET_CSBKO_BS_OUTBOUND_ACTIVATION: // No important params to parse.
 			break;
 		case DMRPACKET_CSBKO_UNIT_TO_UNIT_VOICE_SERVICE_REQUEST:
-			csbk.data.unit_to_unit_voice_service_request.service_options = bytes[3];
+			csbk.data.unit_to_unit_voice_service_request.service_options = bytes[2];
 			console_log(LOGLEVEL_DMRLC "      service options: 0x%.2x\n", csbk.data.unit_to_unit_voice_service_request.service_options);
 			break;
 		case DMRPACKET_CSBKO_UNIT_TO_UNIT_VOICE_SERVICE_ANSWER_RESPONSE:
-			csbk.data.unit_to_unit_voice_service_answer_response.service_options = bytes[3];
+			csbk.data.unit_to_unit_voice_service_answer_response.service_options = bytes[2];
 			console_log(LOGLEVEL_DMRLC "      service options: 0x%.2x\n", csbk.data.unit_to_unit_voice_service_answer_response.service_options);
-			csbk.data.unit_to_unit_voice_service_answer_response.answer_response = bytes[4];
+			csbk.data.unit_to_unit_voice_service_answer_response.answer_response = bytes[3];
 			console_log(LOGLEVEL_DMRLC "      answer response: 0x%.2x\n", csbk.data.unit_to_unit_voice_service_answer_response.answer_response);
 			break;
 		case DMRPACKET_CSBKO_NEGATIVE_ACKNOWLEDGE_RESPONSE:
-			csbk.data.negative_acknowledge_response.source_type = ((bytes[3] & 0b01000000) > 0);
+			csbk.data.negative_acknowledge_response.source_type = ((bytes[2] & 0b01000000) > 0);
 			console_log(LOGLEVEL_DMRLC "      source type: %u", csbk.data.negative_acknowledge_response.source_type);
-			csbk.data.negative_acknowledge_response.service_type = bytes[3] & 0b111111;
+			csbk.data.negative_acknowledge_response.service_type = bytes[2] & 0b111111;
 			console_log(LOGLEVEL_DMRLC "      service type: 0x%.2x\n", csbk.data.negative_acknowledge_response.service_type);
-			csbk.data.negative_acknowledge_response.reason_code = bytes[4];
+			csbk.data.negative_acknowledge_response.reason_code = bytes[3];
 			console_log(LOGLEVEL_DMRLC "      reason code: 0x%.2x\n", csbk.data.negative_acknowledge_response.reason_code);
 			break;
 		case DMRPACKET_CSBKO_PREAMBLE:
-			csbk.data.preamble.data_follows = ((bytes[3] & 0b10000000) > 0);
+			csbk.data.preamble.data_follows = ((bytes[2] & 0b10000000) > 0);
 			console_log(LOGLEVEL_DMRLC "      data follows: %u\n", csbk.data.preamble.data_follows);
-			csbk.data.preamble.dst_is_group = ((bytes[3] & 0b01000000) > 0);
+			csbk.data.preamble.dst_is_group = ((bytes[2] & 0b01000000) > 0);
 			console_log(LOGLEVEL_DMRLC "      dst is group: %u\n", csbk.data.preamble.dst_is_group);
-			csbk.data.preamble.csbk_blocks_to_follow = bytes[4];
+			csbk.data.preamble.csbk_blocks_to_follow = bytes[3];
 			console_log(LOGLEVEL_DMRLC "      blocks to follow: %u\n", csbk.data.preamble.csbk_blocks_to_follow);
 			break;
 		default:
@@ -119,4 +119,65 @@ dmrpacket_csbk_t *dmrpacket_csbk_decode(bptc_196_96_data_bits_t *data_bits) {
 	}
 
 	return &csbk;
+}
+
+bptc_196_96_data_bits_t *dmrpacket_csbk_construct(dmrpacket_csbk_t *csbk) {
+	static bptc_196_96_data_bits_t data_bits;
+	uint8_t data_bytes[sizeof(bptc_196_96_data_bits_t)/8] = {0,};
+	uint16_t calculated_crc = 0;
+	uint8_t i;
+
+	data_bytes[0] = (csbk->last_block & 0x01) << 7;
+
+	switch (csbk->csbko) {
+		case DMRPACKET_CSBKO_BS_OUTBOUND_ACTIVATION:
+			data_bytes[0] |= 0b111000;
+			break;
+		case DMRPACKET_CSBKO_UNIT_TO_UNIT_VOICE_SERVICE_REQUEST:
+			data_bytes[0] |= 0b000100;
+			data_bytes[2] = csbk->data.unit_to_unit_voice_service_request.service_options;
+			break;
+		case DMRPACKET_CSBKO_UNIT_TO_UNIT_VOICE_SERVICE_ANSWER_RESPONSE:
+			data_bytes[0] |= 0b00000101;
+			data_bytes[2] = csbk->data.unit_to_unit_voice_service_answer_response.service_options;
+			data_bytes[3] = csbk->data.unit_to_unit_voice_service_answer_response.answer_response;
+			break;
+		case DMRPACKET_CSBKO_NEGATIVE_ACKNOWLEDGE_RESPONSE:
+			data_bytes[0] |= 0b00100110;
+			data_bytes[2] = 0b10000000 |
+							(csbk->data.negative_acknowledge_response.source_type & 0x01) << 6 |
+							(csbk->data.negative_acknowledge_response.service_type & 0b00111111);
+			data_bytes[3] = csbk->data.negative_acknowledge_response.reason_code;
+			break;
+		case DMRPACKET_CSBKO_PREAMBLE:
+			data_bytes[0] |= 0b00111101;
+			data_bytes[2] = (csbk->data.preamble.data_follows & 0x01) << 7 |
+							(csbk->data.preamble.dst_is_group & 0x01) << 6;
+			data_bytes[3] = csbk->data.preamble.csbk_blocks_to_follow;
+			break;
+		default:
+			return NULL;
+	}
+
+	data_bytes[4] = (csbk->dst_id & 0xff0000) >> 16;
+	data_bytes[5] = (csbk->dst_id & 0x00ff00) >> 8;
+	data_bytes[6] = (csbk->dst_id & 0x0000ff);
+	data_bytes[7] = (csbk->src_id & 0xff0000) >> 16;
+	data_bytes[8] = (csbk->src_id & 0x00ff00) >> 8;
+	data_bytes[9] = (csbk->src_id & 0x0000ff);
+
+	for (i = 0; i < 10; i++)
+		crc_calc_crc16_ccitt(&calculated_crc, data_bytes[i]);
+	crc_calc_crc16_ccitt_finish(&calculated_crc);
+
+	// Inverting according to the inversion polynomial.
+	calculated_crc = ~calculated_crc;
+	// Applying CRC mask, see DMR AI spec. page 143.
+	calculated_crc ^= 0xa5a5;
+
+	data_bytes[10] = (calculated_crc & 0xff00) >> 8;
+	data_bytes[11] = calculated_crc & 0xff;
+
+	base_bytestobits(data_bytes, sizeof(data_bytes), data_bits.bits, sizeof(bptc_196_96_data_bits_t));
+	return &data_bits;
 }

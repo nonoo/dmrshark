@@ -58,5 +58,6 @@ typedef struct {
 } dmrpacket_csbk_t;
 
 dmrpacket_csbk_t *dmrpacket_csbk_decode(bptc_196_96_data_bits_t *data_bits);
+bptc_196_96_data_bits_t *dmrpacket_csbk_construct(dmrpacket_csbk_t *csbk);
 
 #endif

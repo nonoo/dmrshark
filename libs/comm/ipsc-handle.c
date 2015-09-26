@@ -18,7 +18,6 @@
 #include DEFAULTCONFIG
 
 #include "ipsc-handle.h"
-#include "ipsc-data.h"
 
 #include <libs/daemon/console.h>
 #include <libs/base/dmr-handle.h>
@@ -68,15 +67,15 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_header(ip_packet, ipscpacket, repeater);
+			dmr_handle_data_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA:
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_34rate(ip_packet, ipscpacket, repeater);
+			dmr_handle_data_34rate(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA:
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
-			ipsc_data_handle_12rate(ip_packet, ipscpacket, repeater);
+			dmr_handle_data_12rate(ip_packet, ipscpacket, repeater);
 			break;
 		default:
 			break;

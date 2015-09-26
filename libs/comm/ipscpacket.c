@@ -314,3 +314,18 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t c
 
 	return &ipscpacket_payload;
 }
+
+ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk, dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_csbk_construct(csbk)));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_CSBK));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
