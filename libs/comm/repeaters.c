@@ -152,17 +152,22 @@ static void repeaters_remove(repeater_t *repeater) {
 
 	vbptc_16_11_free(&repeater->slot[0].emb_sig_lc_vbptc_storage);
 	vbptc_16_11_free(&repeater->slot[1].emb_sig_lc_vbptc_storage);
+	vbptc_16_11_free(&repeater->slot[0].ipsc_tx_emb_sig_lc_vbptc_storage);
+	vbptc_16_11_free(&repeater->slot[1].ipsc_tx_emb_sig_lc_vbptc_storage);
+
+	repeaters_free_echo_buf(repeater, 0);
+	repeaters_free_echo_buf(repeater, 1);
 
 	// Freeing up IPSC packet buffers for both slots.
-	while (repeater->slot[0].ipscrawpacketbuf) {
-		pb_nextentry = repeater->slot[0].ipscrawpacketbuf->next;
-		free(repeater->slot[0].ipscrawpacketbuf);
-		repeater->slot[0].ipscrawpacketbuf = pb_nextentry;
+	while (repeater->slot[0].ipsc_tx_rawpacketbuf) {
+		pb_nextentry = repeater->slot[0].ipsc_tx_rawpacketbuf->next;
+		free(repeater->slot[0].ipsc_tx_rawpacketbuf);
+		repeater->slot[0].ipsc_tx_rawpacketbuf = pb_nextentry;
 	}
-	while (repeater->slot[1].ipscrawpacketbuf) {
-		pb_nextentry = repeater->slot[1].ipscrawpacketbuf->next;
-		free(repeater->slot[1].ipscrawpacketbuf);
-		repeater->slot[1].ipscrawpacketbuf = pb_nextentry;
+	while (repeater->slot[1].ipsc_tx_rawpacketbuf) {
+		pb_nextentry = repeater->slot[1].ipsc_tx_rawpacketbuf->next;
+		free(repeater->slot[1].ipsc_tx_rawpacketbuf);
+		repeater->slot[1].ipsc_tx_rawpacketbuf = pb_nextentry;
 	}
 
 	if (repeater->prev)
@@ -297,9 +302,9 @@ static void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timesl
 
 	memcpy(&newpbentry->ipscpacket_raw, ipscpacket_raw, sizeof(ipscpacket_raw_t));
 
-	pbentry = repeater->slot[ts].ipscrawpacketbuf;
+	pbentry = repeater->slot[ts].ipsc_tx_rawpacketbuf;
 	if (pbentry == NULL)
-		repeater->slot[ts].ipscrawpacketbuf = newpbentry;
+		repeater->slot[ts].ipsc_tx_rawpacketbuf = newpbentry;
 	else {
 		// Searching for the last element in the packet buffer.
 		while (pbentry->next)
@@ -337,24 +342,81 @@ static flag_t repeaters_send_raw_ipsc_packet(repeater_t *repeater, ipscpacket_ra
 	return 1;
 }
 
-void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
-	FILE *f;
-	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
-	dmrpacket_payload_voice_bits_t voice_bits;
-	uint8_t i;
-	uint8_t seqnum = 0;
-	uint8_t voice_frame_num = 2;
-	size_t bytes_read;
+void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
 	dmrpacket_emb_signalling_lc_bits_t *emb_signalling_lc_bits;
-	vbptc_16_11_t emb_sig_lc_vbptc_storage;
+	uint8_t i;
 
-	if (ambe_file_name == NULL || repeater == NULL)
+	if (repeater == NULL)
 		return;
 
-	if (!vbptc_16_11_init(&emb_sig_lc_vbptc_storage, 8)) {
+	repeater->slot[ts].ipsc_tx_seqnum = 0;
+	repeater->slot[ts].ipsc_tx_voice_frame_num = 2;
+	if (!vbptc_16_11_init(&repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage, 8)) {
 		console_log("repeaters [%s] error: can't allocate memory for vbptc encoding\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		return;
 	}
+	emb_signalling_lc_bits = dmrpacket_emb_signalling_lc_interleave(dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid));
+	vbptc_16_11_construct(&repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
+
+	for (i = 0; i < 4; i++)
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid))));
+}
+
+void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
+	dmrpacket_payload_voice_bits_t voice_bits;
+
+	if (repeater == NULL || voice_bytes == NULL)
+		return;
+
+	base_bytestobits(voice_bytes->bytes, sizeof(dmrpacket_payload_voice_bytes_t), voice_bits.raw.bits, sizeof(dmrpacket_payload_voice_bits_t));
+
+	switch (repeater->slot[ts].ipsc_tx_voice_frame_num) {
+		case 0:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		case 1:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		case 2:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		case 3:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		case 4:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		case 5:
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, calltype, dstid, srcid,
+				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+			break;
+		default:
+			break;
+	}
+	repeater->slot[ts].ipsc_tx_voice_frame_num++;
+	if (repeater->slot[ts].ipsc_tx_voice_frame_num > 5)
+		repeater->slot[ts].ipsc_tx_voice_frame_num = 0;
+}
+
+void repeaters_end_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
+	if (repeater == NULL)
+		return;
+
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC, calltype, dstid, srcid, ipscpacket_construct_payload_terminator_with_lc(calltype, dstid, srcid))));
+	vbptc_16_11_free(&repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage);
+}
+
+void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
+	FILE *f;
+	dmrpacket_payload_voice_bytes_t voice_bytes;
+
+	if (ambe_file_name == NULL || repeater == NULL)
+		return;
 
 	f = fopen(ambe_file_name, "r");
 	if (!f) {
@@ -364,79 +426,105 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 
 	console_log("repeaters [%s]: playing %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ambe_file_name);
 
-	emb_signalling_lc_bits = dmrpacket_emb_signalling_lc_interleave(dmrpacket_lc_construct_emb_signalling_lc(calltype, dstid, srcid));
-	vbptc_16_11_construct(&emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
-
-	for (i = 0; i < 4; i++)
-		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid))));
-
+	repeaters_start_voice_call(repeater, ts, calltype, dstid, srcid);
 	while (!feof(f)) {
-		bytes_read = fread(voice_bytes, 1, sizeof(voice_bytes), f);
-		base_bytestobits(voice_bytes, bytes_read, voice_bits.raw.bits, min(bytes_read*8, sizeof(dmrpacket_payload_voice_bits_t)));
-
-		switch (voice_frame_num) {
-			case 0:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			case 1:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			case 2:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			case 3:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			case 4:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			case 5:
-				repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, calltype, dstid, srcid,
-					ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &emb_sig_lc_vbptc_storage))));
-				break;
-			default:
-				break;
-		}
-		voice_frame_num++;
-		if (voice_frame_num > 5)
-			voice_frame_num = 0;
+		if (fread(voice_bytes.bytes, 1, sizeof(dmrpacket_payload_voice_bytes_t), f) == sizeof(dmrpacket_payload_voice_bytes_t))
+			repeaters_play_ambe_data(&voice_bytes, repeater, ts, calltype, dstid, srcid);
 	}
-	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(seqnum++, ts, IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC, calltype, dstid, srcid, ipscpacket_construct_payload_terminator_with_lc(calltype, dstid, srcid))));
+	repeaters_end_voice_call(repeater, ts, calltype, dstid, srcid);
 	fclose(f);
-	vbptc_16_11_free(&emb_sig_lc_vbptc_storage);
+
 }
 
-static void repeaters_process_ipscrawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
+void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts) {
+	repeater_echo_buf_t *next_echo_buf;
+
+	while (repeater->slot[ts].echo_buf_first_entry != NULL) {
+		next_echo_buf = repeater->slot[ts].echo_buf_first_entry;
+		free(repeater->slot[ts].echo_buf_first_entry);
+		repeater->slot[ts].echo_buf_first_entry = next_echo_buf;
+	}
+	repeater->slot[ts].echo_buf_last_entry = NULL;
+}
+
+void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts) {
+	repeater_echo_buf_t *echo_buf;
+	repeater_echo_buf_t *next_echo_buf;
+
+	if (repeater == NULL || repeater->slot[ts].echo_buf_first_entry == NULL)
+		return;
+
+	// We need to use local variables here as processing outgoing IPSC packets could overwrite them.
+	echo_buf = repeater->slot[ts].echo_buf_first_entry;
+	repeater->slot[ts].echo_buf_first_entry = NULL;
+	repeater->slot[ts].echo_buf_last_entry = NULL;
+
+	repeaters_start_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+	while (echo_buf != NULL) {
+		repeaters_play_ambe_data(&echo_buf->voice_bytes, repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+
+		next_echo_buf = echo_buf->next;
+		free(echo_buf);
+		echo_buf = next_echo_buf;
+	}
+	repeaters_end_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+}
+
+void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket) {
+	repeater_echo_buf_t *new_echo_buf_entry;
+	dmrpacket_payload_voice_bits_t *voice_bits;
+
+	if (repeater == NULL || ipscpacket == NULL)
+		return;
+
+	new_echo_buf_entry = (repeater_echo_buf_t *)malloc(sizeof(repeater_echo_buf_t));
+	if (new_echo_buf_entry == NULL) {
+		console_log("  error: can't allocate memory for echo buffer\n");
+		return;
+	}
+
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: storing ts%u voice frame to echo buf\n", repeaters_get_display_string_for_ip(&repeater->ipaddr),
+		ipscpacket->timeslot);
+
+	voice_bits = dmrpacket_extract_voice_bits(&ipscpacket->payload_bits);
+	base_bitstobytes(voice_bits->raw.bits, sizeof(dmrpacket_payload_voice_bits_t), new_echo_buf_entry->voice_bytes.bytes, sizeof(dmrpacket_payload_voice_bits_t)/8);
+	new_echo_buf_entry->next = NULL;
+
+	if (repeater->slot[ipscpacket->timeslot-1].echo_buf_last_entry == NULL) {
+		repeater->slot[ipscpacket->timeslot-1].echo_buf_last_entry = repeater->slot[ipscpacket->timeslot-1].echo_buf_first_entry = new_echo_buf_entry;
+	} else {
+		// Putting the new entry to the end of the linked list.
+		repeater->slot[ipscpacket->timeslot-1].echo_buf_last_entry->next = new_echo_buf_entry;
+		repeater->slot[ipscpacket->timeslot-1].echo_buf_last_entry = new_echo_buf_entry;
+	}
+}
+
+static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
 	struct timeval currtime = {0,};
 	struct timeval difftime = {0,};
-	ipscrawpacketbuf_t *ipscrawpacketbuf_entry_to_send;
+	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf_entry_to_send;
 
-	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipscrawpacketbuf == NULL)
+	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
 		return;
 
 	gettimeofday(&currtime, NULL);
 	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
 	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 50) { // Sending a frame every x ms.
 		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet from tx buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-		ipscrawpacketbuf_entry_to_send = repeater->slot[ts].ipscrawpacketbuf;
-		if (repeaters_send_raw_ipsc_packet(repeater, &ipscrawpacketbuf_entry_to_send->ipscpacket_raw)) {
+		ipsc_tx_rawpacketbuf_entry_to_send = repeater->slot[ts].ipsc_tx_rawpacketbuf;
+		if (repeaters_send_raw_ipsc_packet(repeater, &ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw)) {
 			// Sending the packet to our IPSC processing loop too.
-			//ipsc_processpacket(&ipscrawpacketbuf_entry_to_send->ipscpacket_raw, sizeof(ipscpacket_raw_t));
+			//ipsc_processpacket(&ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw, sizeof(ipscpacket_raw_t));
 
 			// Shifting the buffer.
-			repeater->slot[ts].ipscrawpacketbuf = repeater->slot[ts].ipscrawpacketbuf->next;
-			free(ipscrawpacketbuf_entry_to_send);
+			repeater->slot[ts].ipsc_tx_rawpacketbuf = repeater->slot[ts].ipsc_tx_rawpacketbuf->next;
+			free(ipsc_tx_rawpacketbuf_entry_to_send);
 			gettimeofday(&repeater->slot[ts].last_ipsc_packet_sent_time, NULL);
 		}
-		if (repeater->slot[ts].ipscrawpacketbuf == NULL)
+		if (repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
 			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: tx packet buffer got empty\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 	}
-	if (repeater->slot[ts].ipscrawpacketbuf != NULL)
+	if (repeater->slot[ts].ipsc_tx_rawpacketbuf != NULL)
 		daemon_poll_setmaxtimeout(0);
 }
 
@@ -447,8 +535,8 @@ void repeaters_process(void) {
 	struct timeval difftime = {0,};
 
 	while (repeater) {
-		repeaters_process_ipscrawpacketbuf(repeater, 0);
-		repeaters_process_ipscrawpacketbuf(repeater, 1);
+		repeaters_process_ipsc_tx_rawpacketbuf(repeater, 0);
+		repeaters_process_ipsc_tx_rawpacketbuf(repeater, 1);
 
 		if (time(NULL)-repeater->last_active_time > config_get_repeaterinactivetimeoutinsec()) {
 			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: timed out\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));

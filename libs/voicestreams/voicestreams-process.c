@@ -257,7 +257,6 @@ void voicestreams_process_call_end(voicestream_t *voicestream, repeater_t *repea
 void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	voicestream_t *voicestream;
 	dmrpacket_payload_voice_bits_t *voice_bits;
-	uint8_t i;
 	uint8_t voice_bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
 #ifdef AMBEDECODEVOICE
 	voicestreams_decoded_frame_t *decoded_frame;
@@ -288,8 +287,7 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: processing packet from %s\n", voicestream->name, repeaters_get_display_string((repeater_t *)voicestream->currently_streaming_repeater));
 
 	voice_bits = dmrpacket_extract_voice_bits(&ipscpacket->payload_bits);
-	for (i = 0; i < sizeof(voice_bits->raw.bits); i += 8)
-		voice_bytes[i/8] = base_bitstobyte(&voice_bits->raw.bits[i]);
+	base_bitstobytes(voice_bits->raw.bits, sizeof(dmrpacket_payload_voice_bits_t), voice_bytes, sizeof(voice_bytes));
 
 	if (voicestream->savetorawambefile)
 		voicestreams_process_savetorawambefile(voice_bytes, sizeof(voice_bytes), voicestream);

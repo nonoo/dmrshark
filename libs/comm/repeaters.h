@@ -34,6 +34,12 @@
 #define REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING	2
 typedef uint8_t repeater_slot_state_t;
 
+typedef struct repeater_echo_buf_st {
+	dmrpacket_payload_voice_bytes_t voice_bytes;
+
+	struct repeater_echo_buf_st *next;
+} repeater_echo_buf_t;
+
 typedef struct {
 	repeater_slot_state_t state;
 	int rssi;
@@ -49,11 +55,21 @@ typedef struct {
 	int data_blocks_received;
 	time_t data_header_received_at;
 	voicestream_t *voicestream;
-	ipscrawpacketbuf_t *ipscrawpacketbuf;
+
+	// These variables are used for sending IPSC packets to the repeater.
+	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf;
+	uint8_t ipsc_tx_seqnum;
+	uint8_t ipsc_tx_voice_frame_num;
+	vbptc_16_11_t ipsc_tx_emb_sig_lc_vbptc_storage;
 	struct timeval last_ipsc_packet_sent_time;
+
 	// This holds the last received frame's number in a voice superframe if we are in a call.
 	uint8_t voice_frame_num;
-	vbptc_16_11_t emb_sig_lc_vbptc_storage; // This is where we store received embedded signalling lc fragments.
+	// This is where we store received embedded signalling lc fragments.
+	vbptc_16_11_t emb_sig_lc_vbptc_storage;
+
+	repeater_echo_buf_t *echo_buf_first_entry;
+	repeater_echo_buf_t *echo_buf_last_entry;
 } repeater_slot_t;
 
 typedef struct repeater_st {
@@ -93,7 +109,14 @@ void repeaters_list(void);
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
 
+void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
+void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
+void repeaters_end_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
+
+void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
+void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
+void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket);
 
 void repeaters_process(void);
 void repeaters_deinit(void);

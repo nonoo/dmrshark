@@ -147,10 +147,10 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 	char query[512] = {0,};
 	int talktime;
 
-	if (repeater == NULL || !config_get_updatestatstableenabled() || timeslot > 2 || timeslot < 1)
+	if (repeater == NULL || !config_get_updatestatstableenabled() || timeslot > 1 || timeslot < 0)
 		return;
 
-	talktime = repeater->slot[timeslot-1].call_ended_at-repeater->slot[timeslot-1].call_started_at;
+	talktime = repeater->slot[timeslot].call_ended_at-repeater->slot[timeslot].call_started_at;
 
 	if (talktime <= 0)
 		return;
@@ -158,7 +158,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%sstats` (`id`, `date`, `talktime`) "
 		"values (%u, now(), %u) on duplicate key update `talktime`=`talktime`+%u",
-		tableprefix, repeater->slot[timeslot-1].src_id, talktime, talktime);
+		tableprefix, repeater->slot[timeslot].src_id, talktime, talktime);
 	free(tableprefix);
 
 	remotedb_addquery(query);

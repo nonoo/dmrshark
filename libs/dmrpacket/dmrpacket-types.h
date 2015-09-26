@@ -44,4 +44,8 @@ typedef union {
 	} ambe_frames;
 } dmrpacket_payload_voice_bits_t;
 
+typedef struct {
+	uint8_t bytes[sizeof(dmrpacket_payload_voice_bits_t)/8];
+} dmrpacket_payload_voice_bytes_t;
+
 #endif

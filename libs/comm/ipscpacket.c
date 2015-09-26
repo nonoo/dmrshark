@@ -184,8 +184,10 @@ ipscpacket_raw_t *ipscpacket_construct_raw_packet(struct in_addr *dst_addr, ipsc
 	static ipscpacket_raw_t ipscpacket_raw;
 	struct iphdr *ip_packet = (struct iphdr *)ipscpacket_raw.bytes;
 	struct udphdr *udp_packet = (struct udphdr *)(ipscpacket_raw.bytes+20);
+	struct in_addr *master_ip_addr = config_get_masteripaddr();
 
-	memcpy(&ip_packet->saddr, config_get_masteripaddr(), sizeof(struct in_addr));
+	memcpy(&ip_packet->saddr, master_ip_addr, sizeof(struct in_addr));
+	free(master_ip_addr);
 	memcpy(&ip_packet->daddr, dst_addr, sizeof(struct in_addr));
 	ip_packet->ihl = 5;
 	ip_packet->version = 4;

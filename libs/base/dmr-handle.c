@@ -29,6 +29,8 @@
 #include <libs/dmrpacket/dmrpacket-emb.h>
 #include <libs/base/base.h>
 
+#include <stdlib.h>
+
 void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
@@ -46,7 +48,10 @@ void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 	repeater->slot[ipscpacket->timeslot-1].call_ended_at = time(NULL);
 
 	remotedb_update(repeater);
-	remotedb_update_stats_callend(repeater, ipscpacket->timeslot);
+	remotedb_update_stats_callend(repeater, ipscpacket->timeslot-1);
+
+	if (repeater->slot[ipscpacket->timeslot-1].echo_buf_first_entry != NULL)
+		repeaters_play_and_free_echo_buf(repeater, ipscpacket->timeslot-1);
 }
 
 void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -75,6 +80,8 @@ void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, 
 
 	voicestreams_process_call_start(repeater->slot[ipscpacket->timeslot-1].voicestream, repeater);
 
+	repeaters_free_echo_buf(repeater, ipscpacket->timeslot-1);
+
 	remotedb_update(repeater);
 	remotedb_update_repeater(repeater);
 }
@@ -87,9 +94,13 @@ void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	console_log(LOGLEVEL_DMR "dmr [%s]: call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
 	repeater->slot[ts].call_ended_at = time(NULL);
+
 	remotedb_update(repeater);
 	remotedb_update_repeater(repeater);
-	remotedb_update_stats_callend(repeater, ts+1);
+	remotedb_update_stats_callend(repeater, ts);
+
+	if (repeater->slot[ts].echo_buf_first_entry != NULL)
+		repeaters_play_and_free_echo_buf(repeater, ts);
 }
 
 void dmr_handle_data_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
@@ -159,6 +170,9 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 	console_log(LOGLEVEL_DMRLC "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_DMRLC "->%s]: ts%u got voice frame: ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst), ipscpacket->timeslot);
+
+	if (repeater->slot[ipscpacket->timeslot-1].dst_id == DMRSHARK_DEFAULT_DMR_ID && repeater->slot[ipscpacket->timeslot-1].src_id != DMRSHARK_DEFAULT_DMR_ID)
+		repeaters_store_voice_frame_to_echo_buf(repeater, ipscpacket);
 
 	// Is this frame a sync frame?
 	sync_bits = dmrpacket_sync_extract_bits(&ipscpacket->payload_bits);

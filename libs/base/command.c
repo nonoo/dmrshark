@@ -371,7 +371,7 @@ void command_process(char *input_buffer) {
 		}
 
 		console_log("playing %s to %s ts %u calltype %u dstid %u\n", d.play.filename, d.play.host, d.play.ts+1, dmr_get_readable_call_type(d.play.calltype), d.play.dstid);
-		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_SRCID);
+		repeaters_play_ambe_file(d.play.filename, d.play.repeater, d.play.ts, d.play.calltype, d.play.dstid, DMRSHARK_DEFAULT_DMR_ID);
 		return;
 	}
 

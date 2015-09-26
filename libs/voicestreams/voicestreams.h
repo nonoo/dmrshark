@@ -19,6 +19,7 @@
 #define VOICESTREAMS_H_
 
 #include <libs/base/types.h>
+#include <libs/dmrpacket/dmrpacket-types.h>
 
 #include <netinet/ip.h>
 #ifdef AMBEDECODEVOICE
