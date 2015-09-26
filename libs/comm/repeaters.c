@@ -499,6 +499,30 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 	}
 }
 
+void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
+	uint8_t i;
+	dmrpacket_csbk_t csbk;
+	ipscpacket_payload_t *ipscpacket_payload;
+
+	if (repeater == NULL)
+		return;
+
+	repeater->slot[ts].ipsc_tx_seqnum = 0;
+
+	// Sending CSBKO preambles.
+	csbk.last_block = 1;
+	csbk.csbko = DMRPACKET_CSBKO_PREAMBLE;
+	csbk.data.preamble.data_follows = 0;
+	csbk.data.preamble.dst_is_group = (calltype == DMR_CALL_TYPE_GROUP);
+	csbk.data.preamble.csbk_blocks_to_follow = 32;
+	csbk.dst_id = dstid;
+	csbk.src_id = srcid;
+	ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk, calltype, dstid, srcid);
+
+	for (i = 0; i < 32; i++)
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK, calltype, dstid, srcid, ipscpacket_payload)));
+}
+
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
 	struct timeval currtime = {0,};
 	struct timeval difftime = {0,};
