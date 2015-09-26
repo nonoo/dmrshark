@@ -27,6 +27,7 @@
 #include <libs/dmrpacket/dmrpacket-lc.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/dmrpacket/dmrpacket-slot-type.h>
+#include <libs/dmrpacket/dmrpacket-data-34rate.h>
 #include <libs/comm/comm.h>
 #include <libs/config/config.h>
 
@@ -269,9 +270,7 @@ ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_t
 	return &ipscpacket_payload;
 }
 
-ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id,
-	ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits) {
-
+ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits) {
 	static ipscpacket_payload_t ipscpacket_payload;
 	dmrpacket_payload_bits_t payload_bits;
 	dmrpacket_emb_signalling_lc_fragment_bits_t emb_signalling_lc_fragment_bits = { .bits = { 0, } };
@@ -315,7 +314,7 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(dmr_call_type_t c
 	return &ipscpacket_payload;
 }
 
-ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk, dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id) {
+ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk) {
 	static ipscpacket_payload_t ipscpacket_payload;
 	dmrpacket_payload_info_bits_t *payload_info_bits;
 	dmrpacket_payload_bits_t payload_bits;
@@ -324,6 +323,48 @@ ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk, 
 	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_csbk_construct(csbk)));
 	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
 	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_CSBK));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_sms_header(dmrpacket_data_header_t *data_header) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(dmrpacket_data_header_construct(data_header, 0)));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_DATA_HEADER));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_data_block_t *data_block) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+	dmrpacket_data_block_bytes_t *data_block_bytes;
+	dmrpacket_data_binary_t data_block_binary;
+	dmrpacket_data_34rate_tribits_t *tribits;
+	dmrpacket_data_34rate_constellationpoints_t *constellationpoints;
+	dmrpacket_data_34rate_dibits_t *dibits;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+
+	data_block_bytes = dmrpacket_data_construct_block_bytes(data_block, 1);
+	base_bytestobits(data_block_bytes->bytes, sizeof(dmrpacket_data_block_bytes_t), data_block_binary.bits, sizeof(dmrpacket_data_binary_t));
+
+	tribits = dmrpacket_data_34rate_construct_tribits(&data_block_binary);
+	constellationpoints = dmrpacket_data_34rate_construct_constellationpoints(tribits);
+	dibits = dmrpacket_data_34rate_construct_deinterleaved_dibits(constellationpoints);
+	payload_info_bits = dmrpacket_data_34rate_construct_payload_info_bits(dmrpacket_data_34rate_interleave_dibits(dibits));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION));
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
 

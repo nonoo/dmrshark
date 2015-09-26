@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t serialnr;
-	uint16_t crc;
+	uint16_t crc; // 9 bit CRC
 	uint8_t data[24]; // See DMR AI spec. page. 73.
 	uint8_t data_length;
 } dmrpacket_data_block_t;
@@ -72,5 +72,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_b
 dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t *bytes, dmrpacket_data_type_t data_type, flag_t confirmed);
 dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket_data_block_t *blocks, uint8_t blocks_count);
 char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format);
+
+dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed);
 
 #endif

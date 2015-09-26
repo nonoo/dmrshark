@@ -102,6 +102,7 @@ typedef uint8_t dmrpacket_data_header_port_t;
 typedef uint8_t dmrpacket_data_header_bit_padding_t;
 typedef uint8_t dmrpacket_data_header_appended_blocks_t;
 typedef uint8_t dmrpacket_data_header_pad_nibble_t;
+typedef uint8_t dmrpacket_data_header_udt_opcode_t;
 
 typedef struct {
 	struct {
@@ -115,6 +116,7 @@ typedef struct {
 	} common;
 	struct {
 		dmrpacket_data_manufacturer_id_t manufacturer_id;
+		uint8_t data[8];
 	} proprietary;
 	struct {
 		dmrpacket_data_header_poc_t pad_octet_count;
@@ -157,6 +159,7 @@ typedef struct {
 		dmrpacket_data_header_pad_nibble_t pad_nibble;
 		dmrpacket_data_header_appended_blocks_t appended_blocks;
 		flag_t supplementary_flag;
+		dmrpacket_data_header_udt_opcode_t opcode;
 	} udt;
 } dmrpacket_data_header_t;
 
@@ -165,5 +168,6 @@ char *dmrpacket_data_header_get_readable_dd_format(dmrpacket_data_header_dd_form
 
 dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *data_bits, flag_t proprietary_header);
 dmrpacket_data_header_responsetype_t dmrpacket_data_header_decode_response(dmrpacket_data_header_t *header);
+bptc_196_96_data_bits_t *dmrpacket_data_header_construct(dmrpacket_data_header_t *data_header, flag_t proprietary_header);
 
 #endif

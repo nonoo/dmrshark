@@ -436,7 +436,7 @@ void command_process(char *input_buffer) {
 
 	// TODO: remove
 	if (strcmp(tok, "s") == 0) {
-		repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "teszt sms");
+		repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "teszt sms egy");
 		return;
 	}
 

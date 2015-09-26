@@ -31,11 +31,13 @@
 #include <libs/dmrpacket/dmrpacket-emb.h>
 #include <libs/dmrpacket/dmrpacket-lc.h>
 #include <libs/voicestreams/voicestreams-decode.h>
+#include <libs/coding/crc.h>
 
 #include <string.h>
 #include <sys/time.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 
 static repeater_t *repeaters = NULL;
 
@@ -373,27 +375,27 @@ void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repe
 	switch (repeater->slot[ts].ipsc_tx_voice_frame_num) {
 		case 0:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 1:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 2:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 3:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 4:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 5:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(calltype, dstid, srcid, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		default:
 			break;
@@ -500,27 +502,136 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 }
 
 void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
-	uint8_t i;
+	uint16_t i, j;
 	dmrpacket_csbk_t csbk;
+	dmrpacket_data_header_t data_header;
 	ipscpacket_payload_t *ipscpacket_payload;
+	dmrpacket_data_block_t *data_blocks;
+	uint8_t data_blocks_needed;
+	dmrpacket_data_fragment_t fragment;
+	uint32_t fragment_crc = 0;
+	uint16_t bytes_stored_in_blocks = 0;
+	uint8_t bytes_to_store;
+	uint8_t pad_octets = 0;
 
-	if (repeater == NULL)
+	if (repeater == NULL || msg == NULL)
 		return;
 
 	repeater->slot[ts].ipsc_tx_seqnum = 0;
 
-	// Sending CSBKO preambles.
+	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), (calltype == DMR_CALL_TYPE_GROUP ? "group" : "private"), dstid, ts+1, msg);
+
+	// Constructing the message fragment.
+	fragment.bytes_stored = min(strlen(msg), DMRPACKET_MAX_FRAGMENTSIZE);
+	memcpy(fragment.bytes, msg, fragment.bytes_stored);
+
+	// See DMR AI spec. page. 73. - confirmed rate 3/4
+	data_blocks_needed = ceil(fragment.bytes_stored / 16.0);
+	// Checking if there's no space left in the last data block for the fragment CRC.
+	if (data_blocks_needed*16-fragment.bytes_stored < 4)
+		data_blocks_needed++;
+
+	pad_octets = (data_blocks_needed*16-4)-fragment.bytes_stored; // -4 - fragment CRC
+
+	for (i = 0; i < fragment.bytes_stored+pad_octets; i += 2) {
+		if (i+1 < fragment.bytes_stored)
+			crc_calc_crc32(&fragment_crc, fragment.bytes[i+1]);
+		else
+			crc_calc_crc32(&fragment_crc, 0);
+		if (i < fragment.bytes_stored)
+			crc_calc_crc32(&fragment_crc, fragment.bytes[i]);
+		else
+			crc_calc_crc32(&fragment_crc, 0);
+	}
+	crc_calc_crc32_finish(&fragment_crc);
+
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  message length: %u bytes, fragment crc: %.8x, needed blocks: %u, pad octets: %u\n",
+		fragment.bytes_stored, fragment_crc, data_blocks_needed, pad_octets);
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  message bytes: ");
+	for (j = 0; j < fragment.bytes_stored; j++)
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment.bytes[j]);
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG " %.8x\n", fragment_crc);
+
+	// Constructing message blocks from the fragment.
+	data_blocks = (dmrpacket_data_block_t *)calloc(1, data_blocks_needed*sizeof(dmrpacket_data_block_t));
+	if (data_blocks == NULL) {
+		console_log("  error: can't allocate memory for data blocks\n");
+		return;
+	}
+
+	for (i = 0; i < data_blocks_needed; i++) {
+		data_blocks[i].serialnr = i;
+		data_blocks[i].data_length = 16;
+
+		if (i == data_blocks_needed-1) { // Storing the fragment CRC in the last block.
+			data_blocks[i].data[data_blocks[i].data_length-1] = (fragment_crc >> 24) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-2] = (fragment_crc >> 16) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-3] = (fragment_crc >> 8) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-4] = fragment_crc & 0xff;
+		}
+
+		bytes_to_store = min(data_blocks[i].data_length, fragment.bytes_stored-bytes_stored_in_blocks);
+		memcpy(data_blocks[i].data, fragment.bytes+bytes_stored_in_blocks, bytes_to_store);
+		bytes_stored_in_blocks += bytes_to_store;
+
+		data_blocks[i].crc = 0;
+		for (j = 0; j < data_blocks[i].data_length; j++)
+			crc_calc_crc9(&data_blocks[i].crc, data_blocks[i].data[j], 8);
+		crc_calc_crc9(&data_blocks[i].crc, data_blocks[i].serialnr, 7);
+		// Getting out only 8 bits from the shift registers as previously we only put in 7 bits.
+		crc_calc_crc9_finish(&data_blocks[i].crc, 8);
+
+		// Inverting according to the inversion polynomial.
+		data_blocks[i].crc = ~data_blocks[i].crc;
+		data_blocks[i].crc &= 0x01ff;
+		// Applying CRC mask, see DMR AI spec. page 143.
+		data_blocks[i].crc ^= 0x01ff;
+
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  block #%u length: %u crc: %.4x bytes: ", i, data_blocks[i].data_length, data_blocks[i].crc);
+		for (j = 0; j < data_blocks[i].data_length; j++)
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", data_blocks[i].data[j]);
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "\n");
+	}
+
+	// Constructing the data header.
+	data_header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
+	data_header.common.response_requested = 1;
+	data_header.common.dst_llid = dstid;
+	data_header.common.src_llid = srcid;
+	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED;
+	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA;
+
+	data_header.short_data_defined.appended_blocks = data_blocks_needed;
+	data_header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8;
+	data_header.short_data_defined.resync = 1;
+	data_header.short_data_defined.full_message = 1;
+	data_header.short_data_defined.bit_padding = 0;
+
+	// Constructing the CSBK preamble.
 	csbk.last_block = 1;
 	csbk.csbko = DMRPACKET_CSBKO_PREAMBLE;
 	csbk.data.preamble.data_follows = 0;
 	csbk.data.preamble.dst_is_group = (calltype == DMR_CALL_TYPE_GROUP);
-	csbk.data.preamble.csbk_blocks_to_follow = 32;
+	csbk.data.preamble.csbk_blocks_to_follow = data_blocks_needed+1; // +1 - header
 	csbk.dst_id = dstid;
 	csbk.src_id = srcid;
-	ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk, calltype, dstid, srcid);
 
-	for (i = 0; i < 32; i++)
+	// Sending CSBK preambles.
+	ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
+	for (i = 0; i < 5; i++)
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK, calltype, dstid, srcid, ipscpacket_payload)));
+
+	// Sending data header.
+	ipscpacket_payload = ipscpacket_construct_payload_sms_header(&data_header);
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, calltype, dstid, srcid, ipscpacket_payload)));
+
+	// Sending data blocks.
+	for (i = 0; i < data_blocks_needed; i++) {
+		ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_34(&data_blocks[i]);
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA, calltype, dstid, srcid, ipscpacket_payload)));
+	}
+
+	free(data_blocks);
 }
 
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {

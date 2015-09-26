@@ -174,7 +174,7 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  serialnr: %u\n", data_block.serialnr);
 
 		data_block.crc = ((bytes->bytes[0] & 0b00000001) << 8) | bytes->bytes[1];
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  crc: %.4x\n", data_block.crc);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  crc: 0x%.4x\n", data_block.crc);
 	} else {
 		switch (data_type) {
 			case DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION: data_block.data_length = 12; break;
@@ -205,10 +205,11 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 	// Applying CRC mask, see DMR AI spec. page 143.
 	crcval ^= 0x01ff;
 
-	if (crcval == data_block.crc)
+	if (crcval == data_block.crc) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  crc ok\n", crcval);
 		return &data_block;
-	else {
-		console_log(LOGLEVEL_DMRDATA "dmrpacket data: block crc error\n");
+	} else {
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data: block crc error (calculated: 0x%.4x)\n", crcval);
 		return NULL;
 	}
 }
@@ -316,7 +317,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_16:
 			insize = 0;
 			// Dropping the first 2 bytes. TODO: not all formats may work this way.
-			for (i = 2; i < fragment->bytes_stored; i++) {
+			for (i = 2; i < fragment->bytes_stored; i+=2) {
 				if (i % 2 == 0) { // Only dealing with every 2nd byte.
 					inbuf[insize] = fragment->bytes[i];
 					insize++;
@@ -344,4 +345,17 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	}
 
 	return outbuf;
+}
+
+dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed) {
+	static dmrpacket_data_block_bytes_t bytes;
+
+	memset(bytes.bytes, 0, sizeof(dmrpacket_data_block_bytes_t));
+	if (confirmed) {
+		bytes.bytes[0] = (data_block->serialnr << 1) | ((data_block->crc & 0x0100) >> 8);
+		bytes.bytes[1] = data_block->crc & 0xff;
+		memcpy(bytes.bytes+2, data_block->data, data_block->data_length);
+	} else
+		memcpy(bytes.bytes, data_block->data, data_block->data_length);
+	return &bytes;
 }
