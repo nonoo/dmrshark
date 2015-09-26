@@ -322,6 +322,9 @@ static flag_t repeaters_send_raw_ipsc_packet(repeater_t *repeater, ipscpacket_ra
 	struct sockaddr_in sin;
 	int sockfd;
 
+	if (repeater == NULL || ipscpacket_raw == NULL)
+		return 0;
+
 	// Need to use raw socket here, because if the master software is running,
 	// we can't bind to the source port to set it in our UDP packet.
 	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
@@ -335,7 +338,7 @@ static flag_t repeaters_send_raw_ipsc_packet(repeater_t *repeater, ipscpacket_ra
 	memcpy(&sin.sin_addr, &repeater->ipaddr, sizeof(struct in_addr));
 
 	errno = 0;
-	if (sendto(sockfd, (uint8_t *)ipscpacket_raw, sizeof(ipscpacket_raw_t), MSG_DONTWAIT, (struct sockaddr *)&sin, sizeof(struct sockaddr_in)) != sizeof(ipscpacket_raw_t)) {
+	if (sendto(sockfd, ipscpacket_raw->bytes, sizeof(ipscpacket_raw_t), MSG_DONTWAIT, (struct sockaddr *)&sin, sizeof(struct sockaddr_in)) != sizeof(ipscpacket_raw_t)) {
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "repeaters [%s]: can't send udp packet: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), strerror(errno));
 		close(sockfd);
 		return 0;
