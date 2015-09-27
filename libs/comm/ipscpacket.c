@@ -18,6 +18,7 @@
 #include DEFAULTCONFIG
 
 #include "ipscpacket.h"
+#include "repeaters.h"
 
 #include <libs/base/base.h>
 #include <libs/daemon/console.h>
@@ -90,8 +91,8 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 
 	loglevel = console_get_loglevel();
 	if (loglevel.flags.debug && loglevel.flags.ipsc) {
-		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket [%s->%s]: decoding: ", comm_get_ip_str(&ippacket->ip_src),
-			comm_get_ip_str(&ippacket->ip_dst));
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket [%s", repeaters_get_display_string_for_ip(&ippacket->ip_src));
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "->%s]: decoding: ", repeaters_get_display_string_for_ip(&ippacket->ip_dst));
 		for (i = 0; i < ipscpacket_raw_length; i++)
 			console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "%.2x ", *((uint8_t *)ipscpacket_raw+i));
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
@@ -229,6 +230,7 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 	ipscpacket_raw.timeslot_raw = (ts == 0 ? 0x1111 : 0x2222);
 	ipscpacket_raw.slot_type = slot_type;
 	ipscpacket_raw.delimiter = 0x1111;
+	ipscpacket_raw.frame_type = 0xbbbb;
 	ipscpacket_raw.reserved4[0] = 0x10;
 	memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
 	ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
