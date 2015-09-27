@@ -118,6 +118,7 @@ void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket);
 
+void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 
 void repeaters_process(void);

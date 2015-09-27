@@ -441,12 +441,12 @@ void repeaters_play_ambe_file(char *ambe_file_name, repeater_t *repeater, dmr_ti
 }
 
 void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts) {
-	repeater_echo_buf_t *next_echo_buf;
+	repeater_echo_buf_t *next_echo_buf_entry;
 
 	while (repeater->slot[ts].echo_buf_first_entry != NULL) {
-		next_echo_buf = repeater->slot[ts].echo_buf_first_entry;
+		next_echo_buf_entry = repeater->slot[ts].echo_buf_first_entry->next;
 		free(repeater->slot[ts].echo_buf_first_entry);
-		repeater->slot[ts].echo_buf_first_entry = next_echo_buf;
+		repeater->slot[ts].echo_buf_first_entry = next_echo_buf_entry;
 	}
 	repeater->slot[ts].echo_buf_last_entry = NULL;
 }
@@ -483,7 +483,7 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 
 	new_echo_buf_entry = (repeater_echo_buf_t *)malloc(sizeof(repeater_echo_buf_t));
 	if (new_echo_buf_entry == NULL) {
-		console_log("  error: can't allocate memory for echo buffer\n");
+		console_log("  error: can't allocate memory for new echo buffer entry\n");
 		return;
 	}
 
@@ -512,9 +512,8 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	dmrpacket_data_header_t data_header;
 	ipscpacket_payload_t *ipscpacket_payload;
 	dmrpacket_data_block_t *data_blocks;
-	uint8_t number_of_csbk_preambles_to_send = 10; // TODO
-//TODO: ack lekezeles, hogy ne legyen data timeout
-//TODO: selective ack lekezeles
+	uint8_t number_of_csbk_preambles_to_send = 3;
+
 	if (repeater == NULL || msg == NULL)
 		return;
 
@@ -573,6 +572,19 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	}
 
 	free(data_blocks);
+}
+
+void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
+	repeater_t *repeater = repeaters;
+
+repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, calltype, dstid, srcid, msg);
+/*
+	while (repeater) {
+		repeaters_send_sms(repeater, 0, calltype, dstid, srcid, msg);
+		repeaters_send_sms(repeater, 1, calltype, dstid, srcid, msg);
+
+		repeater = repeater->next;
+	}*/
 }
 
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {

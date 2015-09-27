@@ -18,6 +18,7 @@
 #include DEFAULTCONFIG
 
 #include "base.h"
+#include "smstxbuf.h"
 
 #include <libs/daemon/console.h>
 
@@ -95,6 +96,7 @@ void base_bytestobits(uint8_t *bytes, uint16_t bytes_length, flag_t *bits, uint1
 }
 
 void base_process(void) {
+	smstxbuf_process();
 }
 
 void base_init(void) {
@@ -105,4 +107,6 @@ void base_init(void) {
 
 void base_deinit(void) {
 	console_log("base: deinit\n");
+
+	smstxbuf_deinit();
 }

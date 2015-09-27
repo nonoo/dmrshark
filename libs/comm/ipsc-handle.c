@@ -32,7 +32,7 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		case IPSCPACKET_SLOT_TYPE_CSBK:
 			dmr_handle_csbk(ip_packet, ipscpacket, repeater);
 			break;
-		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER:
+/*		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER:
 			dmr_handle_voice_lc_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
@@ -64,7 +64,7 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC:
 			dmr_handle_terminator_with_lc(ip_packet, ipscpacket, repeater);
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
-			break;
+			break;*/
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
 			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_header(ip_packet, ipscpacket, repeater);
