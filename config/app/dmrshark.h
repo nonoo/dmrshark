@@ -1,12 +1,14 @@
 #ifndef APP_H_
 #define APP_H_
 
-#define APPID						APPID_DMRSHARK
-#define APPNAME						"dmrshark"
+#define APPID							APPID_DMRSHARK
+#define APPNAME							"dmrshark"
 
-#define CONFIGFILENAME				"dmrshark.cfg"
-#define CONSOLE_INPUTBUFFERSIZE		1024
+#define CONFIGFILENAME					"dmrshark.cfg"
+#define CONSOLE_INPUTBUFFERSIZE			1024
 
-#define DMRSHARK_DEFAULT_DMR_ID		7777
+#define DMRSHARK_DEFAULT_DMR_ID			7777
+#define SMS_SEND_RETRY_INTERVAL_IN_SEC	10
+#define SMS_SEND_MAX_RETRY_COUNT		3
 
 #endif

@@ -107,10 +107,10 @@ static void smstxbuf_remove_first_entry(void) {
 void smstxbuf_process(void) {
 	static time_t last_sms_send_try_at = 0;
 
-	if (smstxbuf_first_entry == NULL || time(NULL)-last_sms_send_try_at < 10)
+	if (smstxbuf_first_entry == NULL || time(NULL)-last_sms_send_try_at < SMS_SEND_RETRY_INTERVAL_IN_SEC)
 		return;
 
-	if (smstxbuf_first_entry->send_tries >= 3) {
+	if (smstxbuf_first_entry->send_tries >= SMS_SEND_MAX_RETRY_COUNT) {
 		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed, removing:\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 		smstxbuf_remove_first_entry();

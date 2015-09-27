@@ -577,14 +577,12 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	repeater_t *repeater = repeaters;
 
-repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, calltype, dstid, srcid, msg);
-/*
 	while (repeater) {
 		repeaters_send_sms(repeater, 0, calltype, dstid, srcid, msg);
 		repeaters_send_sms(repeater, 1, calltype, dstid, srcid, msg);
 
 		repeater = repeater->next;
-	}*/
+	}
 }
 
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
