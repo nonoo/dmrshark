@@ -54,6 +54,7 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D: return "voice data d";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E: return "voice data e";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F: return "voice data f";
+		case IPSCPACKET_SLOT_TYPE_IPSC_SYNC: return "ipsc sync";
 		default: return "unknown";
 	}
 }
@@ -98,7 +99,7 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
 	}
 
-	if (!packet_from_us && ipscpacket_raw->udp_source_port != udppacket->source) {
+	if (!packet_from_us && ipscpacket_raw->udp_source_port != udppacket->source && ipscpacket_raw->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
 			ipscpacket_raw->udp_source_port, udppacket->source);
 		return 0;
@@ -133,7 +134,7 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 	base_bytestobits(ipscpacket->payload.bytes, sizeof(ipscpacket_payload_t)-1, ipscpacket->payload_bits.bits, sizeof(dmrpacket_payload_bits_t));
 
 	if (loglevel.flags.ipsc && loglevel.flags.debug) {
-		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  udp source port: %u\n", ipscpacket_raw->udp_source_port);
+		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  udp source port: %u\n", ntohs(ipscpacket_raw->udp_source_port));
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved1: 0x%.2x%.2x\n", ipscpacket_raw->reserved1[0], ipscpacket_raw->reserved1[1]);
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  seq: %u\n", ipscpacket_raw->seq);
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "  reserved2: 0x");
@@ -222,19 +223,15 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 
 	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_payload_raw_t));
 
-	ipscpacket_raw.seq = seqnum;
-	ipscpacket_raw.packet_type = 0x01;
 	ipscpacket_raw.reserved3[1] = 0x05;
 	ipscpacket_raw.reserved3[2] = 0x01;
-	ipscpacket_raw.reserved3[3] = 0x02;
+	ipscpacket_raw.reserved3[3] = ts+1;
 	ipscpacket_raw.timeslot_raw = (ts == 0 ? 0x1111 : 0x2222);
 	ipscpacket_raw.slot_type = slot_type;
 	ipscpacket_raw.delimiter = 0x1111;
-	ipscpacket_raw.frame_type = 0xbbbb;
-	ipscpacket_raw.reserved4[0] = 0x10;
-	memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
-	ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
-	ipscpacket_raw.reserved5[0] = 0x02;
+	ipscpacket_raw.reserved4[0] = 0x40;
+	ipscpacket_raw.reserved5[0] = 0x63;
+	ipscpacket_raw.reserved5[1] = 0x02;
 	ipscpacket_raw.calltype = calltype;
 	ipscpacket_raw.dst_id_raw1 = (dstid & 0xff);
 	ipscpacket_raw.dst_id_raw2 = ((dstid >> 8) & 0xff);
@@ -242,6 +239,26 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 	ipscpacket_raw.src_id_raw1 = (srcid & 0xff);
 	ipscpacket_raw.src_id_raw2 = ((srcid >> 8) & 0xff);
 	ipscpacket_raw.src_id_raw3 = ((srcid >> 16) & 0xff);
+
+	if (slot_type == IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
+		ipscpacket_raw.packet_type = 0x22;
+		ipscpacket_raw.frame_type = 0xeeee;
+		ipscpacket_raw.reserved4[1] = 0xb2;
+	} else {
+		ipscpacket_raw.udp_source_port = htons(62006);
+		ipscpacket_raw.reserved1[1] = 0x50;
+		ipscpacket_raw.seq = seqnum;
+		ipscpacket_raw.reserved2[0] = 0xe0;
+		ipscpacket_raw.packet_type = 0x01;
+		ipscpacket_raw.frame_type = 0xbbbb;
+//		ipscpacket_raw.reserved4[0] = 0x10;
+		if (slot_type == IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA)
+			ipscpacket_raw.reserved4[1] = 0x5c;
+		 else
+			ipscpacket_raw.reserved4[1] = 0xaf;
+		memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
+		ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
+	}
 
 	return &ipscpacket_raw;
 }
@@ -374,6 +391,15 @@ ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_
 	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION));
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_id_t dstid, dmr_id_t srcid) {
+	static ipscpacket_payload_t ipscpacket_payload;
+
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
+	// Leaving empty for now.
 
 	return &ipscpacket_payload;
 }

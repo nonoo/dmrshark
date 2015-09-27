@@ -39,6 +39,7 @@
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_D				0x8888
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_E				0x9999
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_F				0xAAAA
+#define IPSCPACKET_SLOT_TYPE_IPSC_SYNC					0xEEEE
 typedef uint16_t ipscpacket_slot_type_t;
 
 typedef struct {
@@ -104,5 +105,6 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(ipscpacket_slot_t
 ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk);
 ipscpacket_payload_t *ipscpacket_construct_payload_sms_header(dmrpacket_data_header_t *data_header);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_data_block_t *data_block);
+ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_id_t dstid, dmr_id_t srcid);
 
 #endif

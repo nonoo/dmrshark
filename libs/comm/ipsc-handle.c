@@ -29,6 +29,8 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		return;
 
 	switch (ipscpacket->slot_type) {
+		case IPSCPACKET_SLOT_TYPE_IPSC_SYNC:
+			break;
 		case IPSCPACKET_SLOT_TYPE_CSBK:
 			dmr_handle_csbk(ip_packet, ipscpacket, repeater);
 			break;

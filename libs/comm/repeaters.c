@@ -376,6 +376,9 @@ void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repe
 
 	switch (repeater->slot[ts].ipsc_tx_voice_frame_num) {
 		case 0:
+//TODO
+repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(0, ts, IPSCPACKET_SLOT_TYPE_IPSC_SYNC, calltype, dstid, srcid,
+	ipscpacket_construct_payload_ipsc_sync(dstid, srcid))));
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
 				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
@@ -463,7 +466,7 @@ void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts) {
 	repeater->slot[ts].echo_buf_first_entry = NULL;
 	repeater->slot[ts].echo_buf_last_entry = NULL;
 
-	repeaters_start_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+/*	repeaters_start_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
 	while (echo_buf != NULL) {
 		repeaters_play_ambe_data(&echo_buf->voice_bytes, repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
 
@@ -471,7 +474,20 @@ void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts) {
 		free(echo_buf);
 		echo_buf = next_echo_buf;
 	}
-	repeaters_end_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+	repeaters_end_voice_call(repeater, ts, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);*/
+//TODO:remove
+	repeaters_start_voice_call(repeater, 0, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+	repeaters_start_voice_call(repeater, 1, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+	while (echo_buf != NULL) {
+		repeaters_play_ambe_data(&echo_buf->voice_bytes, repeater, 0, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+		repeaters_play_ambe_data(&echo_buf->voice_bytes, repeater, 1, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+
+		next_echo_buf = echo_buf->next;
+		free(echo_buf);
+		echo_buf = next_echo_buf;
+	}
+	repeaters_end_voice_call(repeater, 0, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
+	repeaters_end_voice_call(repeater, 1, DMR_CALL_TYPE_GROUP, DMRSHARK_DEFAULT_DMR_ID, DMRSHARK_DEFAULT_DMR_ID);
 }
 
 void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket) {
@@ -595,7 +611,7 @@ static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_tim
 
 	gettimeofday(&currtime, NULL);
 	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
-	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 50) { // Sending a frame every x ms.
+	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 60) { // Sending a frame every x ms.
 		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet from tx buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		ipsc_tx_rawpacketbuf_entry_to_send = repeater->slot[ts].ipsc_tx_rawpacketbuf;
 		if (repeaters_send_raw_ipsc_packet(repeater, &ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw)) {
