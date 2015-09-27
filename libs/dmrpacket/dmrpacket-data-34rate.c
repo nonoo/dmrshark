@@ -22,7 +22,7 @@
 #include <libs/daemon/console.h>
 
 #include <stdlib.h>
-
+// TODO: loglevel coding
 static uint8_t dmrpacket_data_34rate_dibit_interleave_matrix[] = { // See DMR AI protocol spec. page 130.
 	0,	1,	8,	9,	16,	17,	24,	25,	32,	33,	40,	41,	48,	49,	56,	57,	64,	65,	72,	73,	80,	81,	88,	89,	96,	97,
 	2,	3,	10,	11,	18,	19,	26,	27,	34,	35,	42,	43,	50,	51,	58,	59,	66,	67,	74,	75,	82,	83,	90,	91,

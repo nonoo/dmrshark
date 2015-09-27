@@ -218,7 +218,7 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 
 	static ipscpacket_payload_raw_t ipscpacket_raw;
 
-	if (ts < 0 || ts > 1 || calltype < 0 || calltype > 1 || payload == NULL)
+	if (ts < 0 || ts > 1 || calltype < 0 || calltype > 1)
 		return NULL;
 
 	memset(&ipscpacket_raw, 0, sizeof(ipscpacket_payload_raw_t));
@@ -239,25 +239,42 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 	ipscpacket_raw.src_id_raw1 = (srcid & 0xff);
 	ipscpacket_raw.src_id_raw2 = ((srcid >> 8) & 0xff);
 	ipscpacket_raw.src_id_raw3 = ((srcid >> 16) & 0xff);
-
-	if (slot_type == IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
-		ipscpacket_raw.packet_type = 0x22;
-		ipscpacket_raw.frame_type = 0xeeee;
-		ipscpacket_raw.reserved4[1] = 0xb2;
-	} else {
-		ipscpacket_raw.udp_source_port = htons(62006);
-		ipscpacket_raw.reserved1[1] = 0x50;
-		ipscpacket_raw.seq = seqnum;
-		ipscpacket_raw.reserved2[0] = 0xe0;
-		ipscpacket_raw.packet_type = 0x01;
-		ipscpacket_raw.frame_type = 0xbbbb;
-//		ipscpacket_raw.reserved4[0] = 0x10;
-		if (slot_type == IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA)
-			ipscpacket_raw.reserved4[1] = 0x5c;
-		 else
-			ipscpacket_raw.reserved4[1] = 0xaf;
+	if (payload != NULL) {
 		memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
 		ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
+	}
+
+	switch (slot_type) {
+		// Got these Hytera IPSC sync settings by setting my radio's ID to 7777 and sniffing the packets.
+		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC1:
+			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
+			ipscpacket_raw.frame_type = 0x1111;
+			ipscpacket_raw.reserved4[1] = 0x99;
+			ipscpacket_raw.packet_type = 0xa2;
+			break;
+		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC2:
+			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
+			ipscpacket_raw.frame_type = 0x1111;
+			ipscpacket_raw.reserved4[1] = 0x00;
+			ipscpacket_raw.packet_type = 0xa2;
+			ipscpacket_raw.reserved5[0] = 0x00;
+			ipscpacket_raw.reserved5[1] = 0x5b;
+			break;
+		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC3:
+			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
+			ipscpacket_raw.frame_type = 0x1111;
+			ipscpacket_raw.reserved4[1] = 0x3e;
+			ipscpacket_raw.packet_type = 0x62;
+			break;
+		default:
+			ipscpacket_raw.udp_source_port = htons(62006);
+			ipscpacket_raw.reserved1[1] = 0x50;
+			ipscpacket_raw.seq = seqnum;
+			ipscpacket_raw.reserved2[0] = 0xe0;
+			ipscpacket_raw.packet_type = 0x01;
+			ipscpacket_raw.frame_type = 0xbbbb;
+			ipscpacket_raw.reserved4[1] = 0x5c;
+			break;
 	}
 
 	return &ipscpacket_raw;
@@ -391,15 +408,6 @@ ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_
 	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION));
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
-
-	return &ipscpacket_payload;
-}
-
-ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_id_t dstid, dmr_id_t srcid) {
-	static ipscpacket_payload_t ipscpacket_payload;
-
-	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
-	// Leaving empty for now.
 
 	return &ipscpacket_payload;
 }

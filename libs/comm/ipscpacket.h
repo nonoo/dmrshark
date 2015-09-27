@@ -27,19 +27,23 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
-#define IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER			0x1111
-#define IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC			0x2222
-#define IPSCPACKET_SLOT_TYPE_CSBK						0x3333
-#define IPSCPACKET_SLOT_TYPE_DATA_HEADER				0x4444
-#define IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA				0x5555
-#define IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA				0x6666
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_A				0xBBBB
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_B				0xCCCC
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_C				0x7777
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_D				0x8888
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_E				0x9999
-#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_F				0xAAAA
-#define IPSCPACKET_SLOT_TYPE_IPSC_SYNC					0xEEEE
+#define IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER				0x1111
+#define IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC				0x2222
+#define IPSCPACKET_SLOT_TYPE_CSBK							0x3333
+#define IPSCPACKET_SLOT_TYPE_DATA_HEADER					0x4444
+#define IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA					0x5555
+#define IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA					0x6666
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_A					0xBBBB
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_B					0xCCCC
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_C					0x7777
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_D					0x8888
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_E					0x9999
+#define IPSCPACKET_SLOT_TYPE_VOICE_DATA_F					0xAAAA
+#define IPSCPACKET_SLOT_TYPE_IPSC_SYNC						0xEEEE
+// These below are only used internally.
+#define IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC1	0xEEE1
+#define IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC2	0xEEE2
+#define IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC3	0xEEE3
 typedef uint16_t ipscpacket_slot_type_t;
 
 typedef struct {
@@ -88,6 +92,7 @@ typedef struct {
 
 typedef struct ipscrawpacketbuf_st {
 	ipscpacket_raw_t ipscpacket_raw;
+	flag_t nowait;
 
 	struct ipscrawpacketbuf_st *next;
 } ipscrawpacketbuf_t;
@@ -105,6 +110,5 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(ipscpacket_slot_t
 ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk);
 ipscpacket_payload_t *ipscpacket_construct_payload_sms_header(dmrpacket_data_header_t *data_header);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_data_block_t *data_block);
-ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_id_t dstid, dmr_id_t srcid);
 
 #endif
