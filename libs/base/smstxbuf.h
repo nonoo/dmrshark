@@ -24,8 +24,24 @@
 
 #include <time.h>
 
+typedef struct smstxbuf_st {
+	char msg[DMRPACKET_MAX_FRAGMENTSIZE];
+	time_t added_at;
+	uint8_t send_tries;
+
+	dmr_call_type_t call_type;
+	dmr_id_t dst_id;
+	dmr_id_t src_id;
+
+	struct smstxbuf_st *next;
+} smstxbuf_t;
+
+void smstxbuf_print_entry(smstxbuf_t *entry);
 void smstxbuf_print(void);
 void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
+
+void smstxbuf_remove_first_entry(void);
+smstxbuf_t *smstxbuf_get_first_entry(void);
 
 void smstxbuf_process(void);
 void smstxbuf_deinit(void);

@@ -18,6 +18,7 @@
 #include DEFAULTCONFIG
 
 #include "dmr-handle.h"
+#include "smstxbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
@@ -247,6 +248,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
+	smstxbuf_t *smstxbuf_first_entry;
 
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
@@ -269,6 +271,32 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	if (data_packet_header->common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
 		data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
 		console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
+
+		switch (data_response_type) {
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK:
+				smstxbuf_first_entry = smstxbuf_get_first_entry();
+				if (smstxbuf_first_entry != NULL &&
+					smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
+					smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
+					((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
+					 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
+					 	console_log(LOGLEVEL_DMR "  got ack for sms tx buffer entry:\n");
+					 	smstxbuf_print_entry(smstxbuf_first_entry);
+					 	smstxbuf_remove_first_entry();
+				}
+				return;
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_PACKET_CRC_FAILED:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_MEMORY_FULL:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_FSN_OUT_OF_SEQ:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_UNDELIVERABLE:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_PKT_OUT_OF_SEQ:
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_DISALLOWED:
+				break;
+			case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
+				// TODO
+				break;
+		}
 	}
 
 	memcpy(&repeater->slot[ipscpacket->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));

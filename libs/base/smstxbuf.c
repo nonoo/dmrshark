@@ -26,22 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct smstxbuf_st {
-	char msg[DMRPACKET_MAX_FRAGMENTSIZE];
-	time_t added_at;
-	uint8_t send_tries;
-
-	dmr_call_type_t call_type;
-	dmr_id_t dst_id;
-	dmr_id_t src_id;
-
-	struct smstxbuf_st *next;
-} smstxbuf_t;
-
 static smstxbuf_t *smstxbuf_first_entry = NULL;
 static smstxbuf_t *smstxbuf_last_entry = NULL;
 
-static void smstxbuf_print_entry(smstxbuf_t *entry) {
+void smstxbuf_print_entry(smstxbuf_t *entry) {
 	char added_at_str[20];
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
@@ -94,14 +82,21 @@ void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char
 	daemon_poll_setmaxtimeout(0);
 }
 
-static void smstxbuf_remove_first_entry(void) {
+void smstxbuf_remove_first_entry(void) {
 	smstxbuf_t *nextentry;
+
+	if (smstxbuf_first_entry == NULL)
+		return;
 
 	nextentry = smstxbuf_first_entry->next;
 	free(smstxbuf_first_entry);
 	smstxbuf_first_entry = nextentry;
 	if (smstxbuf_first_entry == NULL)
 		smstxbuf_last_entry = NULL;
+}
+
+smstxbuf_t *smstxbuf_get_first_entry(void) {
+	return smstxbuf_first_entry;
 }
 
 void smstxbuf_process(void) {
