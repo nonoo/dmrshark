@@ -286,8 +286,14 @@ static void dmr_handle_data_fragment_assembly_for_short_data_defined(ipscpacket_
 		data_fragment = dmrpacket_data_extract_fragment_from_blocks(repeater->slot[ipscpacket->timeslot-1].data_blocks,
 			min(sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0]), repeater->slot[ipscpacket->timeslot-1].data_blocks_received));
 		msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
-		if (msg && isprint(msg[0]))
-			console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+		if (msg == NULL)
+			console_log(LOGLEVEL_DMR "  message decoding failed\n");
+		else {
+			if (!isprint(msg[0]))
+				console_log(LOGLEVEL_DMR "  message is not printable\n");
+			else
+				console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+		}
 	}
 }
 

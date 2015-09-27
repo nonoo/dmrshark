@@ -58,6 +58,7 @@ typedef struct {
 typedef struct {
 	uint8_t bytes[DMRPACKET_MAX_FRAGMENTSIZE];
 	uint16_t bytes_stored;
+	uint8_t data_blocks_needed;
 	uint32_t crc;
 } dmrpacket_data_fragment_t;
 
@@ -75,5 +76,9 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format);
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed);
+dmrpacket_data_block_t *dmrpacket_data_construct_message_blocks(dmrpacket_data_fragment_t *fragment);
+dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size);
+char *dmrpacket_data_interleave_message(char *msg, uint16_t *interleaved_msg_length);
+char *dmrpacket_data_deinterleave_message(char *msg, uint16_t msg_length);
 
 #endif

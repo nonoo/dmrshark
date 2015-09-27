@@ -25,6 +25,8 @@
 #include <libs/base/base.h>
 
 #include <string.h>
+#include <math.h>
+#include <stdlib.h>
 
 char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type) {
 	switch (data_type) {
@@ -273,14 +275,12 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format) {
 	iconv_t iconv_handle;
 	int result;
-	uint16_t msg_length = 0;
 	size_t insize = 0;
-	char inbuf[DMRPACKET_MAX_FRAGMENTSIZE];
-	char *inptr = inbuf;
-	static char outbuf[sizeof(inbuf)*4+1]; // Max. char width is 4 bytes.
+	char *deinterleaved_msg = NULL;
+	char *inptr;
+	static char outbuf[DMRPACKET_MAX_FRAGMENTSIZE*4+1]; // Max. char width is 4 bytes.
 	size_t outsize = sizeof(outbuf);
 	char *outptr = outbuf;
-	int i;
 
 	if (fragment == NULL)
 		return NULL;
@@ -289,11 +289,13 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
 
 	switch (dd_format) {
+		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
+			deinterleaved_msg = dmrpacket_data_deinterleave_message((char *)fragment->bytes, fragment->bytes_stored);
+			break;
 		default:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16BE:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32BE:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32LE:
@@ -315,36 +317,31 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_14:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_15:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_16:
-			insize = 0;
-			// Dropping the first 2 bytes. TODO: not all formats may work this way.
-			for (i = 2; i < fragment->bytes_stored; i+=2) {
-				if (i % 2 == 0) { // Only dealing with every 2nd byte.
-					inbuf[insize] = fragment->bytes[i];
-					insize++;
-				}
-			}
 			break;
 	}
 
-	// Storing the message length as iconv will overwrite it.
-	msg_length = insize;
-
-	iconv_handle = iconv_open("utf-8", dmrpacket_data_header_get_readable_dd_format(dd_format));
-	if (iconv_handle == (iconv_t)-1) {
-		if (errno == EINVAL) {
-			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			return NULL;
-		} else {
-			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+	if (deinterleaved_msg == NULL) {
+		iconv_handle = iconv_open("utf-8", dmrpacket_data_header_get_readable_dd_format(dd_format));
+		if (iconv_handle == (iconv_t)-1) {
+			if (errno == EINVAL)
+				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+			else
+				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
 			return NULL;
 		}
-	}
 
-	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
-	iconv_close(iconv_handle);
-	if (result < 0) {
-		console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-		memcpy(outbuf, inbuf, msg_length);
+
+		insize = fragment->bytes_stored;
+		inptr = deinterleaved_msg;
+		result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
+		iconv_close(iconv_handle);
+		if (result < 0) {
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
+			memcpy(outbuf, fragment->bytes, fragment->bytes_stored);
+		}
+	} else {
+		strncpy(outbuf, deinterleaved_msg, sizeof(outbuf));
+		free(deinterleaved_msg);
 	}
 
 	return outbuf;
@@ -352,6 +349,9 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed) {
 	static dmrpacket_data_block_bytes_t bytes;
+
+	if (data_block == NULL)
+		return NULL;
 
 	memset(bytes.bytes, 0, sizeof(dmrpacket_data_block_bytes_t));
 	if (confirmed) {
@@ -361,4 +361,146 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_dat
 	} else
 		memcpy(bytes.bytes, data_block->data, data_block->data_length);
 	return &bytes;
+}
+
+dmrpacket_data_block_t *dmrpacket_data_construct_message_blocks(dmrpacket_data_fragment_t *fragment) {
+	uint16_t bytes_stored_in_blocks = 0;
+	uint8_t bytes_to_store;
+	uint8_t i;
+	uint16_t j;
+	dmrpacket_data_block_t *data_blocks;
+
+	if (fragment == NULL || fragment->data_blocks_needed == 0)
+		return NULL;
+
+	data_blocks = (dmrpacket_data_block_t *)calloc(1, fragment->data_blocks_needed*sizeof(dmrpacket_data_block_t));
+	if (data_blocks == NULL) {
+		console_log("  error: can't allocate memory for data blocks\n");
+		return NULL;
+	}
+
+	for (i = 0; i < fragment->data_blocks_needed; i++) {
+		data_blocks[i].serialnr = i;
+		data_blocks[i].data_length = 16;
+
+		if (i == fragment->data_blocks_needed-1) { // Storing the fragment CRC in the last block.
+			data_blocks[i].data[data_blocks[i].data_length-1] = (fragment->crc >> 24) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-2] = (fragment->crc >> 16) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-3] = (fragment->crc >> 8) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-4] = fragment->crc & 0xff;
+		}
+
+		bytes_to_store = min(data_blocks[i].data_length, fragment->bytes_stored-bytes_stored_in_blocks);
+		memcpy(data_blocks[i].data, fragment->bytes+bytes_stored_in_blocks, bytes_to_store);
+		bytes_stored_in_blocks += bytes_to_store;
+
+		data_blocks[i].crc = 0;
+		for (j = 0; j < data_blocks[i].data_length; j++)
+			crc_calc_crc9(&data_blocks[i].crc, data_blocks[i].data[j], 8);
+		crc_calc_crc9(&data_blocks[i].crc, data_blocks[i].serialnr, 7);
+		// Getting out only 8 bits from the shift registers as previously we only put in 7 bits.
+		crc_calc_crc9_finish(&data_blocks[i].crc, 8);
+
+		// Inverting according to the inversion polynomial.
+		data_blocks[i].crc = ~data_blocks[i].crc;
+		data_blocks[i].crc &= 0x01ff;
+		// Applying CRC mask, see DMR AI spec. page 143.
+		data_blocks[i].crc ^= 0x01ff;
+
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  block #%u length: %u crc: %.4x bytes: ", i, data_blocks[i].data_length, data_blocks[i].crc);
+		for (j = 0; j < data_blocks[i].data_length; j++)
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", data_blocks[i].data[j]);
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "\n");
+	}
+	return data_blocks;
+}
+
+dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size) {
+	static dmrpacket_data_fragment_t fragment;
+	uint8_t pad_octets;
+	uint16_t i;
+	loglevel_t loglevel = console_get_loglevel();
+
+	if (data == NULL || data_size == 0)
+		return NULL;
+
+	memset((uint8_t *)&fragment, 0, sizeof(dmrpacket_data_fragment_t));
+	fragment.bytes_stored = min(data_size, DMRPACKET_MAX_FRAGMENTSIZE);
+	memcpy(fragment.bytes, data, fragment.bytes_stored);
+
+	// See DMR AI spec. page. 73. - confirmed rate 3/4
+	fragment.data_blocks_needed = ceil(fragment.bytes_stored / 16.0);
+	// Checking if there's no space left in the last data block for the fragment CRC.
+	if (fragment.data_blocks_needed*16-fragment.bytes_stored < 4)
+		fragment.data_blocks_needed++;
+
+	pad_octets = (fragment.data_blocks_needed*16-4)-fragment.bytes_stored; // -4 - fragment CRC
+
+	for (i = 0; i < fragment.bytes_stored+pad_octets; i += 2) {
+		if (i+1 < fragment.bytes_stored)
+			crc_calc_crc32(&fragment.crc, fragment.bytes[i+1]);
+		else
+			crc_calc_crc32(&fragment.crc, 0);
+		if (i < fragment.bytes_stored)
+			crc_calc_crc32(&fragment.crc, fragment.bytes[i]);
+		else
+			crc_calc_crc32(&fragment.crc, 0);
+	}
+	crc_calc_crc32_finish(&fragment.crc);
+
+	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  message length: %u bytes, fragment crc: %.8x, needed blocks: %u, pad octets: %u\n",
+			fragment.bytes_stored, fragment.crc, fragment.data_blocks_needed, pad_octets);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  message bytes: ");
+		for (i = 0; i < fragment.bytes_stored; i++)
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment.bytes[i]);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " %.8x\n", fragment.crc);
+	}
+
+	return &fragment;
+}
+
+// Converts the message to the following Hytera format: the first two bytes are zeroes,
+// then it places a zero after every char. The returned memory area must be freed later.
+// Size of the interleaved message without the closing 0 is returned in *interleaved_msg_length.
+char *dmrpacket_data_interleave_message(char *msg, uint16_t *interleaved_msg_length) {
+	char *new_msg;
+	uint16_t msg_len;
+	uint16_t i;
+
+	if (msg == NULL || interleaved_msg_length == NULL)
+		return NULL;
+
+	msg_len = strlen(msg);
+	*interleaved_msg_length = min(2+msg_len*2+1, DMRPACKET_MAX_FRAGMENTSIZE);
+	new_msg = (char *)calloc(1, *interleaved_msg_length);
+	if (new_msg == NULL) {
+		console_log("dmrpacket data error: can't allocate memory for interleaving message\n");
+		return NULL;
+	}
+
+	for (i = 0; i < msg_len; i++)
+		new_msg[2+i*2] = msg[i];
+
+	return new_msg;
+}
+
+char *dmrpacket_data_deinterleave_message(char *msg, uint16_t msg_length) {
+	char *new_msg;
+	uint16_t new_msg_len;
+	uint16_t i;
+
+	if (msg == NULL || msg_length == 0)
+		return NULL;
+
+	new_msg_len = ceil((msg_length-2)/2.0)+1;
+	new_msg = (char *)calloc(1, new_msg_len);
+	if (new_msg == NULL) {
+		console_log("dmrpacket data error: can't allocate memory for deinterleaving message\n");
+		return NULL;
+	}
+
+	for (i = 0; i < new_msg_len; i++)
+		new_msg[i] = msg[2+i*2];
+	return new_msg;
 }
