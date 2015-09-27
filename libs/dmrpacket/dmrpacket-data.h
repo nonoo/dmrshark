@@ -58,6 +58,7 @@ typedef struct {
 typedef struct {
 	uint8_t bytes[DMRPACKET_MAX_FRAGMENTSIZE];
 	uint16_t bytes_stored;
+	uint32_t crc;
 } dmrpacket_data_fragment_t;
 
 char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type);

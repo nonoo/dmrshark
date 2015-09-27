@@ -217,8 +217,7 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket_data_block_t *blocks, uint8_t blocks_count) {
 	static dmrpacket_data_fragment_t data;
 	uint16_t i;
-	uint32_t crcval = 0; // See DMR AI spec. page 139.
-	uint32_t fragment_crc = 0;
+	uint32_t crcval = 0;
 	loglevel_t loglevel = console_get_loglevel();
 
 	if (blocks == NULL || blocks_count == 0)
@@ -241,10 +240,10 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 				memcpy(&data.bytes[data.bytes_stored], blocks[i].data, blocks[i].data_length - 4); // Leaving out the last 4 CRC bytes.
 				data.bytes_stored += blocks[i].data_length - 4;
 			}
-			fragment_crc =	blocks[i].data[blocks[i].data_length-1] << 24 |
-							blocks[i].data[blocks[i].data_length-2] << 16 |
-							blocks[i].data[blocks[i].data_length-3] << 8 |
-							blocks[i].data[blocks[i].data_length-4];
+			data.crc =	blocks[i].data[blocks[i].data_length-1] << 24 |
+						blocks[i].data[blocks[i].data_length-2] << 16 |
+						blocks[i].data[blocks[i].data_length-3] << 8 |
+						blocks[i].data[blocks[i].data_length-4];
 		}
 	}
 
@@ -260,14 +259,13 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 		crc_calc_crc32(&crcval, data.bytes[i]);
 	}
 	crc_calc_crc32_finish(&crcval);
-	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  fragment crc: %.8x\n", fragment_crc);
-	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  calculated crc: %.8x\n", crcval);
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  fragment crc: %.8x, calculated: %.8x (", data.crc, crcval);
 
-	if (crcval == fragment_crc) {
-		console_log(LOGLEVEL_DMRDATA "  crc: ok\n");
+	if (crcval == data.crc) {
+		console_log(LOGLEVEL_DMRDATA "ok)\n");
 		return &data;
 	} else {
-		console_log(LOGLEVEL_DMRDATA "dmrpacket data: fragment crc error\n");
+		console_log(LOGLEVEL_DMRDATA "error)\n");
 		return NULL;
 	}
 }

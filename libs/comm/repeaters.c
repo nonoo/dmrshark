@@ -512,7 +512,6 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	dmrpacket_data_block_t *data_blocks;
 	uint8_t data_blocks_needed;
 	dmrpacket_data_fragment_t fragment;
-	uint32_t fragment_crc = 0;
 	uint16_t bytes_stored_in_blocks = 0;
 	uint8_t bytes_to_store;
 	uint8_t pad_octets = 0;
@@ -544,22 +543,22 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	for (i = 0; i < fragment.bytes_stored+pad_octets; i += 2) {
 		if (i+1 < fragment.bytes_stored)
-			crc_calc_crc32(&fragment_crc, fragment.bytes[i+1]);
+			crc_calc_crc32(&fragment.crc, fragment.bytes[i+1]);
 		else
-			crc_calc_crc32(&fragment_crc, 0);
+			crc_calc_crc32(&fragment.crc, 0);
 		if (i < fragment.bytes_stored)
-			crc_calc_crc32(&fragment_crc, fragment.bytes[i]);
+			crc_calc_crc32(&fragment.crc, fragment.bytes[i]);
 		else
-			crc_calc_crc32(&fragment_crc, 0);
+			crc_calc_crc32(&fragment.crc, 0);
 	}
-	crc_calc_crc32_finish(&fragment_crc);
+	crc_calc_crc32_finish(&fragment.crc);
 
 	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  message length: %u bytes, fragment crc: %.8x, needed blocks: %u, pad octets: %u\n",
-		fragment.bytes_stored, fragment_crc, data_blocks_needed, pad_octets);
+		fragment.bytes_stored, fragment.crc, data_blocks_needed, pad_octets);
 	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  message bytes: ");
 	for (j = 0; j < fragment.bytes_stored; j++)
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment.bytes[j]);
-	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG " %.8x\n", fragment_crc);
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG " %.8x\n", fragment.crc);
 
 	// Constructing message blocks from the fragment.
 	data_blocks = (dmrpacket_data_block_t *)calloc(1, data_blocks_needed*sizeof(dmrpacket_data_block_t));
@@ -573,10 +572,10 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 		data_blocks[i].data_length = 16;
 
 		if (i == data_blocks_needed-1) { // Storing the fragment CRC in the last block.
-			data_blocks[i].data[data_blocks[i].data_length-1] = (fragment_crc >> 24) & 0xff;
-			data_blocks[i].data[data_blocks[i].data_length-2] = (fragment_crc >> 16) & 0xff;
-			data_blocks[i].data[data_blocks[i].data_length-3] = (fragment_crc >> 8) & 0xff;
-			data_blocks[i].data[data_blocks[i].data_length-4] = fragment_crc & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-1] = (fragment.crc >> 24) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-2] = (fragment.crc >> 16) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-3] = (fragment.crc >> 8) & 0xff;
+			data_blocks[i].data[data_blocks[i].data_length-4] = fragment.crc & 0xff;
 		}
 
 		bytes_to_store = min(data_blocks[i].data_length, fragment.bytes_stored-bytes_stored_in_blocks);
