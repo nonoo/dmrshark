@@ -504,6 +504,34 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 	}
 }
 
+void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts) {
+	dmrpacket_data_header_t data_header;
+	ipscpacket_payload_t *ipscpacket_payload;
+
+	if (repeater == NULL)
+		return;
+
+	repeater->slot[ts].ipsc_tx_seqnum = 0;
+
+	console_log("repeaters [%s]: sending ack to %u on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dstid, ts+1);
+
+	data_header.common.dst_is_a_group = 0;
+	data_header.common.response_requested = 0;
+	data_header.common.dst_llid = dstid;
+	data_header.common.src_llid = srcid;
+	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_RESPONSE;
+	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA; // TODO
+
+	data_header.response.blocks_to_follow = 0;
+	data_header.response.class = 0;
+	data_header.response.type = 1;
+	data_header.response.status = 0;
+	data_header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK;
+
+	ipscpacket_payload = ipscpacket_construct_payload_sms_header(&data_header);
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, DMR_CALL_TYPE_PRIVATE, dstid, srcid, ipscpacket_payload)), 0);
+}
+
 void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	uint16_t i;
 	char *interleaved_msg;

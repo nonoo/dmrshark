@@ -307,20 +307,26 @@ static void dmr_handle_data_fragment_assembly_for_short_data_defined(ipscpacket_
 	dmrpacket_data_fragment_t *data_fragment = NULL;
 	char *msg = NULL;
 
-	// Got all blocks?
+	// Got all blocks? TODO: selective ack if not all blocks received correctly
 	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks == repeater->slot[ipscpacket->timeslot-1].data_blocks_received) {
 		repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_IDLE);
 
 		data_fragment = dmrpacket_data_extract_fragment_from_blocks(repeater->slot[ipscpacket->timeslot-1].data_blocks,
 			min(sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0]), repeater->slot[ipscpacket->timeslot-1].data_blocks_received));
-		msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
-		if (msg == NULL)
-			console_log(LOGLEVEL_DMR "  message decoding failed\n");
-		else {
-			if (!isprint(msg[0]))
-				console_log(LOGLEVEL_DMR "  message is not printable\n");
-			else
-				console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+
+		if (data_fragment != NULL) {
+			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
+				repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
+
+			msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
+			if (msg == NULL)
+				console_log(LOGLEVEL_DMR "  message decoding failed\n");
+			else {
+				if (!isprint(msg[0]))
+					console_log(LOGLEVEL_DMR "  message is not printable\n");
+				else
+					console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+			}
 		}
 	}
 }
