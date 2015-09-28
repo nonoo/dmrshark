@@ -29,9 +29,9 @@
 #include <stdlib.h>
 
 volatile base_flags_t base_flags;
-base_id_t base_id;
+static base_id_t base_id;
 
-void base_getorigid(base_id_t *id) {
+static void base_getorigid(base_id_t *id) {
 	memset((void *)id, 0, sizeof(base_id_t));
 	gethostname((char *)id, sizeof(base_id_t));
 }

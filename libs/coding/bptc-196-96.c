@@ -36,7 +36,7 @@ typedef struct {
 // of the parity check matrix, then xor each resulting row bits together with the corresponding
 // parity check bit. The xor result (error vector) should be 0, if it's not, it can be used
 // to determine the location of the erroneous bit using the generator matrix (P).
-void bptc_196_96_hamming_15_11_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
+static void bptc_196_96_hamming_15_11_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return;
 
@@ -72,7 +72,7 @@ static flag_t bptc_196_96_hamming_15_11_3_errorcheck(flag_t *data_bits, bptc_196
 	return 0;
 }
 
-void bptc_196_96_hamming_13_9_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
+static void bptc_196_96_hamming_13_9_3_get_parity_bits(flag_t *data_bits, bptc_196_96_error_vector_t *error_vector) {
 	if (data_bits == NULL || error_vector == NULL)
 		return;
 
