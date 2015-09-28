@@ -244,39 +244,13 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 		memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
 		ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
 	}
-
-	switch (slot_type) {
-		// Got these Hytera IPSC sync settings by setting my radio's ID to 7777 and sniffing the packets.
-		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC1:
-			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
-			ipscpacket_raw.frame_type = 0x1111;
-			ipscpacket_raw.reserved4[1] = 0x99;
-			ipscpacket_raw.packet_type = 0xa2;
-			break;
-		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC2:
-			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
-			ipscpacket_raw.frame_type = 0x1111;
-			ipscpacket_raw.reserved4[1] = 0x00;
-			ipscpacket_raw.packet_type = 0xa2;
-			ipscpacket_raw.reserved5[0] = 0x00;
-			ipscpacket_raw.reserved5[1] = 0x5b;
-			break;
-		case IPSCPACKET_SLOT_TYPE_HYTERA_IPSC_VOICE_HEADER_SYNC3:
-			slot_type = IPSCPACKET_SLOT_TYPE_IPSC_SYNC;
-			ipscpacket_raw.frame_type = 0x1111;
-			ipscpacket_raw.reserved4[1] = 0x3e;
-			ipscpacket_raw.packet_type = 0x62;
-			break;
-		default:
-			ipscpacket_raw.udp_source_port = htons(62006);
-			ipscpacket_raw.reserved1[1] = 0x50;
-			ipscpacket_raw.seq = seqnum;
-			ipscpacket_raw.reserved2[0] = 0xe0;
-			ipscpacket_raw.packet_type = 0x01;
-			ipscpacket_raw.frame_type = 0xbbbb;
-			ipscpacket_raw.reserved4[1] = 0x5c;
-			break;
-	}
+	ipscpacket_raw.udp_source_port = htons(62006);
+	ipscpacket_raw.reserved1[1] = 0x50;
+	ipscpacket_raw.seq = seqnum;
+	ipscpacket_raw.reserved2[0] = 0xe0;
+	ipscpacket_raw.packet_type = 0x01;
+	ipscpacket_raw.frame_type = 0xbbbb;
+	ipscpacket_raw.reserved4[1] = 0x5c;
 
 	return &ipscpacket_raw;
 }
