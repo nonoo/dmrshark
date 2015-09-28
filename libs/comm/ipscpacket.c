@@ -125,6 +125,7 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 		return 0;
 	}
 
+	ipscpacket->seq = ipscpacket_raw->seq;
 	ipscpacket->slot_type = ipscpacket_raw->slot_type;
 	ipscpacket->call_type = ipscpacket_raw->calltype;
 	ipscpacket->dst_id = ipscpacket_raw->dst_id_raw3 << 16 | ipscpacket_raw->dst_id_raw2 << 8 | ipscpacket_raw->dst_id_raw1;

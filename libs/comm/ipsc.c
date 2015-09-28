@@ -87,6 +87,7 @@ static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
 
 static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, flag_t packet_from_us) {
 	flag_t talkgroup_ignored = 0;
+	flag_t duplicate_seqnum = 0;
 	repeater_t *repeater = NULL;
 
 	// The packet is for us?
@@ -99,6 +100,11 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 		if (ipscpacket->call_type == DMR_CALL_TYPE_GROUP && ipsc_isignoredtalkgroup(ipscpacket->dst_id))
 			talkgroup_ignored = 1;
 
+		if (ipscpacket->seq == repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum)
+			duplicate_seqnum = 1;
+		else
+			repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
+
 		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u ipsc slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
 			repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
@@ -107,9 +113,13 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->call_type,
 			ipscpacket->dst_id,
 			ipscpacket->src_id);
+
+		if (duplicate_seqnum)
+			console_log(LOGLEVEL_IPSC " (duplicate, ignored)\n");
 		if (talkgroup_ignored)
 			console_log(LOGLEVEL_IPSC " (talkgroup ignored)\n");
-		else {
+
+		if (!duplicate_seqnum && !talkgroup_ignored) {
 			console_log(LOGLEVEL_IPSC "\n");
 			ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
 		}

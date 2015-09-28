@@ -88,6 +88,7 @@ typedef struct {
 	dmr_id_t src_id;
 	ipscpacket_payload_t payload;
 	dmrpacket_payload_bits_t payload_bits;
+	uint8_t seq;
 } ipscpacket_t;
 
 typedef struct ipscrawpacketbuf_st {

@@ -55,6 +55,7 @@ typedef struct {
 	int data_blocks_received;
 	time_t data_header_received_at;
 	voicestream_t *voicestream;
+	uint8_t ipsc_last_received_seqnum;
 
 	// These variables are used for sending IPSC packets to the repeater.
 	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf;
