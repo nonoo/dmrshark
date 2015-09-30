@@ -295,6 +295,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 0;
 	repeater->slot[ipscpacket->timeslot-1].data_blocks_received = 0;
+	repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent = 0;
 
 	switch (data_packet_header->common.data_packet_format) {
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
@@ -456,7 +457,12 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 		}
 	}
 	if (erroneous_block_found) {
+		if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= SMS_SEND_MAX_SELECTIVE_ACK_TRIES) {
+			console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", SMS_SEND_MAX_SELECTIVE_ACK_TRIES);
+			return;
+		}
 		repeaters_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
+		repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent++;
 		free(selective_blocks);
 		return;
 	}

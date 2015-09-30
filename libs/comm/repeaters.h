@@ -56,6 +56,7 @@ typedef struct {
 	uint8_t data_blocks_received;
 	uint8_t data_blocks_expected;
 	uint8_t full_message_block_count;
+	uint8_t selective_ack_requests_sent;
 	voicestream_t *voicestream;
 	uint8_t ipsc_last_received_seqnum;
 
