@@ -505,26 +505,26 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 	}
 }
 
-void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts) {
+void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap, dmrpacket_data_header_status_t status) {
 	dmrpacket_data_header_t data_header;
 	ipscpacket_payload_t *ipscpacket_payload;
 
 	if (repeater == NULL)
 		return;
 
-	console_log("repeaters [%s]: sending ack to %u on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dstid, ts+1);
+	console_log("repeaters [%s]: sending ack to %u on ts%u, status %u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dstid, ts+1, status);
 
 	data_header.common.dst_is_a_group = 0;
 	data_header.common.response_requested = 0;
 	data_header.common.dst_llid = dstid;
 	data_header.common.src_llid = srcid;
 	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_RESPONSE;
-	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA; // TODO
+	data_header.common.service_access_point = sap;
 
 	data_header.response.blocks_to_follow = 0;
 	data_header.response.class = 0;
 	data_header.response.type = 1;
-	data_header.response.status = 0;
+	data_header.response.status = status;
 	data_header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK;
 
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
@@ -602,7 +602,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	dmrpacket_data_block_t *data_blocks;
 	uint8_t number_of_csbk_preambles_to_send = 3;
 	uint8_t data_blocks_needed = 0;
-	dmrpacket_data_type_t data_type = DMRPACKET_DATA_TYPE_RATE_34_DATA;
+	dmrpacket_data_type_t data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
 	flag_t confirmed = (calltype == DMR_CALL_TYPE_PRIVATE ? 1 : 0);
 
 	if (repeater == NULL || msg == NULL)
@@ -695,10 +695,23 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	free(data_blocks);
 }
 
+void repeaters_send_motorola_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg) {
+	struct iphdr *payload;
+
+	if (repeater == NULL || msg == NULL)
+		return;
+
+	console_log("repeaters [%s]: sending %s motorola sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
+
+	payload = dmrpacket_construct_payload_motorola_sms(msg);
+	repeaters_send_ip_packet(repeater, ts, calltype, dstid, srcid, selective_blocks, selective_blocks_size, payload);
+	free(payload);
+}
+
 void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	repeater_t *repeater = repeaters;
 // TODO: remove
-repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, calltype, dstid, srcid, NULL, 0, msg);
+repeaters_send_motorola_sms(repeaters_findbycallsign("hg5ruc"), 1, calltype, dstid, srcid, NULL, 0, msg);
 return;
 	while (repeater) {
 		repeaters_send_sms(repeater, 0, calltype, dstid, srcid, NULL, 0, msg);
@@ -706,6 +719,101 @@ return;
 
 		repeater = repeater->next;
 	}
+}
+
+void repeaters_send_ip_packet(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, struct iphdr *ip_packet) {
+	uint16_t i;
+	dmrpacket_data_fragment_t *fragment;
+	dmrpacket_csbk_t csbk;
+	dmrpacket_data_header_t data_header;
+	ipscpacket_payload_t *ipscpacket_payload;
+	dmrpacket_data_block_t *data_blocks;
+	uint8_t number_of_csbk_preambles_to_send = 3;
+	uint8_t data_blocks_needed = 0;
+	dmrpacket_data_type_t data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
+	flag_t confirmed = (calltype == DMR_CALL_TYPE_PRIVATE ? 1 : 0);
+
+	if (repeater == NULL || ip_packet == NULL)
+		return;
+
+	repeater->slot[ts].ipsc_tx_seqnum = 0;
+
+	console_log("repeaters [%s]: sending %s ip packet to %u on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1);
+
+	fragment = dmrpacket_data_construct_fragment((uint8_t *)ip_packet, ntohs(ip_packet->tot_len), data_type, confirmed);
+
+	// If which blocks to send is set. Used for selective ACK reply.
+	if (selective_blocks != NULL && selective_blocks_size > 0) {
+		console_log(LOGLEVEL_REPEATERS "  sending only selective blocks: ");
+		for (i = 0; i < selective_blocks_size; i++) {
+			if (selective_blocks[i]) {
+				console_log(LOGLEVEL_REPEATERS "%u ", i);
+				data_blocks_needed++;
+			}
+		}
+		console_log(LOGLEVEL_REPEATERS "\n");
+	} else {
+		console_log(LOGLEVEL_REPEATERS "  sending full message (all blocks)\n");
+		data_blocks_needed = fragment->data_blocks_needed;
+	}
+
+	data_blocks = dmrpacket_data_construct_data_blocks(fragment, data_type, confirmed);
+	if (data_blocks == NULL)
+		return;
+
+	// Constructing the data header.
+	data_header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
+	data_header.common.response_requested = confirmed;
+	data_header.common.dst_llid = dstid;
+	data_header.common.src_llid = srcid;
+	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA;
+	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA;
+
+	data_header.confirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_type, confirmed)-ntohs(ip_packet->tot_len);
+	data_header.confirmed_data.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
+	data_header.confirmed_data.blocks_to_follow = data_blocks_needed;
+	data_header.confirmed_data.fragmentseqnum = 0;
+	data_header.confirmed_data.resync = 0;
+	data_header.confirmed_data.sendseqnum = 0;
+
+	// Constructing the CSBK preamble.
+	csbk.last_block = 1;
+	csbk.csbko = DMRPACKET_CSBKO_PREAMBLE;
+	csbk.data.preamble.data_follows = 1;
+	csbk.data.preamble.dst_is_group = (calltype == DMR_CALL_TYPE_GROUP);
+	csbk.data.preamble.csbk_blocks_to_follow = number_of_csbk_preambles_to_send+data_blocks_needed+1; // +1 - header
+	csbk.dst_id = dstid;
+	csbk.src_id = srcid;
+
+	// Sending CSBK preambles.
+	for (i = 0; i < number_of_csbk_preambles_to_send; i++) {
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending csbk #%u/%u\n", i, number_of_csbk_preambles_to_send);
+		csbk.data.preamble.csbk_blocks_to_follow--;
+		ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK, calltype, dstid, srcid, ipscpacket_payload)), 0);
+	}
+
+	// Sending data header.
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending data header\n");
+	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, calltype, dstid, srcid, ipscpacket_payload)), 0);
+
+	// Sending data blocks.
+	for (i = 0; i < fragment->data_blocks_needed; i++) { // Note: iterating through all blocks.
+		// Sending this block if no selective blocks given, or they are given and this block is in the list
+		// of blocks need to be sent.
+		if (selective_blocks == NULL || (selective_blocks != NULL && i < selective_blocks_size && selective_blocks[i])) {
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending block #%u\n", i);
+			switch (data_type) {
+				default:
+				case DMRPACKET_DATA_TYPE_RATE_34_DATA: ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_34(&data_blocks[i]); break;
+				case DMRPACKET_DATA_TYPE_RATE_12_DATA: ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_12(&data_blocks[i]); break;
+			}
+			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, ipscpacket_get_slot_type_for_data_type(data_type), calltype, dstid, srcid, ipscpacket_payload)), 0);
+		}
+	}
+
+	free(data_blocks);
 }
 
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {

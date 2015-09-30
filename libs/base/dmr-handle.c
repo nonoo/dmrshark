@@ -297,6 +297,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 0;
 	repeater->slot[ipscpacket->timeslot-1].data_blocks_received = 0;
 	repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent = 0;
+	repeater->slot[ipscpacket->timeslot-1].rx_seqnum = 0;
 
 	switch (data_packet_header->common.data_packet_format) {
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
@@ -351,6 +352,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 			if (data_packet_header->confirmed_data.full_message) {
 				memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->confirmed_data.blocks_to_follow;
+				repeater->slot[ipscpacket->timeslot-1].rx_seqnum = data_packet_header->confirmed_data.sendseqnum;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->confirmed_data.blocks_to_follow;
 			break;
@@ -434,7 +436,14 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 			}
 		}
 	}
-	repeaters_send_sms(repeater, ts, calltype, srcid, dstid, selective_blocks, selective_blocks_size, smstxbuf_first_entry->msg);
+	switch (repeater->slot[ts].data_packet_header.common.service_access_point) {
+		case DMRPACKET_DATA_HEADER_SAP_SHORT_DATA:
+			repeaters_send_sms(repeater, ts, calltype, srcid, dstid, selective_blocks, selective_blocks_size, smstxbuf_first_entry->msg);
+			break;
+		case DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA:
+			// TODO
+			break;
+	}
 	free(selective_blocks);
 }
 
@@ -449,7 +458,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	// Message is OK, and for us?
 	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 		ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
-			repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
+			repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point, repeater->slot[ipscpacket->timeslot-1].rx_seqnum);
 	}
 
 	switch (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point) {
@@ -488,6 +497,10 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 					switch (ntohs(udp_packet->dest)) {
 						case 4007: // Motorola SMS UDP port.
+							if (ntohs(udp_packet->len) <= sizeof(struct udphdr)+10) {
+								console_log(LOGLEVEL_DMR "    not enough data in udp payload\n");
+								return;
+							}
 							// The message has a 10 byte header.
 							message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 							message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;

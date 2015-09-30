@@ -94,6 +94,7 @@ void command_process(char *input_buffer) {
 		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
 		console_log("  smslist                                                        - print the contents of the sms tx buffer\n");
 		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
+		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
 		console_log("  sms [calltype (p/g)] [dstid] [msg]                             - send sms\n");
 		return;
 	}
@@ -442,6 +443,57 @@ void command_process(char *input_buffer) {
 
 		console_log("sending sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
 		repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
+		return;
+	}
+
+	if (strcmp(tok, "smsm") == 0) {
+		d.smsr.host = strtok(NULL, " ");
+		if (d.smsr.host == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.smsr.repeater = repeaters_findbyhost(d.smsr.host);
+		if (d.smsr.repeater == NULL)
+			d.smsr.repeater = repeaters_findbycallsign(d.smsr.host);
+		if (d.smsr.repeater == NULL) {
+			console_log(LOGLEVEL_IPSC "error: couldn't find repeater with host %s\n", d.smsr.host);
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.smsr.ts = strtol(tok, &endptr, 10)-1;
+		if (*endptr != 0 || errno != 0 || d.smsr.ts < 0 || d.smsr.ts > 1) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.smsr.calltype = DMR_CALL_TYPE_PRIVATE;
+		if (*tok == 'g')
+			d.smsr.calltype = DMR_CALL_TYPE_GROUP;
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.smsr.dstid = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+		tok = strtok(NULL, "\n");
+
+		console_log("sending motorola format sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
+		//repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
+		// TODO
 		return;
 	}
 

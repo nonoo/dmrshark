@@ -23,6 +23,7 @@
 #include <libs/coding/crc.h>
 #include <libs/daemon/console.h>
 #include <libs/base/base.h>
+#include <libs/comm/comm.h>
 
 #include <string.h>
 #include <math.h>
@@ -149,7 +150,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_b
 }
 
 // See DMR AI spec. page. 73. for block sizes.
-static uint8_t dmrpacket_data_get_block_size(dmrpacket_data_type_t data_type, flag_t confirmed) {
+uint8_t dmrpacket_data_get_block_size(dmrpacket_data_type_t data_type, flag_t confirmed) {
 	switch (data_type) {
 		case DMRPACKET_DATA_TYPE_RATE_1_DATA: return (confirmed ? 22 : 24);
 		case DMRPACKET_DATA_TYPE_RATE_34_DATA: return (confirmed ? 16 : 18);
@@ -454,7 +455,6 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 	fragment.bytes_stored = min(data_size, DMRPACKET_MAX_FRAGMENTSIZE);
 	memcpy(fragment.bytes, data, fragment.bytes_stored);
 
-	// TODO: pad_octetset kivaltani, elvileg mindig a fragment vegen a CRC, igy ki lehet szamolni, hogy hova kell rakni a CRC-t.
 	dmrpacket_data_get_needed_blocks_count(fragment.bytes_stored, data_type, confirmed, &fragment.data_blocks_needed);
 	block_size = dmrpacket_data_get_block_size(data_type, confirmed);
 	for (i = 0; i < fragment.data_blocks_needed*block_size-4; i += 2) {
@@ -529,4 +529,73 @@ uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
 		new_data[i] = data[i*2];
 
 	return new_data;
+}
+
+// Constructs a Motorola TMS UDP packet. Returned memory area must be freed after use.
+static struct iphdr *dmrpacket_construct_payload_motorola_ip_packet(uint8_t *payload, uint16_t payload_size) {
+	uint8_t *ip_packet_bytes;
+	struct iphdr *ip_packet;
+	struct udphdr *udp_packet;
+
+	if (payload == NULL || payload_size == 0)
+		return NULL;
+
+	ip_packet_bytes = (uint8_t *)calloc(1, sizeof(struct iphdr)+sizeof(struct udphdr)+payload_size);
+	if (ip_packet_bytes == NULL) {
+		console_log("  error: can't allocate memory for motorola ip packet bytes\n");
+		return NULL;
+	}
+
+	ip_packet = (struct iphdr *)ip_packet_bytes;
+	udp_packet = (struct udphdr *)(ip_packet_bytes+20);
+
+	comm_hostname_to_ip("12.33.16.221", (struct in_addr *)&ip_packet->saddr);
+	comm_hostname_to_ip("12.33.249.109", (struct in_addr *)&ip_packet->daddr);
+	ip_packet->ihl = 5;
+	ip_packet->version = 4;
+	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + payload_size);
+	ip_packet->id = htonl(7777);
+	ip_packet->ttl = 64;
+	ip_packet->protocol = IPPROTO_UDP;
+	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);
+	udp_packet->source = htons(4007);
+	udp_packet->dest = htons(4007);
+	udp_packet->len = htons(sizeof(struct udphdr) + payload_size);
+	memcpy(ip_packet_bytes+20+sizeof(struct udphdr), payload, payload_size);
+	udp_packet->check = comm_calcudpchecksum((struct ip *)ip_packet, udp_packet);
+
+	return (struct iphdr *)ip_packet_bytes;
+}
+
+// Constructs a Motorola TMS ACK UDP packet. Returned memory area must be freed after use.
+struct iphdr *dmrpacket_construct_payload_motorola_ack(void) {
+	static uint8_t ack_payload[] = { 0x00, 0x03, 0xbf, 0x00, 0x03 };
+
+	return dmrpacket_construct_payload_motorola_ip_packet(ack_payload, sizeof(ack_payload));
+}
+
+// Constructs a Motorola TMS message UDP packet. Returned memory area must be freed after use.
+struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg) {
+	static uint8_t motorola_header[] = { 0x00, 0x10, 0xe0, 0x00, 0x99, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
+	uint8_t *payload;
+	uint16_t payload_size;
+	uint16_t msg_length;
+	uint16_t i;
+
+	if (msg == NULL)
+		return NULL;
+
+	msg_length = strlen(msg);
+	payload_size = sizeof(motorola_header)+msg_length*2;
+	payload = (uint8_t *)calloc(1, payload_size);
+	if (payload == NULL) {
+		console_log("  error: can't allocate memory for motorola sms packet bytes\n");
+		return NULL;
+	}
+
+	memcpy(payload, motorola_header, sizeof(motorola_header));
+	for (i = 0; i < msg_length; i++)
+		payload[sizeof(motorola_header)+i*2] = msg[i];
+
+	return dmrpacket_construct_payload_motorola_ip_packet(payload, payload_size);
 }

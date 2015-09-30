@@ -73,6 +73,7 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_interleave(dmrpacket_payload_
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary);
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(bptc_196_96_data_bits_t *binary);
 
+uint8_t dmrpacket_data_get_block_size(dmrpacket_data_type_t data_type, flag_t confirmed);
 dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t *bytes, dmrpacket_data_type_t data_type, flag_t confirmed);
 dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket_data_block_t *blocks, uint8_t blocks_count);
 char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, dmrpacket_data_header_dd_format_t dd_format);
@@ -84,5 +85,8 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 
 uint8_t *dmrpacket_data_interleave_data(uint8_t *msg, uint16_t *data_length, uint8_t prepad_bytes);
 uint8_t *dmrpacket_data_deinterleave_data(uint8_t *msg, uint16_t data_length);
+
+struct iphdr *dmrpacket_data_construct_motorola_ack_payload(void);
+struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg);
 
 #endif
