@@ -302,8 +302,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->udt.appended_blocks;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
-			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
-			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = max(repeater->slot[ipscpacket->timeslot-1].full_message_block_count, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
+			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
 
 			data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
 			console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
