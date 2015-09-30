@@ -249,15 +249,18 @@ void dmr_handle_data_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	repeater->slot[ts].data_packet_header_valid = 0;
 }
 
-static void dmr_handle_data_call_start(repeater_t *repeater, dmr_timeslot_t ts) {
+static void dmr_handle_data_call_start(repeater_t *repeater, ipscpacket_t *ipscpacket) {
 	if (repeater == NULL)
 		return;
 
-	if (repeater->slot[ts].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+	if (repeater->slot[ipscpacket->timeslot].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
 		return;
 
-	console_log(LOGLEVEL_DMR "dmr [%s]: data call started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
-	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_DATA_CALL_RUNNING);
+	repeater->slot[ipscpacket->timeslot-1].dst_id = ipscpacket->dst_id;
+	repeater->slot[ipscpacket->timeslot-1].src_id = ipscpacket->src_id;
+
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ipscpacket->timeslot);
+	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_DATA_CALL_RUNNING);
 }
 
 void dmr_handle_data_call_end(repeater_t *repeater, dmr_timeslot_t ts) {
@@ -379,7 +382,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 	memcpy(&repeater->slot[ipscpacket->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));
 	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 1;
-	dmr_handle_data_call_start(repeater, ipscpacket->timeslot-1);
+	dmr_handle_data_call_start(repeater, ipscpacket);
 }
 
 static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmrpacket_data_fragment_t *data_fragment) {

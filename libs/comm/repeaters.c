@@ -282,7 +282,7 @@ void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repea
 	if (repeater->auto_rssi_update_enabled_at != 0 &&
 		repeater->slot[0].state != REPEATER_SLOT_STATE_VOICE_CALL_RUNNING &&
 		repeater->slot[1].state != REPEATER_SLOT_STATE_VOICE_CALL_RUNNING) {
-			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: stopping auto repeater status update\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+			console_log(LOGLEVEL_SNMP "repeaters [%s]: stopping auto repeater status update\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 			repeater->auto_rssi_update_enabled_at = 0;
 	}
 }
@@ -610,7 +610,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	repeater->slot[ts].ipsc_tx_seqnum = 0;
 
-	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), (calltype == DMR_CALL_TYPE_GROUP ? "group" : "private"), dstid, ts+1, msg);
+	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
 	interleaved_msg_length = strlen(msg);
 	interleaved_msg = (char *)dmrpacket_data_interleave_data((uint8_t *)msg, &interleaved_msg_length);
@@ -628,9 +628,11 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 				data_blocks_needed++;
 			}
 		}
-		console_log("\n");
-	} else
-		data_blocks_needed = fragment->data_blocks_needed; // Otherwise we need all blocks.
+		console_log(LOGLEVEL_REPEATERS "\n");
+	} else {
+		console_log(LOGLEVEL_REPEATERS "  sending all blocks\n");
+		data_blocks_needed = fragment->data_blocks_needed;
+	}
 
 	data_blocks = dmrpacket_data_construct_data_blocks(fragment, data_type, confirmed);
 	if (data_blocks == NULL)
@@ -708,8 +710,12 @@ static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_tim
 	struct timeval difftime = {0,};
 	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf_entry_to_send;
 
-	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL ||
-		repeater->slot[ts].state != REPEATER_SLOT_STATE_IDLE)
+	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
+			return;
+
+	// If there's a call and it's not for us or by us.
+	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_IDLE && repeater->slot[ts].dst_id != DMRSHARK_DEFAULT_DMR_ID &&
+		repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID)
 			return;
 
 	gettimeofday(&currtime, NULL);

@@ -154,7 +154,7 @@ dmrpacket_emb_t *dmrpacket_emb_decode(dmrpacket_emb_bits_t *emb_bits) {
 	console_log(LOGLEVEL_DMRLC "  decoding emb:\n");
 
 	if (!quadres_16_7_check((quadres_16_7_codeword_t *)emb_bits->bits)) {
-		console_log("    checksum error\n");
+		console_log(LOGLEVEL_DMRLC "    checksum error\n");
 		return NULL;
 	}
 	console_log(LOGLEVEL_DMRLC "    checksum ok\n");

@@ -109,7 +109,7 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 	loglevel = console_get_loglevel();
 
 	if (loglevel.flags.debug && loglevel.flags.ipsc) {
-		if (!loglevel.flags.comm_ip)
+		if (!loglevel.flags.comm_ip && !loglevel.flags.dmrlc)
 			log_print_separator();
 
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket [%s", repeaters_get_display_string_for_ip(&ippacket->ip_src));

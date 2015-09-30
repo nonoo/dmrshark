@@ -108,7 +108,7 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
 
 		loglevel = console_get_loglevel();
-		if (!loglevel.flags.comm_ip && !loglevel.flags.debug && loglevel.flags.ipsc)
+		if (!loglevel.flags.comm_ip && !loglevel.flags.debug && !loglevel.flags.dmrlc && loglevel.flags.ipsc)
 			log_print_separator();
 
 		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
@@ -141,7 +141,7 @@ void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {
 	flag_t packet_from_us = 0;
 	loglevel_t loglevel = console_get_loglevel();
 
-	if (!loglevel.flags.ipsc && loglevel.flags.comm_ip)
+	if (!loglevel.flags.ipsc && !loglevel.flags.debug && !loglevel.flags.dmrlc && loglevel.flags.comm_ip)
 		log_print_separator();
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", repeaters_get_display_string_for_ip(&ip_packet->ip_src));

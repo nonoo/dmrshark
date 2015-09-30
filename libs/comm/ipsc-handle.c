@@ -23,19 +23,30 @@
 #include <libs/base/dmr-handle.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/voicestreams/voicestreams-process.h>
+#include <libs/base/log.h>
 
 void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
+	loglevel_t loglevel;
+
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
+
+	loglevel = console_get_loglevel();
 
 	switch (ipscpacket->slot_type) {
 		case IPSCPACKET_SLOT_TYPE_IPSC_SYNC:
 			break;
 		case IPSCPACKET_SLOT_TYPE_CSBK:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_csbk(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_voice_lc_header(ip_packet, ipscpacket, repeater);
@@ -46,6 +57,9 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_VOICE_CALL_RUNNING) {
@@ -69,21 +83,33 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 			voicestreams_processpacket(ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 			dmr_handle_terminator_with_lc(ip_packet, ipscpacket, repeater);
 			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_RATE_34_DATA:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_34rate(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_RATE_12_DATA:
+			if (!loglevel.flags.comm_ip && !loglevel.flags.ipsc && loglevel.flags.dmrlc)
+				log_print_separator();
+
 			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_12rate(ip_packet, ipscpacket, repeater);
