@@ -114,6 +114,7 @@ void smstxbuf_process(void) {
 			return;
 	}
 
+	smstxbuf_first_entry->selective_ack_tries = 0;
 	repeaters_send_broadcast_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 	smstxbuf_first_entry->send_tries++;
 	last_sms_send_try_at = time(NULL);

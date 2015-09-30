@@ -407,6 +407,12 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 		return;
 	}
 
+	if (smstxbuf_first_entry->selective_ack_tries >= SMS_SEND_MAX_SELECTIVE_ACK_TRIES) {
+		console_log(LOGLEVEL_DMR "  max. possible selective ack retry count reached, ignoring further selective acks\n");
+		return;
+	}
+	smstxbuf_first_entry->selective_ack_tries++;
+
 	console_log(LOGLEVEL_DMR "  replying to selective ack\n");
 
 	selective_blocks_size = data_fragment->bytes_stored-4; // Cutting out the CRC.

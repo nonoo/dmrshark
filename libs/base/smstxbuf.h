@@ -28,6 +28,7 @@ typedef struct smstxbuf_st {
 	char msg[DMRPACKET_MAX_FRAGMENTSIZE];
 	time_t added_at;
 	uint8_t send_tries;
+	uint8_t selective_ack_tries;
 
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
