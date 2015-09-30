@@ -20,9 +20,6 @@
 
 #include <libs/base/types.h>
 
-typedef int8_t dmrpacket_dibit_t;
-typedef uint8_t dmrpacket_tribit_t;
-
 typedef struct {
 	flag_t bits[98+10+48+10+98]; // See DMR AI spec. page 85.
 } dmrpacket_payload_bits_t;

@@ -17,20 +17,20 @@
 
 #include DEFAULTCONFIG
 
-#include "dmrpacket-data-34rate.h"
+#include "trellis.h"
 
 #include <libs/daemon/console.h>
 
 #include <stdlib.h>
-// TODO: loglevel coding, codingba atrakni
-static uint8_t dmrpacket_data_34rate_dibit_interleave_matrix[] = { // See DMR AI protocol spec. page 130.
+
+static uint8_t trellis_dibit_interleave_matrix[] = { // See DMR AI protocol spec. page 130.
 	0,	1,	8,	9,	16,	17,	24,	25,	32,	33,	40,	41,	48,	49,	56,	57,	64,	65,	72,	73,	80,	81,	88,	89,	96,	97,
 	2,	3,	10,	11,	18,	19,	26,	27,	34,	35,	42,	43,	50,	51,	58,	59,	66,	67,	74,	75,	82,	83,	90,	91,
 	4,	5,	12,	13,	20,	21,	28,	29,	36,	37,	44,	45,	52,	53,	60,	61,	68,	69,	76,	77,	84,	85,	92,	93,
 	6,	7,	14,	15,	22,	23,	30,	31,	38,	39,	46,	47,	54,	55,	62,	63,	70,	71,	78,	79,	86,	87,	94,	95
 };
 
-static uint8_t dmrpacket_data_34rate_trellis_encoder_state_transition_table[] = { // See DMR AI protocol spec. page 129.
+static uint8_t trellis_trellis_encoder_state_transition_table[] = { // See DMR AI protocol spec. page 129.
 	0,	8,	4,	12,	2,	10,	6,	14,
 	4,	12,	2,	10,	6,	14,	0,	8,
 	1,	9,	5,	13,	3,	11,	7,	15,
@@ -41,8 +41,8 @@ static uint8_t dmrpacket_data_34rate_trellis_encoder_state_transition_table[] = 
 	6,	14,	0,	8,	4,	12,	2,	10
 };
 
-dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_extract_dibits(dmrpacket_payload_info_bits_t *info_bits) {
-	static dmrpacket_data_34rate_dibits_t dibits;
+trellis_dibits_t *trellis_extract_dibits(dmrpacket_payload_info_bits_t *info_bits) {
+	static trellis_dibits_t dibits;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
 
@@ -50,11 +50,11 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_extract_dibits(dmrpacket_p
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: extracting dibits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: extracting dibits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < 196; i += 2)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u%u ", info_bits->bits[i], info_bits->bits[i+1]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u%u ", info_bits->bits[i], info_bits->bits[i+1]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 196; i += 2) {
@@ -70,16 +70,16 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_extract_dibits(dmrpacket_p
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < 98; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", dibits.dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", dibits.dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &dibits;
 }
 
-dmrpacket_payload_info_bits_t *dmrpacket_data_34rate_construct_payload_info_bits(dmrpacket_data_34rate_dibits_t *dibits) {
+dmrpacket_payload_info_bits_t *trellis_construct_payload_info_bits(trellis_dibits_t *dibits) {
 	static dmrpacket_payload_info_bits_t info_bits;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
@@ -88,14 +88,14 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_34rate_construct_payload_info_bits
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: constructing payload info bits from dibits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_dibits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: constructing payload info bits from dibits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(trellis_dibits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
-	for (i = 0; i < sizeof(dmrpacket_data_34rate_dibits_t); i++) {
+	for (i = 0; i < sizeof(trellis_dibits_t); i++) {
 		switch (dibits->dibits[i]) {
 			case +3: info_bits.bits[i*2] = 0; info_bits.bits[i*2+1] = 1; break;
 			case +1: info_bits.bits[i*2] = 0; info_bits.bits[i*2+1] = 0; break;
@@ -106,17 +106,17 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_34rate_construct_payload_info_bits
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < sizeof(dmrpacket_payload_info_bits_t); i += 2)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u%u ", info_bits.bits[i], info_bits.bits[i+1]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u%u ", info_bits.bits[i], info_bits.bits[i+1]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &info_bits;
 }
 
-dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_deinterleave_dibits(dmrpacket_data_34rate_dibits_t *dibits) {
-	static dmrpacket_data_34rate_dibits_t deinterleaved_dibits;
+trellis_dibits_t *trellis_deinterleave_dibits(trellis_dibits_t *dibits) {
+	static trellis_dibits_t deinterleaved_dibits;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
 
@@ -124,28 +124,28 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_deinterleave_dibits(dmrpac
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: deinterleaving dibits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: deinterleaving dibits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < 98; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 98; i++)
-		deinterleaved_dibits.dibits[dmrpacket_data_34rate_dibit_interleave_matrix[i]] = dibits->dibits[i];
+		deinterleaved_dibits.dibits[trellis_dibit_interleave_matrix[i]] = dibits->dibits[i];
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < 98; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", deinterleaved_dibits.dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", deinterleaved_dibits.dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &deinterleaved_dibits;
 }
 
-dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_interleave_dibits(dmrpacket_data_34rate_dibits_t *dibits) {
-	static dmrpacket_data_34rate_dibits_t interleaved_dibits;
+trellis_dibits_t *trellis_interleave_dibits(trellis_dibits_t *dibits) {
+	static trellis_dibits_t interleaved_dibits;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
 
@@ -153,28 +153,28 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_interleave_dibits(dmrpacke
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: interleaving dibits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_dibits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: interleaving dibits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(trellis_dibits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", dibits->dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 98; i++)
-		interleaved_dibits.dibits[i] = dibits->dibits[dmrpacket_data_34rate_dibit_interleave_matrix[i]];
+		interleaved_dibits.dibits[i] = dibits->dibits[trellis_dibit_interleave_matrix[i]];
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_dibits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", interleaved_dibits.dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(trellis_dibits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", interleaved_dibits.dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &interleaved_dibits;
 }
 
-dmrpacket_data_34rate_constellationpoints_t *dmrpacket_data_34rate_getconstellationpoints(dmrpacket_data_34rate_dibits_t *deinterleaved_dibits) {
-	static dmrpacket_data_34rate_constellationpoints_t constellationpoints;
+trellis_constellationpoints_t *trellis_getconstellationpoints(trellis_dibits_t *deinterleaved_dibits) {
+	static trellis_constellationpoints_t constellationpoints;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
 
@@ -182,11 +182,11 @@ dmrpacket_data_34rate_constellationpoints_t *dmrpacket_data_34rate_getconstellat
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: calculating constellation points from dibits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: calculating constellation points from dibits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < 98; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", deinterleaved_dibits->dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", deinterleaved_dibits->dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 98; i += 2) {
@@ -209,17 +209,17 @@ dmrpacket_data_34rate_constellationpoints_t *dmrpacket_data_34rate_getconstellat
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < 49; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", constellationpoints.points[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", constellationpoints.points[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &constellationpoints;
 }
 
-dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_construct_deinterleaved_dibits(dmrpacket_data_34rate_constellationpoints_t *constellationpoints) {
-	static dmrpacket_data_34rate_dibits_t deinterleaved_dibits;
+trellis_dibits_t *trellis_construct_deinterleaved_dibits(trellis_constellationpoints_t *constellationpoints) {
+	static trellis_dibits_t deinterleaved_dibits;
 	loglevel_t loglevel = console_get_loglevel();
 	int i;
 
@@ -227,14 +227,14 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_construct_deinterleaved_di
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: constructing dibits from constellation points\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_constellationpoints_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", constellationpoints->points[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: constructing dibits from constellation points\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(trellis_constellationpoints_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", constellationpoints->points[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
-	for (i = 0; i < sizeof(dmrpacket_data_34rate_constellationpoints_t); i++) {
+	for (i = 0; i < sizeof(trellis_constellationpoints_t); i++) {
 		switch (constellationpoints->points[i]) {
 			case 0: deinterleaved_dibits.dibits[i*2]  = +1; deinterleaved_dibits.dibits[i*2+1] = -1; break;
 			case 1: deinterleaved_dibits.dibits[i*2]  = -1; deinterleaved_dibits.dibits[i*2+1] = -1; break;
@@ -257,31 +257,31 @@ dmrpacket_data_34rate_dibits_t *dmrpacket_data_34rate_construct_deinterleaved_di
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_dibits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%d ", deinterleaved_dibits.dibits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(trellis_dibits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%d ", deinterleaved_dibits.dibits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &deinterleaved_dibits;
 }
 
-dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_extract_tribits(dmrpacket_data_34rate_constellationpoints_t *constellationpoints) {
-	static dmrpacket_data_34rate_tribits_t tribits;
+trellis_tribits_t *trellis_extract_tribits(trellis_constellationpoints_t *constellationpoints) {
+	static trellis_tribits_t tribits;
 	int i, j, row_start;
 	flag_t match;
-	dmrpacket_tribit_t last_state = 0;
+	trellis_tribit_t last_state = 0;
 	loglevel_t loglevel = console_get_loglevel();
 
 	if (constellationpoints == NULL)
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: extracting tribits from constellation points\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: extracting tribits from constellation points\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < 49; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", constellationpoints->points[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", constellationpoints->points[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 49; i++) {
@@ -289,7 +289,7 @@ dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_extract_tribits(dmrpacket
 		match = 0;
 		for (j = row_start; j < row_start+8; j++) {
 			// Check if this constellation point matches an element of this row of the state table.
-			if (constellationpoints->points[i] == dmrpacket_data_34rate_trellis_encoder_state_transition_table[j]) {
+			if (constellationpoints->points[i] == trellis_trellis_encoder_state_transition_table[j]) {
 				match = 1;
 				last_state = j-row_start;
 				tribits.tribits[i] = last_state;
@@ -298,56 +298,56 @@ dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_extract_tribits(dmrpacket
 
 		// If no match found then we have a problem.
 		if (match == 0) {
-			console_log("dmrpacket data: trellis tribit extract error, data is corrupted\n");
+			console_log("trellis: trellis tribit extract error, data is corrupted\n");
 			return NULL;
 		}
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < 48; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", tribits.tribits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", tribits.tribits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &tribits;
 }
 
-dmrpacket_data_34rate_constellationpoints_t *dmrpacket_data_34rate_construct_constellationpoints(dmrpacket_data_34rate_tribits_t *tribits) {
-	static dmrpacket_data_34rate_constellationpoints_t constellationpoints;
+trellis_constellationpoints_t *trellis_construct_constellationpoints(trellis_tribits_t *tribits) {
+	static trellis_constellationpoints_t constellationpoints;
 	int i, row_start;
-	dmrpacket_tribit_t last_state = 0;
+	trellis_tribit_t last_state = 0;
 	loglevel_t loglevel = console_get_loglevel();
 
 	if (tribits == NULL)
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: constructing constellation points from tribits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_tribits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", tribits->tribits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: constructing constellation points from tribits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
+		for (i = 0; i < sizeof(trellis_tribits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", tribits->tribits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
-	for (i = 0; i < sizeof(dmrpacket_data_34rate_tribits_t); i++) {
+	for (i = 0; i < sizeof(trellis_tribits_t); i++) {
 		row_start = last_state*8;
-		constellationpoints.points[i] = dmrpacket_data_34rate_trellis_encoder_state_transition_table[row_start+tribits->tribits[i]];
+		constellationpoints.points[i] = trellis_trellis_encoder_state_transition_table[row_start+tribits->tribits[i]];
 		last_state = tribits->tribits[i];
 	}
-	constellationpoints.points[i] = dmrpacket_data_34rate_trellis_encoder_state_transition_table[last_state*8];
+	constellationpoints.points[i] = trellis_trellis_encoder_state_transition_table[last_state*8];
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_constellationpoints_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", constellationpoints.points[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(trellis_constellationpoints_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", constellationpoints.points[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &constellationpoints;
 }
 
-dmrpacket_data_binary_t *dmrpacket_data_34rate_extract_binary(dmrpacket_data_34rate_tribits_t *tribits) {
+dmrpacket_data_binary_t *trellis_extract_binary(trellis_tribits_t *tribits) {
 	static dmrpacket_data_binary_t binary;
 	int i;
 	loglevel_t loglevel = console_get_loglevel();
@@ -356,11 +356,11 @@ dmrpacket_data_binary_t *dmrpacket_data_34rate_extract_binary(dmrpacket_data_34r
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: extracting binary data from tribits\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: extracting binary data from tribits\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < 48; i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", tribits->tribits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", tribits->tribits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < 144; i += 3) {
@@ -370,17 +370,17 @@ dmrpacket_data_binary_t *dmrpacket_data_34rate_extract_binary(dmrpacket_data_34r
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < 144; i += 3)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u%u%u ", binary.bits[i], binary.bits[i+1], binary.bits[i+2]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u%u%u ", binary.bits[i], binary.bits[i+1], binary.bits[i+2]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &binary;
 }
 
-dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_construct_tribits(dmrpacket_data_binary_t *binary) {
-	static dmrpacket_data_34rate_tribits_t tribits;
+trellis_tribits_t *trellis_construct_tribits(dmrpacket_data_binary_t *binary) {
+	static trellis_tribits_t tribits;
 	int i;
 	loglevel_t loglevel = console_get_loglevel();
 
@@ -388,11 +388,11 @@ dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_construct_tribits(dmrpack
 		return NULL;
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: constructing tribits from binary data\n");
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "trellis: constructing tribits from binary data\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < sizeof(dmrpacket_data_binary_t); i += 3)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u%u%u ", binary->bits[i], binary->bits[i+1], binary->bits[i+2]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u%u%u ", binary->bits[i], binary->bits[i+1], binary->bits[i+2]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	for (i = 0; i < sizeof(dmrpacket_data_binary_t); i += 3) {
@@ -402,10 +402,10 @@ dmrpacket_data_34rate_tribits_t *dmrpacket_data_34rate_construct_tribits(dmrpack
 	}
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
-		for (i = 0; i < sizeof(dmrpacket_data_34rate_tribits_t); i++)
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", tribits.tribits[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "  output: ");
+		for (i = 0; i < sizeof(trellis_tribits_t); i++)
+			console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "%u ", tribits.tribits[i]);
+		console_log(LOGLEVEL_CODING LOGLEVEL_DEBUG "\n");
 	}
 
 	return &tribits;

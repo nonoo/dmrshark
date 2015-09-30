@@ -28,7 +28,7 @@
 #include <libs/dmrpacket/dmrpacket-csbk.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/dmrpacket/dmrpacket-emb.h>
-#include <libs/dmrpacket/dmrpacket-data-34rate.h>
+#include <libs/coding/trellis.h>
 #include <libs/base/base.h>
 
 #include <stdlib.h>
@@ -523,9 +523,9 @@ static void dmr_handle_data_received_block(ipscpacket_t *ipscpacket, repeater_t 
 
 void dmr_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	dmrpacket_payload_info_bits_t *packet_payload_info_bits = NULL;
-	dmrpacket_data_34rate_dibits_t *packet_payload_dibits = NULL;
-	dmrpacket_data_34rate_constellationpoints_t *packet_payload_constellationpoints = NULL;
-	dmrpacket_data_34rate_tribits_t *packet_payload_tribits = NULL;
+	trellis_dibits_t *packet_payload_dibits = NULL;
+	trellis_constellationpoints_t *packet_payload_constellationpoints = NULL;
+	trellis_tribits_t *packet_payload_tribits = NULL;
 	dmrpacket_data_binary_t *data_binary = NULL;
 	dmrpacket_data_block_bytes_t *data_block_bytes = NULL;
 	dmrpacket_data_block_t *data_block = NULL;
@@ -543,11 +543,11 @@ void dmr_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 
 	packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
-	packet_payload_dibits = dmrpacket_data_34rate_extract_dibits(packet_payload_info_bits);
-	packet_payload_dibits = dmrpacket_data_34rate_deinterleave_dibits(packet_payload_dibits);
-	packet_payload_constellationpoints = dmrpacket_data_34rate_getconstellationpoints(packet_payload_dibits);
-	packet_payload_tribits = dmrpacket_data_34rate_extract_tribits(packet_payload_constellationpoints);
-	data_binary = dmrpacket_data_34rate_extract_binary(packet_payload_tribits);
+	packet_payload_dibits = trellis_extract_dibits(packet_payload_info_bits);
+	packet_payload_dibits = trellis_deinterleave_dibits(packet_payload_dibits);
+	packet_payload_constellationpoints = trellis_getconstellationpoints(packet_payload_dibits);
+	packet_payload_tribits = trellis_extract_tribits(packet_payload_constellationpoints);
+	data_binary = trellis_extract_binary(packet_payload_tribits);
 	data_block_bytes = dmrpacket_data_convert_binary_to_block_bytes(data_binary);
 	data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested);
 
