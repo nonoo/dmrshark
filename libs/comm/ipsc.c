@@ -24,6 +24,7 @@
 
 #include <libs/remotedb/remotedb.h>
 #include <libs/config/config.h>
+#include <libs/base/log.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -89,6 +90,7 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 	flag_t talkgroup_ignored = 0;
 	flag_t duplicate_seqnum = 0;
 	repeater_t *repeater = NULL;
+	loglevel_t loglevel;
 
 	// The packet is for us?
 	if (comm_is_our_ipaddr(&ip_packet->ip_dst))
@@ -104,6 +106,10 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			duplicate_seqnum = 1;
 		else
 			repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
+
+		loglevel = console_get_loglevel();
+		if (!loglevel.flags.comm_ip && !loglevel.flags.debug && loglevel.flags.ipsc)
+			log_print_separator();
 
 		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u ipsc slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
@@ -133,6 +139,10 @@ void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {
 	ipscpacket_t ipscpacket = {0,};
 	repeater_t *repeater = NULL;
 	flag_t packet_from_us = 0;
+	loglevel_t loglevel = console_get_loglevel();
+
+	if (!loglevel.flags.ipsc && loglevel.flags.comm_ip)
+		log_print_separator();
 
 	console_log(LOGLEVEL_COMM_IP "  src: %s\n", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_COMM_IP "  dst: %s\n", repeaters_get_display_string_for_ip(&ip_packet->ip_dst));

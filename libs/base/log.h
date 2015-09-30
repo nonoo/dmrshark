@@ -27,5 +27,6 @@ void log_loglevel(loglevel_t *loglevel);
 void log_cmdmissingparam(void);
 void log_cmdinvalidparam(void);
 void log_daemon_initconsoleserverfailed(void);
+void log_print_separator(void);
 
 #endif

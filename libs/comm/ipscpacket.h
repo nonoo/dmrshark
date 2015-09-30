@@ -31,8 +31,8 @@
 #define IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC				0x2222
 #define IPSCPACKET_SLOT_TYPE_CSBK							0x3333
 #define IPSCPACKET_SLOT_TYPE_DATA_HEADER					0x4444
-#define IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA					0x5555
-#define IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA					0x6666
+#define IPSCPACKET_SLOT_TYPE_RATE_12_DATA					0x5555
+#define IPSCPACKET_SLOT_TYPE_RATE_34_DATA					0x6666
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_A					0xBBBB
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_B					0xCCCC
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_C					0x7777
@@ -40,6 +40,7 @@
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_E					0x9999
 #define IPSCPACKET_SLOT_TYPE_VOICE_DATA_F					0xAAAA
 #define IPSCPACKET_SLOT_TYPE_IPSC_SYNC						0xEEEE
+#define IPSCPACKET_SLOT_TYPE_UNKNOWN						0x0000
 typedef uint16_t ipscpacket_slot_type_t;
 
 typedef struct {
@@ -95,6 +96,7 @@ typedef struct ipscrawpacketbuf_st {
 } ipscrawpacketbuf_t;
 
 char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type);
+ipscpacket_slot_type_t ipscpacket_get_slot_type_for_data_type(dmrpacket_data_type_t data_type);
 
 flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpacket_t *ipscpacket, flag_t packet_from_us);
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket);
@@ -105,7 +107,8 @@ ipscpacket_payload_t *ipscpacket_construct_payload_voice_lc_header(dmr_call_type
 ipscpacket_payload_t *ipscpacket_construct_payload_terminator_with_lc(dmr_call_type_t call_type, dmr_id_t dst_id, dmr_id_t src_id);
 ipscpacket_payload_t *ipscpacket_construct_payload_voice_frame(ipscpacket_slot_type_t slot_type, dmrpacket_payload_voice_bits_t *voice_bits, vbptc_16_11_t *emb_signalling_lc_vbptc_bits);
 ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk);
-ipscpacket_payload_t *ipscpacket_construct_payload_sms_header(dmrpacket_data_header_t *data_header);
+ipscpacket_payload_t *ipscpacket_construct_payload_data_header(dmrpacket_data_header_t *data_header);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_data_block_t *data_block);
+ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_12(dmrpacket_data_block_t *data_block);
 
 #endif

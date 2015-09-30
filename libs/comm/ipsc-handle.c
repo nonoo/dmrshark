@@ -32,9 +32,12 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		case IPSCPACKET_SLOT_TYPE_IPSC_SYNC:
 			break;
 		case IPSCPACKET_SLOT_TYPE_CSBK:
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_csbk(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER:
+			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
 			dmr_handle_voice_lc_header(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A:
@@ -43,12 +46,14 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_D:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_E:
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F:
-			if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING) {
+			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
+			if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_VOICE_CALL_RUNNING) {
 				// Checking if this call is already running on another repeater. This can happen if dmrshark is running
 				// on a server which has multiple repeaters' traffic running through it.
 				if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 					return;
-				dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
+				dmr_handle_voice_call_start(ip_packet, ipscpacket, repeater);
 			} else {
 				if (ipscpacket->src_id != repeater->slot[ipscpacket->timeslot-1].src_id ||
 					ipscpacket->dst_id != repeater->slot[ipscpacket->timeslot-1].dst_id ||
@@ -57,31 +62,33 @@ void ipsc_handle_by_slot_type(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 						// on a server which has multiple repeaters' traffic running through it.
 						if (repeaters_get_active(ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->call_type) != NULL)
 							return;
-						dmr_handle_voicecall_start(ip_packet, ipscpacket, repeater);
+						dmr_handle_voice_call_start(ip_packet, ipscpacket, repeater);
 					}
 			}
 			dmr_handle_voice_frame(ip_packet, ipscpacket, repeater);
 			voicestreams_processpacket(ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC:
+			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 			dmr_handle_terminator_with_lc(ip_packet, ipscpacket, repeater);
-			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
+			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			break;
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER:
-			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
+			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_header(ip_packet, ipscpacket, repeater);
 			break;
-		case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA:
-			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
+		case IPSCPACKET_SLOT_TYPE_RATE_34_DATA:
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
+			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_34rate(ip_packet, ipscpacket, repeater);
 			break;
-		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA:
-			dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
+		case IPSCPACKET_SLOT_TYPE_RATE_12_DATA:
+			repeater->slot[ipscpacket->timeslot-1].last_call_or_data_packet_received_at = time(NULL);
+			dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 			dmr_handle_data_12rate(ip_packet, ipscpacket, repeater);
 			break;
 		default:
 			break;
 	}
-
-	repeater->slot[ipscpacket->timeslot-1].last_packet_received_at = time(NULL);
 }

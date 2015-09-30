@@ -32,9 +32,10 @@
 #define DMRPACKET_DATA_TYPE_MBC_HEADER					0b0100
 #define DMRPACKET_DATA_TYPE_MBC_CONTINUATION			0b0101
 #define DMRPACKET_DATA_TYPE_DATA_HEADER					0b0110
-#define DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION	0b0111
-#define DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION	0b1000
+#define DMRPACKET_DATA_TYPE_RATE_12_DATA				0b0111
+#define DMRPACKET_DATA_TYPE_RATE_34_DATA				0b1000
 #define DMRPACKET_DATA_TYPE_IDLE						0b1001
+#define DMRPACKET_DATA_TYPE_RATE_1_DATA					0b1010
 typedef uint8_t dmrpacket_data_type_t;
 
 typedef struct {
@@ -48,6 +49,7 @@ typedef struct {
 typedef struct {
 	uint8_t serialnr;
 	uint16_t crc; // 9 bit CRC
+	flag_t received_ok;
 	uint8_t data[24]; // See DMR AI spec. page. 73.
 	uint8_t data_length;
 } dmrpacket_data_block_t;
@@ -76,9 +78,13 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format);
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed);
-dmrpacket_data_block_t *dmrpacket_data_construct_message_blocks(dmrpacket_data_fragment_t *fragment);
-dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size);
-char *dmrpacket_data_interleave_message(char *msg, uint16_t *interleaved_msg_length);
-char *dmrpacket_data_deinterleave_message(char *msg, uint16_t msg_length);
+dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_fragment_t *fragment, dmrpacket_data_type_t data_type, flag_t confirmed);
+
+void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed,
+	uint8_t *data_blocks_needed, uint8_t *pad_octets);
+dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed);
+
+uint8_t *dmrpacket_data_interleave_data(uint8_t *msg, uint16_t *data_length);
+uint8_t *dmrpacket_data_deinterleave_data(uint8_t *msg, uint16_t data_length);
 
 #endif

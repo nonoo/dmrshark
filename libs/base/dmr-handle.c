@@ -35,11 +35,11 @@
 #include <string.h>
 #include <ctype.h>
 
-void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
+void dmr_handle_voice_call_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
 
-	if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_CALL_RUNNING)
+	if (repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_VOICE_CALL_RUNNING)
 		return;
 
 	voicestreams_process_call_end(repeater->slot[ipscpacket->timeslot-1].voicestream, repeater);
@@ -58,17 +58,17 @@ void dmr_handle_voicecall_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, re
 		repeaters_play_and_free_echo_buf(repeater, ipscpacket->timeslot-1);
 }
 
-void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
+void dmr_handle_voice_call_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
 
-	if (repeater->slot[ipscpacket->timeslot-1].state == REPEATER_SLOT_STATE_CALL_RUNNING)
-		dmr_handle_voicecall_end(ip_packet, ipscpacket, repeater);
+	if (repeater->slot[ipscpacket->timeslot-1].state == REPEATER_SLOT_STATE_VOICE_CALL_RUNNING)
+		dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 
 	console_log(LOGLEVEL_DMR "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_DMR "->%s]: %s call start on ts %u src id %u dst id %u\n",
 		repeaters_get_display_string_for_ip(&ip_packet->ip_dst), dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->timeslot, ipscpacket->src_id, ipscpacket->dst_id);
-	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_CALL_RUNNING);
+	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_VOICE_CALL_RUNNING);
 	repeater->slot[ipscpacket->timeslot-1].call_started_at = time(NULL);
 	repeater->slot[ipscpacket->timeslot-1].call_ended_at = 0;
 	repeater->slot[ipscpacket->timeslot-1].call_type = ipscpacket->call_type;
@@ -90,7 +90,7 @@ void dmr_handle_voicecall_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, 
 	remotedb_update_repeater(repeater);
 }
 
-void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
+void dmr_handle_voice_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	if (repeater == NULL)
 		return;
 
@@ -105,14 +105,6 @@ void dmr_handle_voicecall_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 
 	if (repeater->slot[ts].echo_buf_first_entry != NULL)
 		repeaters_play_and_free_echo_buf(repeater, ts);
-}
-
-void dmr_handle_data_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
-	if (repeater == NULL)
-		return;
-
-	console_log(LOGLEVEL_DMR "dmr [%s]: data timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
-	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
 }
 
 void dmr_handle_voice_lc_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -245,6 +237,41 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	}
 }
 
+void dmr_handle_data_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
+	if (repeater == NULL)
+		return;
+
+	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+		return;
+
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
+	repeater->slot[ts].data_packet_header_valid = 0;
+}
+
+static void dmr_handle_data_call_start(repeater_t *repeater, dmr_timeslot_t ts) {
+	if (repeater == NULL)
+		return;
+
+	if (repeater->slot[ts].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+		return;
+
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_DATA_CALL_RUNNING);
+}
+
+void dmr_handle_data_call_end(repeater_t *repeater, dmr_timeslot_t ts) {
+	if (repeater == NULL)
+		return;
+
+	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+		return;
+
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call ended on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
+	repeater->slot[ts].data_packet_header_valid = 0;
+}
+
 void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
@@ -260,74 +287,234 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 
 	data_packet_header = dmrpacket_data_header_decode(dmrpacket_data_extract_and_repair_bptc_data(&ipscpacket->payload_bits), 0);
-
 	if (data_packet_header == NULL)
 		return;
 
+	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 0;
 	repeater->slot[ipscpacket->timeslot-1].data_blocks_received = 0;
-	memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
-	repeater->slot[ipscpacket->timeslot-1].data_header_received_at = time(NULL);
 
-	if (data_packet_header->common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
-		data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
-		console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
+	switch (data_packet_header->common.data_packet_format) {
+		case DMRPACKET_DATA_HEADER_DPF_UDT:
+			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->udt.appended_blocks;
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
+			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = max(repeater->slot[ipscpacket->timeslot-1].full_message_block_count, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
 
-		switch (data_response_type) {
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK:
-				smstxbuf_first_entry = smstxbuf_get_first_entry();
-				if (smstxbuf_first_entry != NULL &&
-					smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
-					smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
-					((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
-					 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
-					 	console_log(LOGLEVEL_DMR "  got ack for sms tx buffer entry:\n");
-					 	smstxbuf_print_entry(smstxbuf_first_entry);
-					 	smstxbuf_remove_first_entry();
-				}
-				return;
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_PACKET_CRC_FAILED:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_MEMORY_FULL:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_FSN_OUT_OF_SEQ:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_UNDELIVERABLE:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_PKT_OUT_OF_SEQ:
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_DISALLOWED:
-				break;
-			case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
-				// TODO
-				break;
-		}
+			data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
+			console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
+
+			switch (data_response_type) {
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK: // Got a response for a previously sent SMS by us?
+					smstxbuf_first_entry = smstxbuf_get_first_entry();
+					if (smstxbuf_first_entry != NULL) {
+						if (smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
+							smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
+							((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
+							 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
+							 	console_log(LOGLEVEL_DMR "  got ack for sms tx buffer entry:\n");
+							 	smstxbuf_print_entry(smstxbuf_first_entry);
+							 	smstxbuf_remove_first_entry();
+						} else
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+					} else
+						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us, sms tx buffer is empty\n");
+
+					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+					return;
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_PACKET_CRC_FAILED:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_MEMORY_FULL:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_FSN_OUT_OF_SEQ:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_UNDELIVERABLE:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_PKT_OUT_OF_SEQ:
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_DISALLOWED:
+					return;
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
+					if (data_packet_header->common.src_llid == DMRSHARK_DEFAULT_DMR_ID) {
+						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is sent by us, ignoring\n");
+						return;
+					}
+					break;
+			}
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
+			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->unconfirmed_data.blocks_to_follow;
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
+			if (data_packet_header->confirmed_data.full_message) {
+				memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->confirmed_data.blocks_to_follow;
+			}
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->confirmed_data.blocks_to_follow;
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
+			if (data_packet_header->short_data_defined.full_message) {
+				memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_defined.appended_blocks;
+			}
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_defined.appended_blocks;
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_RAW:
+			if (data_packet_header->short_data_raw.full_message) {
+				memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_raw.appended_blocks;
+			}
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_raw.appended_blocks;
+			break;
+		case DMRPACKET_DATA_HEADER_DPF_PROPRIETARY_DATA:
+			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = 0;
+			break;
+		default:
+			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
+			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = 0;
+			return;
 	}
 
+	console_log(LOGLEVEL_DMR "  expecting %u blocks, full message has %u blocks\n", repeater->slot[ipscpacket->timeslot-1].data_blocks_expected,
+		repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
+
 	memcpy(&repeater->slot[ipscpacket->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));
-	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING);
+	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 1;
+	dmr_handle_data_call_start(repeater, ipscpacket->timeslot-1);
 }
 
-static void dmr_handle_data_fragment_assembly_for_short_data_defined(ipscpacket_t *ipscpacket, repeater_t *repeater) {
-	dmrpacket_data_fragment_t *data_fragment = NULL;
-	char *msg = NULL;
+static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmrpacket_data_fragment_t *data_fragment) {
+	uint16_t i;
+	flag_t bits[8];
+	uint8_t j;
+	flag_t *selective_blocks;
+	uint16_t selective_blocks_size;
+	smstxbuf_t *smstxbuf_first_entry;
 
-	// Got all blocks? TODO: selective ack if not all blocks received correctly
-	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks == repeater->slot[ipscpacket->timeslot-1].data_blocks_received) {
-		repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_IDLE);
+	if (repeater == NULL || data_fragment == NULL)
+		return;
 
-		data_fragment = dmrpacket_data_extract_fragment_from_blocks(repeater->slot[ipscpacket->timeslot-1].data_blocks,
-			min(sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0]), repeater->slot[ipscpacket->timeslot-1].data_blocks_received));
+	smstxbuf_first_entry = smstxbuf_get_first_entry();
+	if (smstxbuf_first_entry == NULL) {
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  sms tx buffer is empty, ignoring selective ack\n");
+		return;
+	}
 
-		if (data_fragment != NULL) {
-			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
-				repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
+	// Responding only if we are the sender of the message.
+	if (dstid != smstxbuf_first_entry->src_id || srcid != smstxbuf_first_entry->dst_id) {
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is not for the message we try to send, ignoring (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+		return;
+	}
 
-			msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
-			if (msg == NULL)
-				console_log(LOGLEVEL_DMR "  message decoding failed\n");
-			else {
-				if (!isprint(msg[0]))
-					console_log(LOGLEVEL_DMR "  message is not printable\n");
-				else
-					console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+	console_log(LOGLEVEL_DMR "  replying to selective ack\n");
+
+	selective_blocks_size = data_fragment->bytes_stored-4; // Cutting out the CRC.
+	selective_blocks = (flag_t *)calloc(1, selective_blocks_size);
+	if (selective_blocks == NULL) {
+		console_log("  error: can't allocate memory for selective reply blocks\n");
+		return;
+	}
+
+	// See the bottom of DMR AI spec. page 85. for the format.
+	for (i = 0; i < selective_blocks_size; i++) {
+		base_bytetobits(data_fragment->bytes[i], bits);
+		for (j = 7; j > 0; j--) {
+			if (bits[j] == 0) {
+				console_log(LOGLEVEL_DMRDATA "  adding data block %u to selective reply\n", i*8+(7-j));
+				selective_blocks[i*8+(7-j)] = 1;
 			}
 		}
+	}
+	repeaters_send_sms(repeater, ts, calltype, srcid, dstid, selective_blocks, selective_blocks_size, smstxbuf_first_entry->msg);
+	free(selective_blocks);
+}
+
+static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater_t *repeater) {
+	dmrpacket_data_fragment_t *data_fragment = NULL;
+	char *msg = NULL;
+	uint8_t i;
+	flag_t *selective_blocks;
+	flag_t erroneous_block_found = 0;
+
+	// Checking if there was an erroneous blocks.
+	selective_blocks = (flag_t *)calloc(1, repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
+	if (selective_blocks == NULL) {
+		console_log("  error: can't allocate memory for selective blocks\n");
+		return;
+	}
+	for (i = 0; i < repeater->slot[ipscpacket->timeslot-1].full_message_block_count; i++) {
+		if (!repeater->slot[ipscpacket->timeslot-1].data_blocks[i].received_ok) {
+			selective_blocks[i] = 1;
+			erroneous_block_found = 1;
+		}
+	}
+	if (erroneous_block_found) {
+		repeaters_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
+		free(selective_blocks);
+		return;
+	}
+	free(selective_blocks);
+
+	// Now we have every block with correct CRC. Trying to extract the fragment.
+	data_fragment = dmrpacket_data_extract_fragment_from_blocks(repeater->slot[ipscpacket->timeslot-1].data_blocks,
+		repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
+
+	if (data_fragment != NULL && data_fragment->bytes_stored > 0) {
+		// Response with data blocks? That must be a selective ACK.
+		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE &&
+			dmrpacket_data_header_decode_response(&repeater->slot[ipscpacket->timeslot-1].data_packet_header) == DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK) {
+				dmr_handle_data_selective_ack(repeater, ipscpacket->timeslot-1, ipscpacket->call_type, ipscpacket->dst_id, ipscpacket->src_id, data_fragment);
+				return;
+		}
+
+		// Message is OK, and for us?
+		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
+			ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
+				repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
+		}
+
+		msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
+		if (msg == NULL)
+			console_log(LOGLEVEL_DMR "  message decoding failed\n");
+		else {
+			if (!isprint(msg[0]))
+				console_log(LOGLEVEL_DMR "  message is not printable\n");
+			else
+				console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
+		}
+
+		// If we are not waiting for an ack, then the data session ended.
+		if (!repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
+			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+	} else {
+		// TODO: NAK
+	}
+}
+
+static void dmr_handle_data_received_block(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_block_t *data_block) {
+	if (ipscpacket == NULL || repeater == NULL)
+		return;
+
+	if (data_block != NULL) {
+		if (ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested) {
+			// Only confirmed data blocks have serial numbers stored in them.
+			if (data_block->serialnr < sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0])) {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  storing block with serial nr. #%u\n", data_block->serialnr);
+				memcpy(&repeater->slot[ipscpacket->timeslot-1].data_blocks[data_block->serialnr], data_block, sizeof(dmrpacket_data_block_t));
+			} else
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  not storing block #%u, serial nr. is out of bounds\n", data_block->serialnr);
+		} else {
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  storing block #%u\n", repeater->slot[ipscpacket->timeslot-1].data_blocks_received);
+			memcpy(&repeater->slot[ipscpacket->timeslot-1].data_blocks[repeater->slot[ipscpacket->timeslot-1].data_blocks_received], data_block, sizeof(dmrpacket_data_block_t));
+		}
+	} else
+		memset(&repeater->slot[ipscpacket->timeslot-1].data_blocks[repeater->slot[ipscpacket->timeslot-1].data_blocks_received], 0, sizeof(dmrpacket_data_block_t));
+
+	repeater->slot[ipscpacket->timeslot-1].data_blocks_received++;
+
+	// Got all expected blocks?
+	if (repeater->slot[ipscpacket->timeslot-1].data_blocks_expected == repeater->slot[ipscpacket->timeslot-1].data_blocks_received) {
+		console_log(LOGLEVEL_DMR "  got all %u expected blocks\n", repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
+		dmr_handle_data_fragment_assembly(ipscpacket, repeater);
 	}
 }
 
@@ -341,12 +528,13 @@ void dmr_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_data_block_t *data_block = NULL;
 
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL ||
-		repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING)
-		return;
+		repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING ||
+		!repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid)
+			return;
 
 	console_log(LOGLEVEL_DMR "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_DMR "->%s]: got 3/4 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
-		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
+		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
 
 	console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
@@ -358,18 +546,9 @@ void dmr_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	packet_payload_tribits = dmrpacket_data_34rate_extract_tribits(packet_payload_constellationpoints);
 	data_binary = dmrpacket_data_34rate_extract_binary(packet_payload_tribits);
 	data_block_bytes = dmrpacket_data_convert_binary_to_block_bytes(data_binary);
-	data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested);
+	data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_34_DATA, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested);
 
-	if (data_block) {
-		// Storing the block if serialnr is in bounds.
-		if (data_block->serialnr < sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0]))
-			memcpy(&repeater->slot[ipscpacket->timeslot-1].data_blocks[data_block->serialnr], data_block, sizeof(dmrpacket_data_block_t));
-	}
-	repeater->slot[ipscpacket->timeslot-1].data_blocks_received++;
-
-	// Now we only care about short data packets.
-	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED)
-		dmr_handle_data_fragment_assembly_for_short_data_defined(ipscpacket, repeater);
+	dmr_handle_data_received_block(ipscpacket, repeater, data_block);
 }
 
 void dmr_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -377,27 +556,19 @@ void dmr_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_data_block_t *data_block = NULL;
 
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL ||
-		repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING)
-		return;
+		repeater->slot[ipscpacket->timeslot-1].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING ||
+		!repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid)
+			return;
 
 	console_log(LOGLEVEL_DMR "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
 	console_log(LOGLEVEL_DMR "->%s]: got 1/2 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
-		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.appended_blocks);
+		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
 
 	console_log(LOGLEVEL_DMRLC "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 
 	data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_data_extract_and_repair_bptc_data(&ipscpacket->payload_bits));
-	data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA_CONTINUATION, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested);
+	data_block = dmrpacket_data_decode_block(data_block_bytes, DMRPACKET_DATA_TYPE_RATE_12_DATA, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested);
 
-	if (data_block) {
-		// Storing the block if serialnr is in bounds.
-		if (data_block->serialnr < sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks)/sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks[0]))
-			memcpy(&repeater->slot[ipscpacket->timeslot-1].data_blocks[data_block->serialnr], data_block, sizeof(dmrpacket_data_block_t));
-	}
-	repeater->slot[ipscpacket->timeslot-1].data_blocks_received++;
-
-	// Now we only care about short data packets.
-	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED)
-		dmr_handle_data_fragment_assembly_for_short_data_defined(ipscpacket, repeater);
+	dmr_handle_data_received_block(ipscpacket, repeater, data_block);
 }

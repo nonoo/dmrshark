@@ -21,6 +21,7 @@
 #include "repeaters.h"
 
 #include <libs/base/base.h>
+#include <libs/base/log.h>
 #include <libs/daemon/console.h>
 #include <libs/base/dmr.h>
 #include <libs/coding/crc.h>
@@ -46,8 +47,8 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 		case IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC: return "terminator with lc";
 		case IPSCPACKET_SLOT_TYPE_CSBK: return "csbk"; // Control Signaling Block
 		case IPSCPACKET_SLOT_TYPE_DATA_HEADER: return "data header";
-		case IPSCPACKET_SLOT_TYPE_1_2_RATE_DATA: return "1/2 rate data";
-		case IPSCPACKET_SLOT_TYPE_3_4_RATE_DATA: return "3/4 rate data";
+		case IPSCPACKET_SLOT_TYPE_RATE_12_DATA: return "rate 1/2 data";
+		case IPSCPACKET_SLOT_TYPE_RATE_34_DATA: return "rate 3/4 data";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_A: return "voice data a";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_B: return "voice data b";
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_C: return "voice data c";
@@ -56,6 +57,18 @@ char *ipscpacket_get_readable_slot_type(ipscpacket_slot_type_t slot_type) {
 		case IPSCPACKET_SLOT_TYPE_VOICE_DATA_F: return "voice data f";
 		case IPSCPACKET_SLOT_TYPE_IPSC_SYNC: return "ipsc sync";
 		default: return "unknown";
+	}
+}
+
+ipscpacket_slot_type_t ipscpacket_get_slot_type_for_data_type(dmrpacket_data_type_t data_type) {
+	switch (data_type) {
+		case DMRPACKET_DATA_TYPE_VOICE_LC_HEADER: return IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER;
+		case DMRPACKET_DATA_TYPE_TERMINATOR_WITH_LC: return IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC;
+		case DMRPACKET_DATA_TYPE_CSBK: return IPSCPACKET_SLOT_TYPE_CSBK;
+		case DMRPACKET_DATA_TYPE_DATA_HEADER: return IPSCPACKET_SLOT_TYPE_DATA_HEADER;
+		case DMRPACKET_DATA_TYPE_RATE_12_DATA: return IPSCPACKET_SLOT_TYPE_RATE_12_DATA;
+		case DMRPACKET_DATA_TYPE_RATE_34_DATA: return IPSCPACKET_SLOT_TYPE_RATE_34_DATA;
+		default: return IPSCPACKET_SLOT_TYPE_UNKNOWN;
 	}
 }
 
@@ -82,6 +95,9 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 	int i;
 	loglevel_t loglevel;
 
+	if (ippacket == NULL || udppacket == NULL || ipscpacket == NULL)
+		return 0;
+
 	// Length in UDP header contains length of the UDP header too, so we are substracting it.
 	ipscpacket_raw_length = ntohs(udppacket->len)-sizeof(struct udphdr);
 	if (ipscpacket_raw_length != IPSC_PACKET_SIZE1 && ipscpacket_raw_length != IPSC_PACKET_SIZE2) {
@@ -91,7 +107,11 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 	}
 
 	loglevel = console_get_loglevel();
+
 	if (loglevel.flags.debug && loglevel.flags.ipsc) {
+		if (!loglevel.flags.comm_ip)
+			log_print_separator();
+
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket [%s", repeaters_get_display_string_for_ip(&ippacket->ip_src));
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "->%s]: decoding: ", repeaters_get_display_string_for_ip(&ippacket->ip_dst));
 		for (i = 0; i < ipscpacket_raw_length; i++)
@@ -173,7 +193,7 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 }
 
 flag_t ipscpacket_heartbeat_decode(struct udphdr *udppacket) {
-	uint8_t heartbeat[] = { 0x00, 0x00, 0x00, 0x14 };
+	static uint8_t heartbeat[] = { 0x00, 0x00, 0x00, 0x14 };
 
 	if (udppacket == NULL)
 		return 0;
@@ -345,7 +365,7 @@ ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk) 
 	return &ipscpacket_payload;
 }
 
-ipscpacket_payload_t *ipscpacket_construct_payload_sms_header(dmrpacket_data_header_t *data_header) {
+ipscpacket_payload_t *ipscpacket_construct_payload_data_header(dmrpacket_data_header_t *data_header) {
 	static ipscpacket_payload_t ipscpacket_payload;
 	dmrpacket_payload_info_bits_t *payload_info_bits;
 	dmrpacket_payload_bits_t payload_bits;
@@ -380,8 +400,26 @@ ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_
 	dibits = dmrpacket_data_34rate_construct_deinterleaved_dibits(constellationpoints);
 	payload_info_bits = dmrpacket_data_34rate_construct_payload_info_bits(dmrpacket_data_34rate_interleave_dibits(dibits));
 	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
-	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_34_DATA_CONTINUATION));
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_34_DATA));
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
+	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_12(dmrpacket_data_block_t *data_block) {
+	static ipscpacket_payload_t ipscpacket_payload;
+	dmrpacket_payload_info_bits_t *payload_info_bits;
+	dmrpacket_payload_bits_t payload_bits;
+	bptc_196_96_data_bits_t data_bits;
+
+	memset(data_bits.bits, 0, sizeof(bptc_196_96_data_bits_t));
+	base_bytestobits(data_block->data, data_block->data_length, data_bits.bits, sizeof(bptc_196_96_data_bits_t));
+	payload_info_bits = dmrpacket_data_bptc_interleave(bptc_196_96_generate(&data_bits));
+	dmrpacket_insert_info_bits(&payload_bits, payload_info_bits);
+	dmrpacket_slot_type_insert_bits(&payload_bits, dmrpacket_slot_type_construct_bits(1, DMRPACKET_DATA_TYPE_RATE_12_DATA));
+	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
+	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
 
 	return &ipscpacket_payload;

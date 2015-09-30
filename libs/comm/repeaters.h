@@ -30,8 +30,8 @@
 #include <time.h>
 
 #define REPEATER_SLOT_STATE_IDLE					0
-#define REPEATER_SLOT_STATE_CALL_RUNNING			1
-#define REPEATER_SLOT_STATE_DATA_RECEIVE_RUNNING	2
+#define REPEATER_SLOT_STATE_VOICE_CALL_RUNNING		1
+#define REPEATER_SLOT_STATE_DATA_CALL_RUNNING		2
 typedef uint8_t repeater_slot_state_t;
 
 typedef struct repeater_echo_buf_st {
@@ -44,16 +44,18 @@ typedef struct {
 	repeater_slot_state_t state;
 	int rssi;
 	int avg_rssi;
+	time_t last_call_or_data_packet_received_at;
 	time_t call_started_at;
-	time_t last_packet_received_at;
 	time_t call_ended_at;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
 	dmrpacket_data_header_t data_packet_header;
+	flag_t data_packet_header_valid;
 	dmrpacket_data_block_t data_blocks[64];
-	int data_blocks_received;
-	time_t data_header_received_at;
+	uint8_t data_blocks_received;
+	uint8_t data_blocks_expected;
+	uint8_t full_message_block_count;
 	voicestream_t *voicestream;
 	uint8_t ipsc_last_received_seqnum;
 
@@ -119,8 +121,9 @@ void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket);
 
+void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size);
 void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts);
-void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
+void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg);
 void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 
 void repeaters_process(void);

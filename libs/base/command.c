@@ -441,7 +441,7 @@ void command_process(char *input_buffer) {
 		tok = strtok(NULL, "\n");
 
 		console_log("sending sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
-		repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, tok);
+		repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
 		return;
 	}
 
@@ -473,7 +473,7 @@ void command_process(char *input_buffer) {
 
 	// TODO: remove
 	if (strcmp(tok, "s") == 0) {
-		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "BEER");
+		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "hetfon megkapod a kest");
 		return;
 	}
 

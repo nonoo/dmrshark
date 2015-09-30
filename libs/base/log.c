@@ -117,3 +117,7 @@ void log_cmdinvalidparam(void) {
 void log_daemon_initconsoleserverfailed(void) {
 	console_log("daemon error: failed to initialize console server\n");
 }
+
+void log_print_separator(void) {
+	console_log("\n\n\n");
+}
