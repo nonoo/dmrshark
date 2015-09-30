@@ -40,7 +40,7 @@ static char *dmrpacket_data_header_get_readable_dpf(dmrpacket_data_header_dpf_t 
 	}
 }
 
-static char *dmrpacket_data_header_get_readable_sap(dmrpacket_data_header_sap_t sap) {
+char *dmrpacket_data_header_get_readable_sap(dmrpacket_data_header_sap_t sap) {
 	switch (sap) {
 		case DMRPACKET_DATA_HEADER_SAP_UDT: return "udt";
 		case DMRPACKET_DATA_HEADER_SAP_TCPIP_HEADER_COMPRESSION: return "tcp/ip header compression";

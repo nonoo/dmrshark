@@ -75,14 +75,14 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_payload_bptc_data_bits_to_b
 
 dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t *bytes, dmrpacket_data_type_t data_type, flag_t confirmed);
 dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket_data_block_t *blocks, uint8_t blocks_count);
-char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format);
+char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, dmrpacket_data_header_dd_format_t dd_format);
 
 dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_data_block_t *data_block, flag_t confirmed);
 dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_fragment_t *fragment, dmrpacket_data_type_t data_type, flag_t confirmed);
 
 dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed);
 
-uint8_t *dmrpacket_data_interleave_data(uint8_t *msg, uint16_t *data_length);
+uint8_t *dmrpacket_data_interleave_data(uint8_t *msg, uint16_t *data_length, uint8_t prepad_bytes);
 uint8_t *dmrpacket_data_deinterleave_data(uint8_t *msg, uint16_t data_length);
 
 #endif

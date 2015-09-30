@@ -285,7 +285,7 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 	}
 }
 
-char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_data_header_dd_format_t dd_format) {
+char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, dmrpacket_data_header_dd_format_t dd_format) {
 	iconv_t iconv_handle;
 	int result;
 	size_t insize = 0;
@@ -295,7 +295,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 	size_t outsize = sizeof(outbuf);
 	char *outptr = outbuf;
 
-	if (fragment == NULL)
+	if (data == NULL || data_length == 0)
 		return NULL;
 
 	memset(outbuf, 0, sizeof(outbuf));
@@ -303,7 +303,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 
 	switch (dd_format) {
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
-			deinterleaved_msg = (char *)dmrpacket_data_deinterleave_data(fragment->bytes, fragment->bytes_stored-4); // Leaving out the last 4 CRC bytes.
+			deinterleaved_msg = (char *)dmrpacket_data_deinterleave_data(data, data_length);
 			break;
 		default:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
@@ -344,13 +344,13 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		}
 
 
-		insize = fragment->bytes_stored-4; // Leaving out the last 4 CRC bytes.
+		insize = data_length;
 		inptr = deinterleaved_msg;
 		result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
 		iconv_close(iconv_handle);
 		if (result < 0) {
 			console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			memcpy(outbuf, fragment->bytes, fragment->bytes_stored-4); // Leaving out the last 4 CRC bytes.
+			memcpy(outbuf, data, data_length);
 		}
 	} else {
 		strncpy(outbuf, deinterleaved_msg, sizeof(outbuf));
@@ -481,11 +481,11 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 	return &fragment;
 }
 
-// Converts the data to the following Hytera format: the first two bytes are zeroes,
+// Converts the data to the following format: the first prepad_bytes bytes are zeroes,
 // then it places a zero after every char. The returned memory area must be freed later.
 // data_length must be set to the data length prior to function call.
 // Size of the interleaved message without the closing 0 is returned in *data_length.
-uint8_t *dmrpacket_data_interleave_data(uint8_t *data, uint16_t *data_length) {
+uint8_t *dmrpacket_data_interleave_data(uint8_t *data, uint16_t *data_length, uint8_t prepad_bytes) {
 	uint8_t *new_data;
 	uint16_t new_data_length;
 	uint16_t i;
@@ -493,7 +493,7 @@ uint8_t *dmrpacket_data_interleave_data(uint8_t *data, uint16_t *data_length) {
 	if (data == NULL || data_length == NULL)
 		return NULL;
 
-	new_data_length = min(2+(*data_length)*2, DMRPACKET_MAX_FRAGMENTSIZE);
+	new_data_length = min(prepad_bytes+(*data_length)*2, DMRPACKET_MAX_FRAGMENTSIZE);
 	new_data = (uint8_t *)calloc(1, new_data_length);
 	if (new_data == NULL) {
 		console_log("dmrpacket data error: can't allocate memory for interleaving data\n");
@@ -501,13 +501,15 @@ uint8_t *dmrpacket_data_interleave_data(uint8_t *data, uint16_t *data_length) {
 	}
 
 	for (i = 0; i < *data_length; i++)
-		new_data[2+i*2] = data[i];
+		new_data[prepad_bytes+i*2] = data[i];
 
 	*data_length = new_data_length;
 
 	return new_data;
 }
 
+// Keeps every second byte of the given data and returns it.
+// The returned memory area must be freed after use.
 uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
 	uint8_t *new_data;
 	uint16_t new_data_len;
@@ -516,7 +518,7 @@ uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
 	if (data == NULL || data_length == 0)
 		return NULL;
 
-	new_data_len = ceil((data_length-2)/2.0);
+	new_data_len = ceil(data_length/2.0)+1; // +1 for the closing zero.
 	new_data = (uint8_t *)calloc(1, new_data_len);
 	if (new_data == NULL) {
 		console_log("dmrpacket data error: can't allocate memory for deinterleaving data\n");
@@ -524,6 +526,7 @@ uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
 	}
 
 	for (i = 0; i < new_data_len; i++)
-		new_data[i] = data[2+i*2];
+		new_data[i] = data[i*2];
+
 	return new_data;
 }

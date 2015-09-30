@@ -613,7 +613,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
 	interleaved_msg_length = strlen(msg);
-	interleaved_msg = (char *)dmrpacket_data_interleave_data((uint8_t *)msg, &interleaved_msg_length);
+	interleaved_msg = (char *)dmrpacket_data_interleave_data((uint8_t *)msg, &interleaved_msg_length, 2);
 	if (interleaved_msg == NULL)
 		return;
 	fragment = dmrpacket_data_construct_fragment((uint8_t *)interleaved_msg, interleaved_msg_length, data_type, confirmed);

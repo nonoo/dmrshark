@@ -30,6 +30,7 @@
 #include <libs/dmrpacket/dmrpacket-emb.h>
 #include <libs/coding/trellis.h>
 #include <libs/base/base.h>
+#include <libs/comm/comm.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -437,9 +438,93 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 	free(selective_blocks);
 }
 
+static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
+	struct ip *ip_packet;
+	struct udphdr *udp_packet;
+	uint8_t *message_data = NULL;
+	uint16_t message_data_length = 0;
+	dmrpacket_data_header_dd_format_t dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
+	char *decoded_message = NULL;
+
+	// Message is OK, and for us?
+	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
+		ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
+			repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
+	}
+
+	switch (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point) {
+		case DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA:
+			ip_packet = (struct ip *)data_fragment->bytes;
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  received ip based packet data\n");
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    version: %u\n", ip_packet->ip_v);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    length: %u\n", ntohs(ip_packet->ip_len));
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    header length: %u\n", ip_packet->ip_hl*4);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    ttl: %u\n", ip_packet->ip_ttl);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    proto: %u\n", ip_packet->ip_p);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    checksum: 0x%.4x (", ip_packet->ip_sum);
+			if (comm_calcipheaderchecksum(ip_packet) == ip_packet->ip_sum)
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "ok)\n");
+			else {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "error, dropping packet)\n");
+				return;
+			}
+
+			switch (ip_packet->ip_p) {
+				case IPPROTO_UDP:
+					udp_packet = (struct udphdr *)(data_fragment->bytes+ip_packet->ip_hl*4);
+					console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    got udp packet\n");
+					console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      dst port: %u\n", ntohs(udp_packet->dest));
+					console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      src port: %u\n", ntohs(udp_packet->source));
+					console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      length: %u\n", ntohs(udp_packet->len));
+					console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      checksum: 0x%.4x (", ntohs(udp_packet->check));
+					if (comm_calcudpchecksum(ip_packet, udp_packet) == udp_packet->check)
+						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "ok)\n");
+					else {
+						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "error, dropping packet)\n");
+						return;
+					}
+
+					switch (ntohs(udp_packet->dest)) {
+						case 4007: // Motorola SMS UDP port.
+							// The message has a 10 byte header.
+							message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
+							message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
+							break;
+						default:
+							console_log(LOGLEVEL_DMR "    unhandled udp dst port %u\n", ntohs(udp_packet->dest));
+					}
+					break;
+				default:
+					console_log(LOGLEVEL_DMR "    unhandled ip proto %u\n", ip_packet->ip_p);
+					return;
+			}
+			break;
+		case DMRPACKET_DATA_HEADER_SAP_SHORT_DATA:
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  received short data\n");
+			message_data = data_fragment->bytes+2; // Hytera has a 2 byte pre-padding.
+			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
+			dd_format = repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format;
+			break;
+		default:
+			console_log(LOGLEVEL_DMR "  unhandled service access point: %s\n", dmrpacket_data_header_get_readable_sap(repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point));
+			return;
+	}
+
+	decoded_message = dmrpacket_data_convertmsg(message_data, message_data_length, dd_format);
+	if (decoded_message == NULL)
+		console_log(LOGLEVEL_DMR "  message decoding failed\n");
+	else {
+		if (!isprint(decoded_message[0]))
+			console_log(LOGLEVEL_DMR "  message is not printable\n");
+		else
+			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
+	}
+}
+
 static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	dmrpacket_data_fragment_t *data_fragment = NULL;
-	char *msg = NULL;
 	uint8_t i;
 	flag_t *selective_blocks;
 	flag_t erroneous_block_found = 0;
@@ -480,21 +565,7 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 				return;
 		}
 
-		// Message is OK, and for us?
-		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
-			ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
-				repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1);
-		}
-
-		msg = dmrpacket_data_convertmsg(data_fragment, repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format);
-		if (msg == NULL)
-			console_log(LOGLEVEL_DMR "  message decoding failed\n");
-		else {
-			if (!isprint(msg[0]))
-				console_log(LOGLEVEL_DMR "  message is not printable\n");
-			else
-				console_log(LOGLEVEL_DMR "  decoded sms: %s\n", msg); // TODO: upload decoded message to remotedb
-		}
+		dmr_handle_received_complete_fragment(ipscpacket, repeater, data_fragment);
 
 		// If we are not waiting for an ack, then the data session ended.
 		if (!repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
