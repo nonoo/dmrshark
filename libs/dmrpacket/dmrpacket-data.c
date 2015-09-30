@@ -425,8 +425,8 @@ dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_frag
 }
 
 // See DMR AI spec. page. 73. for block sizes.
-void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed,
-	uint8_t *data_blocks_needed, uint8_t *pad_octets) {
+static void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed,
+	uint8_t *data_blocks_needed) {
 
 	uint8_t block_size = dmrpacket_data_get_block_size(data_type, confirmed);
 
@@ -435,13 +435,11 @@ void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket
 	// Checking if there's no space left in the last data block for the fragment CRC.
 	if ((*data_blocks_needed)*block_size-data_bytes_count < 4)
 		(*data_blocks_needed)++;
-
-	*pad_octets = ((*data_blocks_needed)*block_size-4)-data_bytes_count; // -4 - fragment CRC
 }
 
 dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed) {
 	static dmrpacket_data_fragment_t fragment;
-	uint8_t pad_octets;
+	uint8_t block_size;
 	uint16_t i;
 	loglevel_t loglevel = console_get_loglevel();
 
@@ -453,9 +451,9 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 	memcpy(fragment.bytes, data, fragment.bytes_stored);
 
 	// TODO: pad_octetset kivaltani, elvileg mindig a fragment vegen a CRC, igy ki lehet szamolni, hogy hova kell rakni a CRC-t.
-	dmrpacket_data_get_needed_blocks_count(fragment.bytes_stored, data_type, confirmed, &fragment.data_blocks_needed, &pad_octets);
-
-	for (i = 0; i < fragment.bytes_stored+pad_octets; i += 2) {
+	dmrpacket_data_get_needed_blocks_count(fragment.bytes_stored, data_type, confirmed, &fragment.data_blocks_needed);
+	block_size = dmrpacket_data_get_block_size(data_type, confirmed);
+	for (i = 0; i < fragment.data_blocks_needed*block_size-4; i += 2) {
 		if (i+1 < fragment.bytes_stored)
 			crc_calc_crc32(&fragment.crc, fragment.bytes[i+1]);
 		else
@@ -468,9 +466,9 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 	crc_calc_crc32_finish(&fragment.crc);
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  message length: %u bytes, fragment crc: %.8x, needed blocks: %u, pad octets: %u\n",
-			fragment.bytes_stored, fragment.crc, fragment.data_blocks_needed, pad_octets);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  message bytes: ");
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data length: %u bytes, fragment crc: %.8x, needed blocks: %u, total data length: %u\n",
+			fragment.bytes_stored, fragment.crc, fragment.data_blocks_needed, fragment.data_blocks_needed*block_size);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data bytes: ");
 		for (i = 0; i < fragment.bytes_stored; i++)
 			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment.bytes[i]);
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " %.8x\n", fragment.crc);
