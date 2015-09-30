@@ -621,7 +621,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	// If which blocks to send is set. Used for selective ACK reply.
 	if (selective_blocks != NULL && selective_blocks_size > 0) {
-		console_log(LOGLEVEL_REPEATERS "  selective blocks: ");
+		console_log(LOGLEVEL_REPEATERS "  sending only selective blocks: ");
 		for (i = 0; i < selective_blocks_size; i++) {
 			if (selective_blocks[i]) {
 				console_log(LOGLEVEL_REPEATERS "%u ", i);
@@ -630,7 +630,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 		}
 		console_log(LOGLEVEL_REPEATERS "\n");
 	} else {
-		console_log(LOGLEVEL_REPEATERS "  sending all blocks\n");
+		console_log(LOGLEVEL_REPEATERS "  sending full message (all blocks)\n");
 		data_blocks_needed = fragment->data_blocks_needed;
 	}
 
@@ -666,12 +666,14 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	// Sending CSBK preambles.
 	for (i = 0; i < number_of_csbk_preambles_to_send; i++) {
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending csbk #%u/%u\n", i, number_of_csbk_preambles_to_send);
 		csbk.data.preamble.csbk_blocks_to_follow--;
 		ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK, calltype, dstid, srcid, ipscpacket_payload)), 0);
 	}
 
 	// Sending data header.
+	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending data header\n");
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
 	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, calltype, dstid, srcid, ipscpacket_payload)), 0);
 
@@ -680,6 +682,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 		// Sending this block if no selective blocks given, or they are given and this block is in the list
 		// of blocks need to be sent.
 		if (selective_blocks == NULL || (selective_blocks != NULL && i < selective_blocks_size && selective_blocks[i])) {
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending block #%u\n", i);
 			switch (data_type) {
 				default:
 				case DMRPACKET_DATA_TYPE_RATE_34_DATA: ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_34(&data_blocks[i]); break;
