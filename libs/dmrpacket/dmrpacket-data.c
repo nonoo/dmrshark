@@ -248,8 +248,8 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 			}
 		} else {
 			if (data.bytes_stored+blocks[i].data_length-4 < sizeof(data.bytes)) {
-				memcpy(&data.bytes[data.bytes_stored], blocks[i].data, blocks[i].data_length - 4); // Leaving out the last 4 CRC bytes.
-				data.bytes_stored += blocks[i].data_length - 4;
+				memcpy(&data.bytes[data.bytes_stored], blocks[i].data, blocks[i].data_length);
+				data.bytes_stored += blocks[i].data_length;
 			}
 			data.crc =	blocks[i].data[blocks[i].data_length-1] << 24 |
 						blocks[i].data[blocks[i].data_length-2] << 16 |
@@ -260,12 +260,16 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 
 	if (loglevel.flags.dmrdata) {
 		console_log(LOGLEVEL_DMRDATA "  data (len. %u): ", data.bytes_stored);
-		for (i = 0; i < data.bytes_stored; i++)
+		for (i = 0; i < data.bytes_stored-4; i++)
+			console_log(LOGLEVEL_DMRDATA "%.2x", data.bytes[i]);
+		// Printing the CRC separated.
+		console_log(LOGLEVEL_DMRDATA " ");
+		for (; i < data.bytes_stored; i++)
 			console_log(LOGLEVEL_DMRDATA "%.2x", data.bytes[i]);
 		console_log(LOGLEVEL_DMRDATA "\n");
 	}
 
-	for (i = 0; i < data.bytes_stored; i += 2) {
+	for (i = 0; i < data.bytes_stored-4; i += 2) {
 		crc_calc_crc32(&crcval, data.bytes[i+1]);
 		crc_calc_crc32(&crcval, data.bytes[i]);
 	}
@@ -299,7 +303,7 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 
 	switch (dd_format) {
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
-			deinterleaved_msg = (char *)dmrpacket_data_deinterleave_data(fragment->bytes, fragment->bytes_stored);
+			deinterleaved_msg = (char *)dmrpacket_data_deinterleave_data(fragment->bytes, fragment->bytes_stored-4); // Leaving out the last 4 CRC bytes.
 			break;
 		default:
 		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
@@ -340,13 +344,13 @@ char *dmrpacket_data_convertmsg(dmrpacket_data_fragment_t *fragment, dmrpacket_d
 		}
 
 
-		insize = fragment->bytes_stored;
+		insize = fragment->bytes_stored-4; // Leaving out the last 4 CRC bytes.
 		inptr = deinterleaved_msg;
 		result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
 		iconv_close(iconv_handle);
 		if (result < 0) {
 			console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			memcpy(outbuf, fragment->bytes, fragment->bytes_stored);
+			memcpy(outbuf, fragment->bytes, fragment->bytes_stored-4); // Leaving out the last 4 CRC bytes.
 		}
 	} else {
 		strncpy(outbuf, deinterleaved_msg, sizeof(outbuf));
