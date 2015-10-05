@@ -574,7 +574,7 @@ static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr
 struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum) {
 	static uint8_t ack_payload[] = { 0x00, 0x03, 0xbf, 0x00, 0x00 };
 
-	ack_payload[4] = rx_seqnum & 0b01111111;
+	ack_payload[4] = rx_seqnum & 0b11111;
 	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, ack_payload, sizeof(ack_payload));
 }
 
@@ -603,7 +603,7 @@ struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid
 	tms_packet_length = sizeof(struct udphdr)+msg_length*2;
 	payload[0] = (tms_packet_length >> 8) & 0xff;
 	payload[1] = tms_packet_length & 0xff;
-	payload[4] = tx_seqnum | 0b10000000;
+	payload[4] = (tx_seqnum & 0b11111) | 0b10000000;
 	for (i = 0; i < msg_length; i++)
 		payload[sizeof(motorola_header)+i*2] = msg[i];
 
