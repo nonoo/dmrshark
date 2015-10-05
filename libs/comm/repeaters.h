@@ -56,7 +56,8 @@ typedef struct {
 	uint8_t data_blocks_received;
 	uint8_t data_blocks_expected;
 	uint8_t full_message_block_count;
-	dmrpacket_data_header_sendseqnum_t rx_seqnum;
+	dmrpacket_data_header_seqnum_t rx_seqnum;
+	dmrpacket_data_header_seqnum_t tx_seqnum;
 	uint8_t selective_ack_requests_sent;
 	voicestream_t *voicestream;
 	uint8_t ipsc_last_received_seqnum;
@@ -127,6 +128,7 @@ void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t
 void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap, dmrpacket_data_header_status_t status);
 void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg);
 void repeaters_send_motorola_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg);
+void repeaters_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, uint8_t rx_seqnum);
 void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 void repeaters_send_ip_packet(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, struct iphdr *ip_packet);
 

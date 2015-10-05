@@ -202,7 +202,11 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 			header.confirmed_data.resync = ((data_bytes[9] & 0b10000000) > 0);
 			console_log(LOGLEVEL_DMRDATA "  resync: %u\n", header.confirmed_data.resync);
 			header.confirmed_data.fragmentseqnum = data_bytes[9] & 0b1111;
-			console_log(LOGLEVEL_DMRDATA "  fragment seqnum: %u\n", header.confirmed_data.fragmentseqnum);
+			console_log(LOGLEVEL_DMRDATA "  fragment seqnum: ");
+			if (header.confirmed_data.fragmentseqnum & 0b1000)
+				console_log(LOGLEVEL_DMRDATA "last fragment (%u)\n", header.confirmed_data.fragmentseqnum);
+			else
+				console_log(LOGLEVEL_DMRDATA "%u\n", header.confirmed_data.fragmentseqnum);
 			header.confirmed_data.sendseqnum = (data_bytes[9] & 0b01110000) >> 4;
 			console_log(LOGLEVEL_DMRDATA "  send seqnum: %u\n", header.confirmed_data.sendseqnum);
 			break;
@@ -336,7 +340,7 @@ bptc_196_96_data_bits_t *dmrpacket_data_header_construct(dmrpacket_data_header_t
 				break;
 			case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
 				data_bytes[0] |=	(header->confirmed_data.pad_octet_count & 0b10000) << 4;
-				data_bytes[2] |=	(header->confirmed_data.pad_octet_count & 0b01111);
+				data_bytes[1] |=	(header->confirmed_data.pad_octet_count & 0b01111);
 				data_bytes[8] |=	(header->confirmed_data.full_message > 0) << 7 |
 									(header->confirmed_data.blocks_to_follow & 0b01111111);
 				data_bytes[9] |=	(header->confirmed_data.fragmentseqnum & 0b1111) |

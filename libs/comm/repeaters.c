@@ -674,6 +674,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	// Sending data header.
 	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending data header\n");
+	data_header.common.dst_llid = dstid;
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
 	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, calltype, dstid, srcid, ipscpacket_payload)), 0);
 
@@ -703,7 +704,20 @@ void repeaters_send_motorola_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_ca
 
 	console_log("repeaters [%s]: sending %s motorola sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
-	payload = dmrpacket_construct_payload_motorola_sms(msg);
+	payload = dmrpacket_construct_payload_motorola_sms(msg, dstid, srcid, calltype, repeater->slot[ts].tx_seqnum);
+	repeaters_send_ip_packet(repeater, ts, calltype, dstid, srcid, selective_blocks, selective_blocks_size, payload);
+	free(payload);
+}
+
+void repeaters_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, uint8_t rx_seqnum) {
+	struct iphdr *payload;
+
+	if (repeater == NULL)
+		return;
+
+	console_log("repeaters [%s]: sending %s motorola tms ack to %u on ts%u for rx seqnum 0x%.2x\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, rx_seqnum);
+
+	payload = dmrpacket_construct_payload_motorola_tms_ack(dstid, srcid, calltype, rx_seqnum);
 	repeaters_send_ip_packet(repeater, ts, calltype, dstid, srcid, selective_blocks, selective_blocks_size, payload);
 	free(payload);
 }
@@ -711,7 +725,7 @@ void repeaters_send_motorola_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_ca
 void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	repeater_t *repeater = repeaters;
 // TODO: remove
-repeaters_send_motorola_sms(repeaters_findbycallsign("hg5ruc"), 1, calltype, dstid, srcid, NULL, 0, msg);
+repeaters_send_motorola_sms(repeaters_findbycallsign("hg5ruc"), 0, calltype, dstid, srcid, NULL, 0, msg);
 return;
 	while (repeater) {
 		repeaters_send_sms(repeater, 0, calltype, dstid, srcid, NULL, 0, msg);
@@ -769,12 +783,14 @@ void repeaters_send_ip_packet(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_
 	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA;
 	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA;
 
-	data_header.confirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_type, confirmed)-ntohs(ip_packet->tot_len);
+	data_header.confirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_type, confirmed)-fragment->bytes_stored-4;
 	data_header.confirmed_data.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
 	data_header.confirmed_data.blocks_to_follow = data_blocks_needed;
-	data_header.confirmed_data.fragmentseqnum = 0;
+	data_header.confirmed_data.fragmentseqnum = 0b1000; // Indicating last fragment (see DMR AI spec. page 74.)
 	data_header.confirmed_data.resync = 0;
-	data_header.confirmed_data.sendseqnum = 0;
+	if (selective_blocks == NULL)
+		repeater->slot[ts].tx_seqnum++;
+	data_header.confirmed_data.sendseqnum = repeater->slot[ts].tx_seqnum % 8;
 
 	// Constructing the CSBK preamble.
 	csbk.last_block = 1;

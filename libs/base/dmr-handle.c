@@ -454,6 +454,10 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	uint16_t message_data_length = 0;
 	dmrpacket_data_header_dd_format_t dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
 	char *decoded_message = NULL;
+	uint8_t i;
+	uint8_t *tms_msg_payload;
+	uint16_t tms_msg_length;
+	uint32_t ipaddr;
 
 	// Message is OK, and for us?
 	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
@@ -466,8 +470,22 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			ip_packet = (struct ip *)data_fragment->bytes;
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  received ip based packet data\n");
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    version: %u\n", ip_packet->ip_v);
-			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    dst: %s\n", comm_get_ip_str(&ip_packet->ip_dst));
-			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    src: %s\n", comm_get_ip_str(&ip_packet->ip_src));
+			ipaddr = ntohl(ip_packet->ip_dst.s_addr);
+			if (ipaddr & (0b11100000 << 24)) {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    dst: %s (class d network id: %u (0x%.2x) dmr id: %u)\n", comm_get_ip_str(&ip_packet->ip_dst),
+					(ipaddr & 0x0f000000) >> 24, (ipaddr & 0xff000000) >> 24, (ipaddr & 0xffffff));
+			} else {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    dst: %s (class a network id: %u (0x%.2x) dmr id: %u)\n", comm_get_ip_str(&ip_packet->ip_dst),
+					(ipaddr & 0x7f000000) >> 24, (ipaddr & 0xff000000) >> 24, (ipaddr & 0xffffff));
+			}
+			ipaddr = ntohl(ip_packet->ip_src.s_addr);
+			if (ipaddr & (0b11100000 << 24)) {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    src: %s (class d network id: %u (0x%.2x) dmr id: %u)\n", comm_get_ip_str(&ip_packet->ip_src),
+					(ipaddr & 0x0f000000) >> 24, (ipaddr & 0xff000000) >> 24, (ipaddr & 0xffffff));
+			} else {
+				console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    src: %s (class a network id: %u (0x%.2x) dmr id: %u)\n", comm_get_ip_str(&ip_packet->ip_src),
+					(ipaddr & 0x7f000000) >> 24, (ipaddr & 0xff000000) >> 24, (ipaddr & 0xffffff));
+			}
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    length: %u\n", ntohs(ip_packet->ip_len));
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    header length: %u\n", ip_packet->ip_hl*4);
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    ttl: %u\n", ip_packet->ip_ttl);
@@ -497,13 +515,28 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 					switch (ntohs(udp_packet->dest)) {
 						case 4007: // Motorola SMS UDP port.
-							if (ntohs(udp_packet->len) <= sizeof(struct udphdr)+10) {
-								console_log(LOGLEVEL_DMR "    not enough data in udp payload\n");
-								return;
-							}
 							// The message has a 10 byte header.
-							message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
-							message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      motorola tms header: ");
+							tms_msg_length = ntohs(udp_packet->len)-sizeof(struct udphdr);
+							tms_msg_payload = (uint8_t *)(udp_packet)+sizeof(struct udphdr);
+							for (i = 0; i < min(10, tms_msg_length); i += 2) {
+								console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "%.2x", *(tms_msg_payload+i));
+								if (i+1 < min(10, tms_msg_length))
+									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "%.2x", *(tms_msg_payload+i+1));
+							}
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "\n");
+
+							if (tms_msg_payload[0] == 0x00 && tms_msg_payload[1] == 0x03 && tms_msg_payload[2] == 0xbf)
+								console_log(LOGLEVEL_DMR "      got a motorola tms ack\n");
+
+							if (tms_msg_length > 10) {
+								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
+								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
+
+								if (ipscpacket->call_type == DMR_CALL_TYPE_PRIVATE)
+									repeaters_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, ipscpacket->call_type, ipscpacket->src_id, ipscpacket->dst_id, NULL, 0, tms_msg_payload[4] & 0b01111111);
+							} else
+								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
 							break;
 						default:
 							console_log(LOGLEVEL_DMR "    unhandled udp dst port %u\n", ntohs(udp_packet->dest));

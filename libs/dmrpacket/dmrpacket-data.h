@@ -21,6 +21,7 @@
 #include "dmrpacket-data-header.h"
 
 #include <libs/base/types.h>
+#include <libs/base/dmr.h>
 
 #include <iconv.h>
 #include <errno.h>
@@ -86,7 +87,7 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 uint8_t *dmrpacket_data_interleave_data(uint8_t *msg, uint16_t *data_length, uint8_t prepad_bytes);
 uint8_t *dmrpacket_data_deinterleave_data(uint8_t *msg, uint16_t data_length);
 
-struct iphdr *dmrpacket_data_construct_motorola_ack_payload(void);
-struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg);
+struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum);
+struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum);
 
 #endif

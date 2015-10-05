@@ -525,7 +525,7 @@ void command_process(char *input_buffer) {
 
 	// TODO: remove
 	if (strcmp(tok, "s") == 0) {
-		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "hetfon megkapod a kest");
+		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "BEER");
 		return;
 	}
 

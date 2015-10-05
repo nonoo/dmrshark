@@ -91,7 +91,7 @@ typedef uint8_t dmrpacket_data_header_udt_format_t;
 typedef uint32_t dmrpacket_data_header_llid_t;
 typedef uint8_t dmrpacket_data_header_bf_t;
 typedef uint8_t dmrpacket_data_header_poc_t;
-typedef uint8_t dmrpacket_data_header_sendseqnum_t;
+typedef uint8_t dmrpacket_data_header_seqnum_t;
 typedef uint8_t dmrpacket_data_header_fragmentseqnum_t;
 typedef uint8_t dmrpacket_data_header_class_t;
 typedef uint8_t dmrpacket_data_header_type_t;
@@ -130,7 +130,7 @@ typedef struct {
 		dmrpacket_data_header_bf_t blocks_to_follow;
 		dmrpacket_data_header_fragmentseqnum_t fragmentseqnum;
 		flag_t resync;
-		dmrpacket_data_header_sendseqnum_t sendseqnum;
+		dmrpacket_data_header_seqnum_t sendseqnum;
 	} confirmed_data;
 	struct {
 		dmrpacket_data_header_bf_t blocks_to_follow;

@@ -88,12 +88,12 @@ dmrpacket_payload_info_bits_t *dmrpacket_data_bptc_interleave(dmrpacket_payload_
 dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpacket_data_binary_t *binary) {
 	static dmrpacket_data_block_bytes_t bytes;
 	uint8_t i;
-	loglevel_t loglevel = console_get_loglevel();
+	//loglevel_t loglevel = console_get_loglevel();
 
 	if (binary == NULL)
 		return NULL;
 
-	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+	/*if (loglevel.flags.dmrdata && loglevel.flags.debug) {
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: converting binary data to bytes\n");
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  input: ");
 		for (i = 0; i < sizeof(binary->bits); i++) {
@@ -102,17 +102,17 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_convert_binary_to_block_bytes(dmrpa
 			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u", binary->bits[i]);
 		}
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
-	}
+	}*/
 
 	for (i = 0; i < sizeof(binary->bits)/8; i++)
 		bytes.bytes[i] = base_bitstobyte(&binary->bits[i*8]);
 
-	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+	/*if (loglevel.flags.dmrdata && loglevel.flags.debug) {
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  output: ");
 		for (i = 0; i < sizeof(binary->bits)/8; i++)
 			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x ", bytes.bytes[i]);
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
-	}
+	}*/
 
 	return &bytes;
 }
@@ -531,8 +531,8 @@ uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
 	return new_data;
 }
 
-// Constructs a Motorola TMS UDP packet. Returned memory area must be freed after use.
-static struct iphdr *dmrpacket_construct_payload_motorola_ip_packet(uint8_t *payload, uint16_t payload_size) {
+// Constructs a DMR-compatible IP/UDP packet. Returned memory area must be freed after use.
+static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t *payload, uint16_t payload_size) {
 	uint8_t *ip_packet_bytes;
 	struct iphdr *ip_packet;
 	struct udphdr *udp_packet;
@@ -542,24 +542,27 @@ static struct iphdr *dmrpacket_construct_payload_motorola_ip_packet(uint8_t *pay
 
 	ip_packet_bytes = (uint8_t *)calloc(1, sizeof(struct iphdr)+sizeof(struct udphdr)+payload_size);
 	if (ip_packet_bytes == NULL) {
-		console_log("  error: can't allocate memory for motorola ip packet bytes\n");
+		console_log("  error: can't allocate memory for ip packet bytes\n");
 		return NULL;
 	}
 
 	ip_packet = (struct iphdr *)ip_packet_bytes;
 	udp_packet = (struct udphdr *)(ip_packet_bytes+20);
 
-	comm_hostname_to_ip("12.33.16.221", (struct in_addr *)&ip_packet->saddr);
-	comm_hostname_to_ip("12.33.249.109", (struct in_addr *)&ip_packet->daddr);
+	ip_packet->saddr = htonl(0x0c000000 + srcid);
+	if (calltype == DMR_CALL_TYPE_PRIVATE) // See DMR data protocol spec. page 15. 0x0c is the network ID.
+		ip_packet->daddr = htonl(0x0c000000 + dstid);
+	else
+		ip_packet->daddr = htonl((0b11100001 << 24) + dstid);
 	ip_packet->ihl = 5;
 	ip_packet->version = 4;
 	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + payload_size);
 	ip_packet->id = htonl(7777);
-	ip_packet->ttl = 64;
+	ip_packet->ttl = (calltype == DMR_CALL_TYPE_PRIVATE ? 64 : 1);
 	ip_packet->protocol = IPPROTO_UDP;
 	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);
-	udp_packet->source = htons(4007);
-	udp_packet->dest = htons(4007);
+	udp_packet->source = htons(dstport);
+	udp_packet->dest = htons(dstport);
 	udp_packet->len = htons(sizeof(struct udphdr) + payload_size);
 	memcpy(ip_packet_bytes+20+sizeof(struct udphdr), payload, payload_size);
 	udp_packet->check = comm_calcudpchecksum((struct ip *)ip_packet, udp_packet);
@@ -568,19 +571,22 @@ static struct iphdr *dmrpacket_construct_payload_motorola_ip_packet(uint8_t *pay
 }
 
 // Constructs a Motorola TMS ACK UDP packet. Returned memory area must be freed after use.
-struct iphdr *dmrpacket_construct_payload_motorola_ack(void) {
-	static uint8_t ack_payload[] = { 0x00, 0x03, 0xbf, 0x00, 0x03 };
+struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum) {
+	static uint8_t ack_payload[] = { 0x00, 0x03, 0xbf, 0x00, 0x00 };
 
-	return dmrpacket_construct_payload_motorola_ip_packet(ack_payload, sizeof(ack_payload));
+	ack_payload[4] = rx_seqnum & 0b01111111;
+	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, ack_payload, sizeof(ack_payload));
 }
 
 // Constructs a Motorola TMS message UDP packet. Returned memory area must be freed after use.
-struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg) {
-	static uint8_t motorola_header[] = { 0x00, 0x10, 0xe0, 0x00, 0x99, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
+// See TMS patent at http://www.google.com/patents/US8023973
+struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum) {
+	static uint8_t motorola_header[] = { 0x00, 0x00, 0xa0, 0x00, 0x00, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
 	uint8_t *payload;
 	uint16_t payload_size;
 	uint16_t msg_length;
 	uint16_t i;
+	uint16_t tms_packet_length;
 
 	if (msg == NULL)
 		return NULL;
@@ -594,8 +600,12 @@ struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg) {
 	}
 
 	memcpy(payload, motorola_header, sizeof(motorola_header));
+	tms_packet_length = sizeof(struct udphdr)+msg_length*2;
+	payload[0] = (tms_packet_length >> 8) & 0xff;
+	payload[1] = tms_packet_length & 0xff;
+	payload[4] = tx_seqnum | 0b10000000;
 	for (i = 0; i < msg_length; i++)
 		payload[sizeof(motorola_header)+i*2] = msg[i];
 
-	return dmrpacket_construct_payload_motorola_ip_packet(payload, payload_size);
+	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, payload, payload_size);
 }
