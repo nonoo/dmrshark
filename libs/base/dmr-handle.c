@@ -533,7 +533,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
 
-								if (ipscpacket->call_type == DMR_CALL_TYPE_PRIVATE)
+								if (ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID && ipscpacket->call_type == DMR_CALL_TYPE_PRIVATE)
 									repeaters_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, ipscpacket->call_type, ipscpacket->src_id, ipscpacket->dst_id, NULL, 0, tms_msg_payload[4] & 0b01111111);
 							} else
 								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
