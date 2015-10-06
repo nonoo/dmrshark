@@ -1,9 +1,7 @@
 - Testing compiling without AMBE decoding/MP3 encoding enabled.
 - Golay error correction
 - Quadratic residue error correction
-- Multi Block Control (MBC) message decoding
-- Handling other DPF data types
-- Inserting decoded SMS messages into a database table
 - GPS position data decoding
-- SMS sending
-- Voice sending
+- Inserting decoded SMS messages into a database table
+- Hytera-Motorola SMS retransmitting
+- Radio check

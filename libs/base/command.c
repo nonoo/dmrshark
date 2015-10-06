@@ -523,12 +523,5 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
-	// TODO: remove
-	if (strcmp(tok, "s") == 0) {
-//		repeaters_send_motorola_tms_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, "BEER");
-		repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, "BEER");
-		return;
-	}
-
 	console_log("error: unknown command, see help, or go get a beer.\n");
 }

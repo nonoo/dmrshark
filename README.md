@@ -1,6 +1,6 @@
 # dmrshark
 
-dmrshark uses libpcap to analyse the traffic of a Hytera IPSC network.
+dmrshark analyses the traffic, and adds extra features to a Hytera IPSC network.
 
 It can be used for:
 
@@ -11,7 +11,7 @@ It can be used for:
 - Measure actual and average RMS volume of the calls, and upload them to a remote database, so users can adjust their mic gain settings.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
-- Decoding DMR SMS messages.
+- Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format).
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's traffic passing by.

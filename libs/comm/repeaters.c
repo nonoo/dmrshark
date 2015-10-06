@@ -708,6 +708,7 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	console_log("repeaters [%s]: sending %s sms to %u on ts%u: %s\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
+	// We are using a 2 byte left padding because Hytera devices seem to add it to every message they send, and cut it from every message they receive.
 	utf16le_msg = dmrpacket_data_convertmsg((uint8_t *)msg, strlen(msg), &utf16le_msg_length, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE, 2);
 	fragment = dmrpacket_data_construct_fragment((uint8_t *)utf16le_msg, utf16le_msg_length, data_type, confirmed);
 
