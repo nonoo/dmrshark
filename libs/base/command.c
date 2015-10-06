@@ -491,9 +491,8 @@ void command_process(char *input_buffer) {
 		}
 		tok = strtok(NULL, "\n");
 
-		console_log("sending motorola format sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
-		//repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
-		// TODO
+		console_log("sending motorola tms sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
+		repeaters_send_motorola_tms_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
 		return;
 	}
 
@@ -519,13 +518,15 @@ void command_process(char *input_buffer) {
 		}
 		tok = strtok(NULL, "\n");
 
-		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, tok);
+		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 0, tok);
+		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 1, tok);
 		return;
 	}
 
 	// TODO: remove
 	if (strcmp(tok, "s") == 0) {
-		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, "BEER");
+//		repeaters_send_motorola_tms_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, "BEER");
+		repeaters_send_sms(repeaters_findbycallsign("hg5ruc"), 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, "BEER");
 		return;
 	}
 

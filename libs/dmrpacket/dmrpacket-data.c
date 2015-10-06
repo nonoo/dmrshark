@@ -286,78 +286,43 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 	}
 }
 
-char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, dmrpacket_data_header_dd_format_t dd_format) {
+char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *out_length, dmrpacket_data_header_dd_format_t src_dd_format, dmrpacket_data_header_dd_format_t dst_dd_format, uint8_t add_to_left) {
 	iconv_t iconv_handle;
 	int result;
 	size_t insize = 0;
-	char *deinterleaved_msg = NULL;
 	char *inptr;
 	static char outbuf[DMRPACKET_MAX_FRAGMENTSIZE*4+1]; // Max. char width is 4 bytes.
-	size_t outsize = sizeof(outbuf);
-	char *outptr = outbuf;
+	char *outptr = outbuf+add_to_left;
+	size_t outsize = sizeof(outbuf)-add_to_left;
 
 	if (data == NULL || data_length == 0)
 		return NULL;
 
 	memset(outbuf, 0, sizeof(outbuf));
-	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(dd_format), dd_format);
+	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x) to %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), src_dd_format,
+		dmrpacket_data_header_get_readable_dd_format(dst_dd_format), dst_dd_format);
 
-	switch (dd_format) {
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE:
-			deinterleaved_msg = (char *)dmrpacket_data_deinterleave_data(data, data_length);
-			break;
-		default:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16BE:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32BE:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_UTF32LE:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_BINARY:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_BCD:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_7BIT_CHAR:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_1:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_2:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_3:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_4:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_5:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_6:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_7:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_8:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_9:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_10:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_11:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_13:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_14:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_15:
-		case DMRPACKET_DATA_HEADER_DD_FORMAT_8BIT_ISO8859_16:
-			break;
+	iconv_handle = iconv_open(dmrpacket_data_header_get_readable_dd_format(dst_dd_format), dmrpacket_data_header_get_readable_dd_format(src_dd_format));
+	if (iconv_handle == (iconv_t)-1) {
+		if (errno == EINVAL)
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to %s, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), dmrpacket_data_header_get_readable_dd_format(dst_dd_format));
+		else
+			console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to %s, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), dmrpacket_data_header_get_readable_dd_format(dst_dd_format));
+		return NULL;
 	}
 
-	if (deinterleaved_msg == NULL) {
-		iconv_handle = iconv_open("utf-8", dmrpacket_data_header_get_readable_dd_format(dd_format));
-		if (iconv_handle == (iconv_t)-1) {
-			if (errno == EINVAL)
-				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, charset not supported by iconv\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			else
-				console_log(LOGLEVEL_DMRDATA "dmrpacket data: can't convert data from %s to utf8, iconv init error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			return NULL;
-		}
-
-
-		insize = data_length;
-		inptr = deinterleaved_msg;
-		result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
-		iconv_close(iconv_handle);
-		if (result < 0) {
-			console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to utf8, iconv error\n", dmrpacket_data_header_get_readable_dd_format(dd_format));
-			memcpy(outbuf, data, data_length);
-		}
-	} else {
-		strncpy(outbuf, deinterleaved_msg, sizeof(outbuf));
-		free(deinterleaved_msg);
+	insize = data_length;
+	inptr = (char *)data;
+	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
+	iconv_close(iconv_handle);
+	if (result < 0) {
+		console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to %s, iconv error\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), dmrpacket_data_header_get_readable_dd_format(src_dd_format));
+		*out_length = min(data_length, sizeof(outbuf));
+		memcpy(outbuf, data, *out_length);
 	}
 
+	if (out_length != NULL)
+		*out_length = sizeof(outbuf)-outsize;
 	return outbuf;
 }
 
@@ -430,9 +395,7 @@ dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_frag
 }
 
 // See DMR AI spec. page. 73. for block sizes.
-static void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed,
-	uint8_t *data_blocks_needed) {
-
+void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed, uint8_t *data_blocks_needed) {
 	uint8_t block_size = dmrpacket_data_get_block_size(data_type, confirmed);
 
 	*data_blocks_needed = ceil(data_bytes_count / (float)block_size);
@@ -479,56 +442,6 @@ dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint
 	}
 
 	return &fragment;
-}
-
-// Converts the data to the following format: the first prepad_bytes bytes are zeroes,
-// then it places a zero after every char. The returned memory area must be freed later.
-// data_length must be set to the data length prior to function call.
-// Size of the interleaved message without the closing 0 is returned in *data_length.
-uint8_t *dmrpacket_data_interleave_data(uint8_t *data, uint16_t *data_length, uint8_t prepad_bytes) {
-	uint8_t *new_data;
-	uint16_t new_data_length;
-	uint16_t i;
-
-	if (data == NULL || data_length == NULL)
-		return NULL;
-
-	new_data_length = min(prepad_bytes+(*data_length)*2, DMRPACKET_MAX_FRAGMENTSIZE);
-	new_data = (uint8_t *)calloc(1, new_data_length);
-	if (new_data == NULL) {
-		console_log("dmrpacket data error: can't allocate memory for interleaving data\n");
-		return NULL;
-	}
-
-	for (i = 0; i < *data_length; i++)
-		new_data[prepad_bytes+i*2] = data[i];
-
-	*data_length = new_data_length;
-
-	return new_data;
-}
-
-// Keeps every second byte of the given data and returns it.
-// The returned memory area must be freed after use.
-uint8_t *dmrpacket_data_deinterleave_data(uint8_t *data, uint16_t data_length) {
-	uint8_t *new_data;
-	uint16_t new_data_len;
-	uint16_t i;
-
-	if (data == NULL || data_length == 0)
-		return NULL;
-
-	new_data_len = ceil(data_length/2.0)+1; // +1 for the closing zero.
-	new_data = (uint8_t *)calloc(1, new_data_len);
-	if (new_data == NULL) {
-		console_log("dmrpacket data error: can't allocate memory for deinterleaving data\n");
-		return NULL;
-	}
-
-	for (i = 0; i < new_data_len; i++)
-		new_data[i] = data[i*2];
-
-	return new_data;
 }
 
 // Constructs a DMR-compatible IP/UDP packet. Returned memory area must be freed after use.
@@ -581,18 +494,19 @@ struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_i
 // Constructs a Motorola TMS message UDP packet. Returned memory area must be freed after use.
 // See TMS patent at http://www.google.com/patents/US8023973
 struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum) {
+	// If the 3rd byte is 0xa0, then the receiving party won't send a TMS ACK. 0xe0 implies a TMS ACK packet.
 	static uint8_t motorola_header[] = { 0x00, 0x00, 0xa0, 0x00, 0x00, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
 	uint8_t *payload;
 	uint16_t payload_size;
-	uint16_t msg_length;
-	uint16_t i;
 	uint16_t tms_packet_length;
+	char *utf16le_msg;
+	uint16_t utf16le_msg_length;
 
 	if (msg == NULL)
 		return NULL;
 
-	msg_length = strlen(msg);
-	payload_size = sizeof(motorola_header)+msg_length*2;
+	utf16le_msg = dmrpacket_data_convertmsg((uint8_t *)msg, strlen(msg), &utf16le_msg_length, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE, 0);
+	payload_size = sizeof(motorola_header)+utf16le_msg_length;
 	payload = (uint8_t *)calloc(1, payload_size);
 	if (payload == NULL) {
 		console_log("  error: can't allocate memory for motorola sms packet bytes\n");
@@ -600,12 +514,11 @@ struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid
 	}
 
 	memcpy(payload, motorola_header, sizeof(motorola_header));
-	tms_packet_length = sizeof(struct udphdr)+msg_length*2;
+	tms_packet_length = sizeof(struct udphdr)+utf16le_msg_length;
 	payload[0] = (tms_packet_length >> 8) & 0xff;
 	payload[1] = tms_packet_length & 0xff;
 	payload[4] = (tx_seqnum & 0b11111) | 0b10000000;
-	for (i = 0; i < msg_length; i++)
-		payload[sizeof(motorola_header)+i*2] = msg[i];
+	memcpy(payload+sizeof(motorola_header), utf16le_msg, utf16le_msg_length);
 
 	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, payload, payload_size);
 }

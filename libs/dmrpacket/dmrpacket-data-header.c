@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char *dmrpacket_data_header_get_readable_dpf(dmrpacket_data_header_dpf_t dpf) {
+char *dmrpacket_data_header_get_readable_dpf(dmrpacket_data_header_dpf_t dpf) {
 	switch (dpf) {
 		case DMRPACKET_DATA_HEADER_DPF_UDT: return "udt";
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE: return "response";

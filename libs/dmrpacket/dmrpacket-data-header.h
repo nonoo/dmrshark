@@ -163,6 +163,7 @@ typedef struct {
 	} udt;
 } dmrpacket_data_header_t;
 
+char *dmrpacket_data_header_get_readable_dpf(dmrpacket_data_header_dpf_t dpf);
 char *dmrpacket_data_header_get_readable_sap(dmrpacket_data_header_sap_t sap);
 char *dmrpacket_data_header_get_readable_response_type(dmrpacket_data_header_responsetype_t response_type);
 char *dmrpacket_data_header_get_readable_dd_format(dmrpacket_data_header_dd_format_t dd_format);

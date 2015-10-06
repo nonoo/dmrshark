@@ -34,8 +34,8 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 	char added_at_str[20];
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
-	console_log(LOGLEVEL_DMR "  dst id: %u src id: %u type: %s added at: %s send tries: %u msg: %s\n", entry->dst_id, entry->src_id,
-		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, entry->msg);
+	console_log(LOGLEVEL_DMR "  dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n", entry->dst_id, entry->src_id,
+		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, (entry->motorola_tms_sms ? "motorola" : "standard"), entry->msg);
 }
 
 void smstxbuf_print(void) {
@@ -52,7 +52,7 @@ void smstxbuf_print(void) {
 	}
 }
 
-void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
+void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg) {
 	smstxbuf_t *new_smstxbuf_entry;
 
 	if (msg == NULL)
@@ -66,6 +66,7 @@ void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char
 
 	strncpy(new_smstxbuf_entry->msg, msg, DMRPACKET_MAX_FRAGMENTSIZE);
 	new_smstxbuf_entry->added_at = time(NULL);
+	new_smstxbuf_entry->motorola_tms_sms = motorola_tms_sms;
 	new_smstxbuf_entry->call_type = calltype;
 	new_smstxbuf_entry->dst_id = dstid;
 	new_smstxbuf_entry->src_id = srcid;
@@ -115,7 +116,14 @@ void smstxbuf_process(void) {
 	}
 
 	smstxbuf_first_entry->selective_ack_tries = 0;
-	repeaters_send_broadcast_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+	console_log(LOGLEVEL_DMR "smstxbuf: sending entry:\n");
+	smstxbuf_print_entry(smstxbuf_first_entry);
+
+	if (smstxbuf_first_entry->motorola_tms_sms)
+		repeaters_send_broadcast_motorola_tms_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+	else
+		repeaters_send_broadcast_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+
 	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) // Group messages are unconfirmed, so we send them only once.
 		smstxbuf_remove_first_entry();
 	else
