@@ -458,19 +458,21 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	dmrpacket_data_header_dd_format_t dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
 	char *decoded_message = NULL;
 	uint8_t i;
-	uint8_t *tms_msg_payload;
+	uint8_t *tms_msg_payload = NULL;
 	uint16_t tms_msg_length;
 	uint32_t ipaddr;
 	dmr_id_t dstid;
 	dmr_id_t srcid;
 	dmr_call_type_t calltype;
 	smstxbuf_t *smstxbuf_first_entry;
+	flag_t is_motorola_tms_sms_received = 0;
 
-	// Message is OK, and for us?
-	if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
-		ipscpacket->src_id != DMRSHARK_DEFAULT_DMR_ID && ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
-			repeaters_send_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-	}
+	if (ipscpacket == NULL || repeater == NULL || data_fragment == NULL)
+		return;
+
+	calltype = ipscpacket->call_type;
+	dstid = ipscpacket->dst_id;
+	srcid = ipscpacket->src_id;
 
 	switch (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point) {
 		case DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA:
@@ -540,6 +542,13 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							if (tms_msg_payload[0] == 0x00 && tms_msg_payload[1] == 0x03 && tms_msg_payload[2] == 0xbf) {
 								console_log(LOGLEVEL_DMR "      got a motorola tms ack\n");
 
+								// If the Motorola TMS ACK is for us, we reply with a standard ACK.
+								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
+									srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
+										repeaters_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+										return;
+								}
+
 								smstxbuf_first_entry = smstxbuf_get_first_entry();
 								if (smstxbuf_first_entry != NULL) {
 									if (!smstxbuf_first_entry->motorola_tms_sms) {
@@ -564,9 +573,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							if (tms_msg_length > 10) {
 								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
-
-								if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE)
-									repeaters_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, NULL, 0, tms_msg_payload[4] & 0b11111);
+								is_motorola_tms_sms_received = 1;
 							} else
 								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
 							break;
@@ -596,8 +603,17 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	else {
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
-		else
+		else {
 			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
+
+			// Message is OK, and for us?
+			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
+				srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
+					repeaters_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+					if (is_motorola_tms_sms_received && tms_msg_payload != NULL)
+						repeaters_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, NULL, 0, tms_msg_payload[4] & 0b11111);
+			}
+		}
 	}
 }
 
