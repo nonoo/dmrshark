@@ -124,6 +124,8 @@ void repeaters_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_play_and_free_echo_buf(repeater_t *repeater, dmr_timeslot_t ts);
 void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t *ipscpacket);
 
+void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_packet_t *data_packet);
+void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet);
 void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts,
 	flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_header_sap_t service_access_point);
 void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap);

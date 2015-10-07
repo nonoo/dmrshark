@@ -405,43 +405,40 @@ void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket
 		(*data_blocks_needed)++;
 }
 
-dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed) {
-	static dmrpacket_data_fragment_t fragment;
+void dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed, dmrpacket_data_fragment_t *fragment) {
 	uint8_t block_size;
 	uint16_t i;
 	loglevel_t loglevel = console_get_loglevel();
 
 	if (data == NULL || data_size == 0)
-		return NULL;
+		return;
 
-	memset((uint8_t *)&fragment, 0, sizeof(dmrpacket_data_fragment_t));
-	fragment.bytes_stored = min(data_size, DMRPACKET_MAX_FRAGMENTSIZE);
-	memcpy(fragment.bytes, data, fragment.bytes_stored);
+	memset((uint8_t *)fragment, 0, sizeof(dmrpacket_data_fragment_t));
+	fragment->bytes_stored = min(data_size, DMRPACKET_MAX_FRAGMENTSIZE);
+	memcpy(fragment->bytes, data, fragment->bytes_stored);
 
-	dmrpacket_data_get_needed_blocks_count(fragment.bytes_stored, data_type, confirmed, &fragment.data_blocks_needed);
+	dmrpacket_data_get_needed_blocks_count(fragment->bytes_stored, data_type, confirmed, &fragment->data_blocks_needed);
 	block_size = dmrpacket_data_get_block_size(data_type, confirmed);
-	for (i = 0; i < fragment.data_blocks_needed*block_size-4; i += 2) {
-		if (i+1 < fragment.bytes_stored)
-			crc_calc_crc32(&fragment.crc, fragment.bytes[i+1]);
+	for (i = 0; i < fragment->data_blocks_needed*block_size-4; i += 2) {
+		if (i+1 < fragment->bytes_stored)
+			crc_calc_crc32(&fragment->crc, fragment->bytes[i+1]);
 		else
-			crc_calc_crc32(&fragment.crc, 0);
-		if (i < fragment.bytes_stored)
-			crc_calc_crc32(&fragment.crc, fragment.bytes[i]);
+			crc_calc_crc32(&fragment->crc, 0);
+		if (i < fragment->bytes_stored)
+			crc_calc_crc32(&fragment->crc, fragment->bytes[i]);
 		else
-			crc_calc_crc32(&fragment.crc, 0);
+			crc_calc_crc32(&fragment->crc, 0);
 	}
-	crc_calc_crc32_finish(&fragment.crc);
+	crc_calc_crc32_finish(&fragment->crc);
 
 	if (loglevel.flags.dmrdata && loglevel.flags.debug) {
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data length: %u bytes, fragment crc: %.8x, needed blocks: %u, total data length: %u\n",
-			fragment.bytes_stored, fragment.crc, fragment.data_blocks_needed, fragment.data_blocks_needed*block_size);
+			fragment->bytes_stored, fragment->crc, fragment->data_blocks_needed, fragment->data_blocks_needed*block_size);
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data bytes: ");
-		for (i = 0; i < fragment.bytes_stored; i++)
-			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment.bytes[i]);
-		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " %.8x\n", fragment.crc);
+		for (i = 0; i < fragment->bytes_stored; i++)
+			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment->bytes[i]);
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " %.8x\n", fragment->crc);
 	}
-
-	return &fragment;
 }
 
 // Constructs a DMR-compatible IP/UDP packet. Returned memory area must be freed after use.

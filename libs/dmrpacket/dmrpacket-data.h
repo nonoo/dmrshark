@@ -65,6 +65,13 @@ typedef struct {
 	uint32_t crc;
 } dmrpacket_data_fragment_t;
 
+typedef struct {
+	uint8_t number_of_csbk_preambles_to_send;
+	dmrpacket_data_type_t data_type;
+	dmrpacket_data_header_t header;
+	dmrpacket_data_fragment_t fragment;
+} dmrpacket_data_packet_t;
+
 char *dmrpacket_data_get_readable_data_type(dmrpacket_data_type_t data_type);
 
 bptc_196_96_data_bits_t *dmrpacket_data_extract_and_repair_bptc_data(dmrpacket_payload_bits_t *packet_payload_bits);
@@ -83,7 +90,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_dat
 dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_fragment_t *fragment, dmrpacket_data_type_t data_type, flag_t confirmed);
 
 void dmrpacket_data_get_needed_blocks_count(uint16_t data_bytes_count, dmrpacket_data_type_t data_type, flag_t confirmed, uint8_t *data_blocks_needed);
-dmrpacket_data_fragment_t *dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed);
+void dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpacket_data_type_t data_type, flag_t confirmed, dmrpacket_data_fragment_t *fragment);
 
 struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum);
 struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum);

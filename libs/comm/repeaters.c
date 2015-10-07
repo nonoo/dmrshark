@@ -505,25 +505,23 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 	}
 }
 
-static void repeaters_send_data_fragment(repeater_t *repeater, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size,
-	dmrpacket_data_header_t *data_header, dmrpacket_data_type_t data_type, uint8_t number_of_csbk_preambles_to_send, dmrpacket_data_fragment_t *fragment) {
-
+void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_packet_t *data_packet) {
 	uint16_t i;
 	dmrpacket_csbk_t csbk;
 	ipscpacket_payload_t *ipscpacket_payload;
 	dmrpacket_data_block_t *data_blocks;
 	uint8_t data_blocks_needed = 0;
 
-	if (repeater == NULL || fragment == NULL)
+	if (repeater == NULL || data_packet == NULL)
 		return;
 
 	repeater->slot[ts].ipsc_tx_seqnum = 0;
 
 	console_log("repeaters [%s]: sending %s %s %s to %u on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr),
-		dmr_get_readable_call_type(data_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE),
-		dmrpacket_data_header_get_readable_sap(data_header->common.service_access_point),
-		dmrpacket_data_header_get_readable_dpf(data_header->common.data_packet_format),
-		data_header->common.dst_llid, ts+1);
+		dmr_get_readable_call_type(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE),
+		dmrpacket_data_header_get_readable_sap(data_packet->header.common.service_access_point),
+		dmrpacket_data_header_get_readable_dpf(data_packet->header.common.data_packet_format),
+		data_packet->header.common.dst_llid, ts+1);
 
 	// If which blocks to send is set. Used for selective ACK reply.
 	if (selective_blocks != NULL && selective_blocks_size > 0) {
@@ -537,34 +535,34 @@ static void repeaters_send_data_fragment(repeater_t *repeater, dmr_timeslot_t ts
 		console_log(LOGLEVEL_REPEATERS "\n");
 	} else {
 		console_log(LOGLEVEL_REPEATERS "  sending full message (all blocks)\n");
-		data_blocks_needed = fragment->data_blocks_needed;
+		data_blocks_needed = data_packet->fragment.data_blocks_needed;
 	}
 
-	data_blocks = dmrpacket_data_construct_data_blocks(fragment, data_type, data_header->common.response_requested);
+	data_blocks = dmrpacket_data_construct_data_blocks(&data_packet->fragment, data_packet->data_type, data_packet->header.common.response_requested);
 	if (data_blocks == NULL)
 		return;
 
 	// Filling up missing fields from the header.
-	switch (data_header->common.data_packet_format) {
+	switch (data_packet->header.common.data_packet_format) {
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
-			data_header->udt.appended_blocks = data_blocks_needed;
+			data_packet->header.udt.appended_blocks = data_blocks_needed;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
-			data_header->response.blocks_to_follow = data_blocks_needed;
+			data_packet->header.response.blocks_to_follow = data_blocks_needed;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
-			data_header->unconfirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_type, data_header->common.response_requested)-fragment->bytes_stored-4;
-			data_header->unconfirmed_data.blocks_to_follow = data_blocks_needed;
+			data_packet->header.unconfirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_packet->data_type, data_packet->header.common.response_requested)-data_packet->fragment.bytes_stored-4;
+			data_packet->header.unconfirmed_data.blocks_to_follow = data_blocks_needed;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
-			data_header->confirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_type, data_header->common.response_requested)-fragment->bytes_stored-4;
-			data_header->confirmed_data.blocks_to_follow = data_blocks_needed;
+			data_packet->header.confirmed_data.pad_octet_count = data_blocks_needed*dmrpacket_data_get_block_size(data_packet->data_type, data_packet->header.common.response_requested)-data_packet->fragment.bytes_stored-4;
+			data_packet->header.confirmed_data.blocks_to_follow = data_blocks_needed;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
-			data_header->short_data_defined.appended_blocks = data_blocks_needed;
+			data_packet->header.short_data_defined.appended_blocks = data_blocks_needed;
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_RAW:
-			data_header->short_data_raw.appended_blocks = data_blocks_needed;
+			data_packet->header.short_data_raw.appended_blocks = data_blocks_needed;
 			break;
 		default:
 			break;
@@ -574,44 +572,55 @@ static void repeaters_send_data_fragment(repeater_t *repeater, dmr_timeslot_t ts
 	csbk.last_block = 1;
 	csbk.csbko = DMRPACKET_CSBKO_PREAMBLE;
 	csbk.data.preamble.data_follows = 1;
-	csbk.data.preamble.dst_is_group = data_header->common.dst_is_a_group;
-	csbk.data.preamble.csbk_blocks_to_follow = number_of_csbk_preambles_to_send+data_blocks_needed+1; // +1 - header
-	csbk.dst_id = data_header->common.dst_llid;
-	csbk.src_id = data_header->common.src_llid;
+	csbk.data.preamble.dst_is_group = data_packet->header.common.dst_is_a_group;
+	csbk.data.preamble.csbk_blocks_to_follow = data_packet->number_of_csbk_preambles_to_send+data_blocks_needed+1; // +1 - header
+	csbk.dst_id = data_packet->header.common.dst_llid;
+	csbk.src_id = data_packet->header.common.src_llid;
 
 	// Sending CSBK preambles.
-	for (i = 0; i < number_of_csbk_preambles_to_send; i++) {
-		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending csbk #%u/%u\n", i, number_of_csbk_preambles_to_send);
+	for (i = 0; i < data_packet->number_of_csbk_preambles_to_send; i++) {
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending csbk #%u/%u\n", i, data_packet->number_of_csbk_preambles_to_send);
 		csbk.data.preamble.csbk_blocks_to_follow--;
 		ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK,
-			(data_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_header->common.dst_llid, data_header->common.src_llid, ipscpacket_payload)), 0);
+			(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)), 0);
 	}
 
 	// Sending data header.
 	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending data header\n");
-	ipscpacket_payload = ipscpacket_construct_payload_data_header(data_header);
+	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_packet->header);
 	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER,
-		(data_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_header->common.dst_llid, data_header->common.src_llid, ipscpacket_payload)), 0);
+		(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)), 0);
 
 	// Sending data blocks.
-	for (i = 0; i < fragment->data_blocks_needed; i++) { // Note: iterating through all blocks.
+	for (i = 0; i < data_packet->fragment.data_blocks_needed; i++) { // Note: iterating through all blocks.
 		// Sending this block if no selective blocks given, or they are given and this block is in the list
 		// of blocks need to be sent.
 		if (selective_blocks == NULL || (selective_blocks != NULL && i < selective_blocks_size && selective_blocks[i])) {
 			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending block #%u\n", i);
-			switch (data_type) {
+			switch (data_packet->data_type) {
 				default:
 				case DMRPACKET_DATA_TYPE_RATE_34_DATA: ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_34(&data_blocks[i]); break;
 				case DMRPACKET_DATA_TYPE_RATE_12_DATA: ipscpacket_payload = ipscpacket_construct_payload_data_block_rate_12(&data_blocks[i]); break;
 			}
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts,
-				ipscpacket_get_slot_type_for_data_type(data_type), (data_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_header->common.dst_llid, data_header->common.src_llid,
+				ipscpacket_get_slot_type_for_data_type(data_packet->data_type), (data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid,
 				ipscpacket_payload)), 0);
 		}
 	}
 
 	free(data_blocks);
+}
+
+void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet) {
+	repeater_t *repeater = repeaters;
+
+	while (repeater) {
+		repeaters_send_data_packet(repeater, 0, NULL, 0, data_packet);
+		repeaters_send_data_packet(repeater, 1, NULL, 0, data_packet);
+
+		repeater = repeater->next;
+	}
 }
 
 void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap) {
@@ -646,11 +655,10 @@ void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t
 	flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_header_sap_t service_access_point) {
 
 	uint8_t i;
-	dmrpacket_data_header_t data_header;
+	dmrpacket_data_packet_t data_packet;
 	uint8_t *payload;
 	uint16_t payload_size;
 	uint8_t data_blocks_needed;
-	dmrpacket_data_fragment_t *fragment;
 
 	if (repeater == NULL || selective_blocks == NULL || selective_blocks_size == 0)
 		return;
@@ -675,32 +683,33 @@ void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t
 	}
 	console_log("\n");
 
-	fragment = dmrpacket_data_construct_fragment(payload, payload_size, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0);
+	dmrpacket_data_construct_fragment(payload, payload_size, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0, &data_packet.fragment);
 	free(payload);
 
-	memset(&data_header, 0, sizeof(dmrpacket_data_header_t));
-	data_header.common.dst_is_a_group = 0;
-	data_header.common.response_requested = 0;
-	data_header.common.dst_llid = dstid;
-	data_header.common.src_llid = srcid;
-	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_RESPONSE;
-	data_header.common.service_access_point = service_access_point;
+	memset(&data_packet.header, 0, sizeof(dmrpacket_data_header_t));
+	data_packet.header.common.dst_is_a_group = 0;
+	data_packet.header.common.response_requested = 0;
+	data_packet.header.common.dst_llid = dstid;
+	data_packet.header.common.src_llid = srcid;
+	data_packet.header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_RESPONSE;
+	data_packet.header.common.service_access_point = service_access_point;
 
-	// data_header.response.blocks_to_follow will be filled by repeaters_send_data_fragment()
-	data_header.response.class = 2;
-	data_header.response.type = 0;
-	data_header.response.status = repeater->slot[ts].rx_seqnum;
-	data_header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK;
+	// data_packet.header.response.blocks_to_follow will be filled by repeaters_send_data_packet()
+	data_packet.header.response.class = 2;
+	data_packet.header.response.type = 0;
+	data_packet.header.response.status = repeater->slot[ts].rx_seqnum;
+	data_packet.header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK;
 
-	repeaters_send_data_fragment(repeater, ts, NULL, 0, &data_header, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0, fragment);
+	data_packet.number_of_csbk_preambles_to_send = 0;
+	data_packet.data_type = DMRPACKET_DATA_TYPE_RATE_12_DATA;
+
+	repeaters_send_data_packet(repeater, ts, NULL, 0, &data_packet);
 }
 
 void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg) {
-	dmrpacket_data_header_t data_header;
-	dmrpacket_data_fragment_t *fragment;
+	dmrpacket_data_packet_t data_packet;
 	char *utf16le_msg;
 	uint16_t utf16le_msg_length;
-	dmrpacket_data_type_t data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
 	flag_t confirmed = (calltype == DMR_CALL_TYPE_PRIVATE ? 1 : 0);
 
 	if (repeater == NULL || msg == NULL)
@@ -710,29 +719,30 @@ void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t
 
 	// We are using a 2 byte left padding because Hytera devices seem to add it to every message they send, and cut it from every message they receive.
 	utf16le_msg = dmrpacket_data_convertmsg((uint8_t *)msg, strlen(msg), &utf16le_msg_length, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE, 2);
-	fragment = dmrpacket_data_construct_fragment((uint8_t *)utf16le_msg, utf16le_msg_length, data_type, confirmed);
+	data_packet.data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
+	dmrpacket_data_construct_fragment((uint8_t *)utf16le_msg, utf16le_msg_length, data_packet.data_type, confirmed, &data_packet.fragment);
 
 	// Constructing the data header.
-	data_header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
-	data_header.common.response_requested = confirmed;
-	data_header.common.dst_llid = dstid;
-	data_header.common.src_llid = srcid;
-	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED;
-	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA;
+	data_packet.header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
+	data_packet.header.common.response_requested = confirmed;
+	data_packet.header.common.dst_llid = dstid;
+	data_packet.header.common.src_llid = srcid;
+	data_packet.header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED;
+	data_packet.header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_SHORT_DATA;
 
 	// data_header.short_data_defined.appended_blocks will be filled by repeaters_send_data_fragment()
-	data_header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
-	data_header.short_data_defined.resync = 1;
-	data_header.short_data_defined.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
-	data_header.short_data_defined.bit_padding = 0;
+	data_packet.header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
+	data_packet.header.short_data_defined.resync = 1;
+	data_packet.header.short_data_defined.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
+	data_packet.header.short_data_defined.bit_padding = 0;
 
-	repeaters_send_data_fragment(repeater, ts, selective_blocks, selective_blocks_size, &data_header, data_type, 3, fragment);
+	data_packet.number_of_csbk_preambles_to_send = 3;
+
+	repeaters_send_data_packet(repeater, ts, selective_blocks, selective_blocks_size, &data_packet);
 }
 
 static void repeaters_send_ip_packet(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, struct iphdr *ip_packet) {
-	dmrpacket_data_fragment_t *fragment;
-	dmrpacket_data_header_t data_header;
-	dmrpacket_data_type_t data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
+	dmrpacket_data_packet_t data_packet;
 	flag_t confirmed = (calltype == DMR_CALL_TYPE_PRIVATE ? 1 : 0);
 
 	if (repeater == NULL || ip_packet == NULL)
@@ -740,26 +750,29 @@ static void repeaters_send_ip_packet(repeater_t *repeater, dmr_timeslot_t ts, dm
 
 	console_log("repeaters [%s]: sending %s ip packet to %u on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), dmr_get_readable_call_type(calltype), dstid, ts+1);
 
-	fragment = dmrpacket_data_construct_fragment((uint8_t *)ip_packet, ntohs(ip_packet->tot_len), data_type, confirmed);
+	data_packet.data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
+	dmrpacket_data_construct_fragment((uint8_t *)ip_packet, ntohs(ip_packet->tot_len), data_packet.data_type, confirmed, &data_packet.fragment);
 
 	// Constructing the data header.
-	data_header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
-	data_header.common.response_requested = confirmed;
-	data_header.common.dst_llid = dstid;
-	data_header.common.src_llid = srcid;
-	data_header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA;
-	data_header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA;
+	data_packet.header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
+	data_packet.header.common.response_requested = confirmed;
+	data_packet.header.common.dst_llid = dstid;
+	data_packet.header.common.src_llid = srcid;
+	data_packet.header.common.data_packet_format = DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA;
+	data_packet.header.common.service_access_point = DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA;
 
-	// data_header.confirmed_data.pad_octet_count will be filled by repeaters_send_data_fragment()
-	// data_header.confirmed_data.blocks_to_follow will be filled by repeaters_send_data_fragment()
-	data_header.confirmed_data.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
-	data_header.confirmed_data.fragmentseqnum = 0b1000; // Indicating last fragment (see DMR AI spec. page 74.)
-	data_header.confirmed_data.resync = 0;
+	// data_packet.header.confirmed_data.pad_octet_count will be filled by repeaters_send_data_fragment()
+	// data_packet.header.confirmed_data.blocks_to_follow will be filled by repeaters_send_data_fragment()
+	data_packet.header.confirmed_data.full_message = (selective_blocks == NULL && selective_blocks_size == 0);
+	data_packet.header.confirmed_data.fragmentseqnum = 0b1000; // Indicating last fragment (see DMR AI spec. page 74.)
+	data_packet.header.confirmed_data.resync = 0;
 	if (selective_blocks == NULL)
 		repeater->slot[ts].tx_seqnum++;
-	data_header.confirmed_data.sendseqnum = repeater->slot[ts].tx_seqnum % 8;
+	data_packet.header.confirmed_data.sendseqnum = repeater->slot[ts].tx_seqnum % 8;
 
-	repeaters_send_data_fragment(repeater, ts, selective_blocks, selective_blocks_size, &data_header, data_type, 3, fragment);
+	data_packet.number_of_csbk_preambles_to_send = 3;
+
+	repeaters_send_data_packet(repeater, ts, selective_blocks, selective_blocks_size, &data_packet);
 }
 
 void repeaters_send_motorola_tms_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg) {
