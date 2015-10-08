@@ -493,6 +493,7 @@ struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_i
 struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum) {
 	// If the 3rd byte is 0xa0, then the receiving party won't send a TMS ACK. 0xe0 implies a TMS ACK packet.
 	static uint8_t motorola_header[] = { 0x00, 0x00, 0xe0, 0x00, 0x00, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
+
 	uint8_t *payload;
 	uint16_t payload_size;
 	uint16_t tms_packet_length;

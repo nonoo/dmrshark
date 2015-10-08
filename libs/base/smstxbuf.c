@@ -18,6 +18,7 @@
 #include DEFAULTCONFIG
 
 #include "smstxbuf.h"
+#include "dmr-data.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -120,9 +121,9 @@ void smstxbuf_process(void) {
 	smstxbuf_print_entry(smstxbuf_first_entry);
 
 	if (smstxbuf_first_entry->motorola_tms_sms)
-		repeaters_send_broadcast_motorola_tms_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+		dmr_data_send_motorola_tms_sms(1, NULL, 0, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 	else
-		repeaters_send_broadcast_sms(smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+		dmr_data_send_sms(1, NULL, 0, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 
 	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) // Group messages are unconfirmed, so we send them only once.
 		smstxbuf_remove_first_entry();

@@ -22,6 +22,8 @@
 #include "types.h"
 #include "base.h"
 #include "smstxbuf.h"
+#include "dmr-data.h"
+#include "data-packet-txbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/config/config.h>
@@ -93,6 +95,7 @@ void command_process(char *input_buffer) {
 		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
 		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
 		console_log("  smslist                                                        - print the contents of the sms tx buffer\n");
+		console_log("  dptlist                                                        - print the contents of the data packet tx buffer\n");
 		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
 		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
 		console_log("  sms [calltype (p/g)] [dstid] [msg]                             - send sms\n");
@@ -396,6 +399,11 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
+	if (strcmp(tok, "dptlist") == 0) {
+		data_packet_txbuf_print();
+		return;
+	}
+
 	if (strcmp(tok, "smsr") == 0) {
 		d.smsr.host = strtok(NULL, " ");
 		if (d.smsr.host == NULL) {
@@ -440,9 +448,12 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
 
-		console_log("sending sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
-		repeaters_send_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
+		dmr_data_send_sms(0, d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, tok);
 		return;
 	}
 
@@ -490,9 +501,12 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
 
-		console_log("sending motorola tms sms to %s ts %u calltype %u dstid %u msg: %s\n", d.smsr.host, d.smsr.ts+1, dmr_get_readable_call_type(d.smsr.calltype), d.smsr.dstid, tok);
-		repeaters_send_motorola_tms_sms(d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, NULL, 0, tok);
+		dmr_data_send_motorola_tms_sms(0, d.smsr.repeater, d.smsr.ts, d.smsr.calltype, d.smsr.dstid, DMRSHARK_DEFAULT_DMR_ID, tok);
 		return;
 	}
 
@@ -517,9 +531,18 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
 
 		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 0, tok);
 		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 1, tok);
+		return;
+	}
+
+	if (strcmp(tok, "s") == 0) { // TODO: remove
+		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 1, "beer");
 		return;
 	}
 

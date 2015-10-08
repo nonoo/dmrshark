@@ -604,7 +604,7 @@ int config_get_smssendretryintervalinsec(void) {
 	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 3;
+	defaultvalue = 10;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;

@@ -57,7 +57,6 @@ typedef struct {
 	uint8_t data_blocks_expected;
 	uint8_t full_message_block_count;
 	dmrpacket_data_header_seqnum_t rx_seqnum;
-	dmrpacket_data_header_seqnum_t tx_seqnum;
 	uint8_t selective_ack_requests_sent;
 	voicestream_t *voicestream;
 	uint8_t ipsc_last_received_seqnum;
@@ -103,6 +102,8 @@ typedef struct repeater_st {
 	struct repeater_st *prev;
 } repeater_t;
 
+repeater_t *repeaters_get(void);
+
 char *repeaters_get_display_string_for_ip(struct in_addr *ipaddr);
 char *repeaters_get_display_string(repeater_t *repeater);
 
@@ -114,6 +115,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
+void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw, flag_t nowait);
 
 void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
@@ -126,14 +128,6 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 
 void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_packet_t *data_packet);
 void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet);
-void repeaters_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts,
-	flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_header_sap_t service_access_point);
-void repeaters_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap);
-void repeaters_send_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg);
-void repeaters_send_motorola_tms_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, char *msg);
-void repeaters_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t *selective_blocks, uint8_t selective_blocks_size, uint8_t rx_seqnum);
-void repeaters_send_broadcast_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
-void repeaters_send_broadcast_motorola_tms_sms(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 
 void repeaters_process(void);
 void repeaters_deinit(void);

@@ -19,6 +19,8 @@
 
 #include "dmr-handle.h"
 #include "smstxbuf.h"
+#include "data-packet-txbuf.h"
+#include "dmr-data.h"
 
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
@@ -280,6 +282,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_data_header_t *data_packet_header = NULL;
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 	smstxbuf_t *smstxbuf_first_entry;
+	data_packet_txbuf_t *data_packet_txbuf_first_entry;
 
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
@@ -309,25 +312,43 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 			console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
 
 			switch (data_response_type) {
-				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK: // Got a response for a previously sent SMS by us?
-					smstxbuf_first_entry = smstxbuf_get_first_entry();
-					if (smstxbuf_first_entry != NULL) {
-						if (smstxbuf_first_entry->motorola_tms_sms) {
-							console_log(LOGLEVEL_DMR "  got ack for sms tx buffer entry, waiting for the tms ack\n");
-							return;
-						}
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK: // Got a response for a previously sent data packet by us?
+					data_packet_txbuf_first_entry = data_packet_txbuf_get_first_entry();
+					if (data_packet_txbuf_first_entry != NULL) {
+						if (data_packet_txbuf_first_entry->data_packet.header.common.dst_llid == data_packet_header->common.src_llid &&
+							data_packet_txbuf_first_entry->data_packet.header.common.src_llid == data_packet_header->common.dst_llid &&
+							data_packet_txbuf_first_entry->data_packet.header.common.dst_is_a_group == data_packet_header->common.dst_is_a_group) {
+							 	console_log(LOGLEVEL_DMR "  got ack for data packet tx buffer entry:\n");
+							 	data_packet_txbuf_print_entry(data_packet_txbuf_first_entry);
+							 	data_packet_txbuf_remove_first_entry();
 
-						if (smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
-							smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
-							((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
-							 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
-							 	console_log(LOGLEVEL_DMR "  got ack for sms tx buffer entry:\n");
-							 	smstxbuf_print_entry(smstxbuf_first_entry);
-							 	smstxbuf_remove_first_entry();
-						} else
-							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+
+								// Checking if SMS TX buffer entry can be removed too.
+								smstxbuf_first_entry = smstxbuf_get_first_entry();
+								if (smstxbuf_first_entry != NULL) {
+									if (smstxbuf_first_entry->motorola_tms_sms) {
+										console_log(LOGLEVEL_DMR "    this ack is for a tms sms tx buffer entry, waiting for the tms ack\n");
+										return;
+									}
+
+									if (smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
+										smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
+										((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
+										 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
+										 	console_log(LOGLEVEL_DMR "    this ack is for sms tx buffer entry:\n");
+										 	smstxbuf_print_entry(smstxbuf_first_entry);
+										 	smstxbuf_remove_first_entry();
+									} else
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+								} else
+									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    sms tx buffer is empty, ack is not for that\n");
+
+						} else {
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us (dst id: %u src id: %u)\n",
+								data_packet_txbuf_first_entry->data_packet.header.common.dst_llid, data_packet_txbuf_first_entry->data_packet.header.common.src_llid);
+						}
 					} else
-						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us, sms tx buffer is empty\n");
+						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us, data packet tx buffer is empty\n");
 
 					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
@@ -344,6 +365,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is sent by us, ignoring\n");
 						return;
 					}
+					repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
 					break;
 			}
 			break;
@@ -397,28 +419,29 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 	uint8_t j;
 	flag_t *selective_blocks;
 	uint16_t selective_blocks_size;
-	smstxbuf_t *smstxbuf_first_entry;
+	data_packet_txbuf_t *data_packet_txbuf_first_entry;
 
 	if (repeater == NULL || data_fragment == NULL)
 		return;
 
-	smstxbuf_first_entry = smstxbuf_get_first_entry();
-	if (smstxbuf_first_entry == NULL) {
-		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  sms tx buffer is empty, ignoring selective ack\n");
+	data_packet_txbuf_first_entry = data_packet_txbuf_get_first_entry();
+	if (data_packet_txbuf_first_entry == NULL) {
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  data packet tx buffer is empty, ignoring selective ack\n");
 		return;
 	}
 
 	// Responding only if we are the sender of the message.
-	if (dstid != smstxbuf_first_entry->src_id || srcid != smstxbuf_first_entry->dst_id) {
-		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is not for the message we try to send, ignoring (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+	if (dstid != data_packet_txbuf_first_entry->data_packet.header.common.src_llid || srcid != data_packet_txbuf_first_entry->data_packet.header.common.dst_llid) {
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is not for the message we try to send, ignoring (dst id: %u src id: %u)\n",
+			data_packet_txbuf_first_entry->data_packet.header.common.dst_llid, data_packet_txbuf_first_entry->data_packet.header.common.src_llid);
 		return;
 	}
 
-	if (smstxbuf_first_entry->selective_ack_tries >= SMS_SEND_MAX_SELECTIVE_ACK_TRIES) {
+	if (data_packet_txbuf_first_entry->selective_ack_tries >= DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES) {
 		console_log(LOGLEVEL_DMR "  max. possible selective ack retry count reached, ignoring further selective acks\n");
 		return;
 	}
-	smstxbuf_first_entry->selective_ack_tries++;
+	data_packet_txbuf_first_entry->selective_ack_tries++;
 
 	console_log(LOGLEVEL_DMR "  replying to selective ack\n");
 
@@ -439,14 +462,10 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 			}
 		}
 	}
-	switch (repeater->slot[ts].data_packet_header.common.service_access_point) {
-		case DMRPACKET_DATA_HEADER_SAP_SHORT_DATA:
-			repeaters_send_sms(repeater, ts, calltype, srcid, dstid, selective_blocks, selective_blocks_size, smstxbuf_first_entry->msg);
-			break;
-		case DMRPACKET_DATA_HEADER_SAP_IP_BASED_PACKET_DATA:
-			repeaters_send_motorola_tms_sms(repeater, ts, calltype, srcid, dstid, selective_blocks, selective_blocks_size, smstxbuf_first_entry->msg);
-			break;
-	}
+
+	// There's no need to send CSBK preambles before a selective ACK reply.
+	data_packet_txbuf_first_entry->data_packet.number_of_csbk_preambles_to_send = 0;
+	repeaters_send_data_packet(repeater, ts, selective_blocks, selective_blocks_size, &data_packet_txbuf_first_entry->data_packet);
 	free(selective_blocks);
 }
 
@@ -545,7 +564,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								// If the Motorola TMS ACK is for us, we reply with a standard ACK.
 								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 									srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
-										repeaters_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+										dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 										return;
 								}
 
@@ -609,9 +628,9 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			// Message is OK, and for us?
 			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 				srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
-					repeaters_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+					dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 					if (is_motorola_tms_sms_received && tms_msg_payload != NULL)
-						repeaters_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, NULL, 0, tms_msg_payload[4] & 0b11111);
+						dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4] & 0b11111);
 			}
 		}
 	}
@@ -636,14 +655,14 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 		}
 	}
 	if (erroneous_block_found) {
-		if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= SMS_SEND_MAX_SELECTIVE_ACK_TRIES) {
-			console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", SMS_SEND_MAX_SELECTIVE_ACK_TRIES);
+		if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES) {
+			console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES);
 			return;
 		}
 		if (ipscpacket->src_id == DMRSHARK_DEFAULT_DMR_ID)
 			console_log(LOGLEVEL_DMR "  found erroneous blocks originating from us!\n");
 		else {
-			repeaters_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count,
+			dmr_data_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count,
 				repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 			repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent++;
 		}
