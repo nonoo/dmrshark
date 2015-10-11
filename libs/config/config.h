@@ -63,7 +63,7 @@ int config_get_httpserverenabled(void);
 struct in_addr *config_get_masteripaddr(void);
 int config_get_smssendretryintervalinsec(void);
 int config_get_smssendmaxretrycount(void);
-int config_get_datapacketsendretryintervalinsec(void);
+int config_get_mindatapacketsendretryintervalinsec(void);
 int config_get_datapacketsendmaxretrycount(void);
 
 // If NULL is given, reloads the current config file.

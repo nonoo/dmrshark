@@ -631,14 +631,14 @@ int config_get_smssendmaxretrycount(void) {
 	return value;
 }
 
-int config_get_datapacketsendretryintervalinsec(void) {
+int config_get_mindatapacketsendretryintervalinsec(void) {
 	GError *error = NULL;
 	int value = 0;
-	char *key = "datapacketsendretryintervalinsec";
+	char *key = "mindatapacketsendretryintervalinsec";
 	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 3;
+	defaultvalue = 2;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -743,7 +743,7 @@ void config_init(char *configfilename) {
 	config_get_httpserverport();
 	tmp_addr = config_get_masteripaddr();
 	free(tmp_addr);
-	config_get_datapacketsendretryintervalinsec();
+	config_get_mindatapacketsendretryintervalinsec();
 	config_get_datapacketsendmaxretrycount();
 
 	config_writeconfigfile();

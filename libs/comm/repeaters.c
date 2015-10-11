@@ -647,7 +647,7 @@ static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_tim
 	gettimeofday(&currtime, NULL);
 	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
 	ipsc_tx_rawpacketbuf_entry_to_send = repeater->slot[ts].ipsc_tx_rawpacketbuf;
-	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= 60 || ipsc_tx_rawpacketbuf_entry_to_send->nowait) { // Sending a frame every x ms.
+	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= IPSC_PACKET_SEND_INTERVAL_IN_MS || ipsc_tx_rawpacketbuf_entry_to_send->nowait) { // Sending a frame every x ms.
 		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet from tx buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 		if (repeaters_send_raw_ipsc_packet(repeater, &ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw)) {
 			// Sending the packet to our IPSC processing loop too.

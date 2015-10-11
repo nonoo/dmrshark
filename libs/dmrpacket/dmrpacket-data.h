@@ -95,4 +95,6 @@ void dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpac
 struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum);
 struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum);
 
+uint16_t dmrpacket_get_time_in_ms_needed_to_send(dmrpacket_data_packet_t *data_packet);
+
 #endif

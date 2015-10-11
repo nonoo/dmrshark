@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 static data_packet_txbuf_t *data_packet_txbuf_first_entry = NULL;
 static data_packet_txbuf_t *data_packet_txbuf_last_entry = NULL;
@@ -104,12 +105,14 @@ data_packet_txbuf_t *data_packet_txbuf_get_first_entry(void) {
 
 void data_packet_txbuf_process(void) {
 	static time_t last_send_try_at = 0;
+	uint16_t timeout;
 
 	if (data_packet_txbuf_first_entry == NULL)
 		return;
 
-	if (time(NULL)-last_send_try_at < config_get_datapacketsendretryintervalinsec()) {
-		daemon_poll_setmaxtimeout(time(NULL)-last_send_try_at);
+	timeout = config_get_mindatapacketsendretryintervalinsec()+ceil(dmrpacket_get_time_in_ms_needed_to_send(&data_packet_txbuf_first_entry->data_packet)/1000.0);
+	if (time(NULL)-last_send_try_at < timeout) {
+		daemon_poll_setmaxtimeout(timeout);
 		return;
 	}
 
