@@ -145,7 +145,7 @@ static void dmr_data_send_ip_packet(flag_t broadcast_to_all_repeaters, uint8_t n
 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);
 }
-// TODO: motorola sms mintha csak a ts1-en jonne meg es hiaba jon tms ack, nem vesszuk ki az smstxbufbol
+
 void dmr_data_send_motorola_tms_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	struct iphdr *ip_packet;
 
@@ -170,7 +170,7 @@ void dmr_data_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr
 
 	dmr_data_motorola_tms_tx_seqnum++;
 	ip_packet = dmrpacket_construct_payload_motorola_tms_ack(dstid, srcid, calltype, rx_seqnum);
-	dmr_data_send_ip_packet(0, 0, repeater, ts, calltype, dstid, srcid, ip_packet);
+	dmr_data_send_ip_packet(0, 3, repeater, ts, calltype, dstid, srcid, ip_packet);
 	free(ip_packet);
 }
 
@@ -180,7 +180,7 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	uint16_t utf16le_msg_length;
 	flag_t confirmed = (calltype == DMR_CALL_TYPE_PRIVATE ? 1 : 0);
 
-	if (repeater == NULL || msg == NULL)
+	if ((!broadcast_to_all_repeaters && repeater == NULL) || msg == NULL)
 		return;
 
 	console_log("dmr-data: sending %s sms to %u on ts%u: %s\n", dmr_get_readable_call_type(calltype), dstid, ts+1, msg);

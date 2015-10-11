@@ -105,8 +105,13 @@ data_packet_txbuf_t *data_packet_txbuf_get_first_entry(void) {
 void data_packet_txbuf_process(void) {
 	static time_t last_send_try_at = 0;
 
-	if (data_packet_txbuf_first_entry == NULL || time(NULL)-last_send_try_at < config_get_datapacketsendretryintervalinsec())
+	if (data_packet_txbuf_first_entry == NULL)
 		return;
+
+	if (time(NULL)-last_send_try_at < config_get_datapacketsendretryintervalinsec()) {
+		daemon_poll_setmaxtimeout(time(NULL)-last_send_try_at);
+		return;
+	}
 
 	if (data_packet_txbuf_first_entry->send_tries >= config_get_datapacketsendmaxretrycount()) {
 		console_log(LOGLEVEL_DMR "data packet txbuf: all tries of sending the first entry has failed, removing:\n");
@@ -131,6 +136,7 @@ void data_packet_txbuf_process(void) {
 	} else
 		data_packet_txbuf_first_entry->send_tries++;
 	last_send_try_at = time(NULL);
+	daemon_poll_setmaxtimeout(0);
 }
 
 void data_packet_txbuf_deinit(void) {

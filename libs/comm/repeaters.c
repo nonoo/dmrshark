@@ -546,9 +546,6 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 	if (data_blocks == NULL)
 		return;
 
-//if (selective_blocks == NULL)
-//	data_blocks[0].data[5]++; // TODO: remove
-
 	// Filling up missing fields from the header.
 	switch (data_packet->header.common.data_packet_format) {
 		case DMRPACKET_DATA_HEADER_DPF_UDT:

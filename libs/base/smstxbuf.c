@@ -55,6 +55,7 @@ void smstxbuf_print(void) {
 
 void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg) {
 	smstxbuf_t *new_smstxbuf_entry;
+	loglevel_t loglevel;
 
 	if (msg == NULL)
 		return;
@@ -73,7 +74,9 @@ void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag
 	new_smstxbuf_entry->src_id = srcid;
 
 	console_log(LOGLEVEL_DMR "smstxbuf: adding new sms:\n");
-	smstxbuf_print_entry(new_smstxbuf_entry);
+	loglevel = console_get_loglevel();
+	if (loglevel.flags.dmr)
+		smstxbuf_print_entry(new_smstxbuf_entry);
 
 	if (smstxbuf_last_entry == NULL) {
 		smstxbuf_last_entry = smstxbuf_first_entry = new_smstxbuf_entry;
@@ -87,9 +90,16 @@ void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag
 
 void smstxbuf_remove_first_entry(void) {
 	smstxbuf_t *nextentry;
+	loglevel_t loglevel;
 
 	if (smstxbuf_first_entry == NULL)
 		return;
+
+	loglevel = console_get_loglevel();
+	if (loglevel.flags.dmr && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "smstxbuf: removing first entry:\n");
+		smstxbuf_print_entry(smstxbuf_first_entry);
+	}
 
 	nextentry = smstxbuf_first_entry->next;
 	free(smstxbuf_first_entry);
@@ -104,12 +114,18 @@ smstxbuf_t *smstxbuf_get_first_entry(void) {
 
 void smstxbuf_process(void) {
 	static time_t last_sms_send_try_at = 0;
+	loglevel_t loglevel;
 
-	if (smstxbuf_first_entry == NULL || time(NULL)-last_sms_send_try_at < config_get_smssendretryintervalinsec())
+	if (smstxbuf_first_entry == NULL)
 		return;
 
+	if (time(NULL)-last_sms_send_try_at < config_get_smssendretryintervalinsec()) {
+		daemon_poll_setmaxtimeout(time(NULL)-last_sms_send_try_at);
+		return;
+	}
+
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
-		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed, removing:\n");
+		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 		smstxbuf_remove_first_entry();
 		if (smstxbuf_first_entry == NULL)
@@ -117,8 +133,11 @@ void smstxbuf_process(void) {
 	}
 
 	smstxbuf_first_entry->selective_ack_tries = 0;
-	console_log(LOGLEVEL_DMR "smstxbuf: sending entry:\n");
-	smstxbuf_print_entry(smstxbuf_first_entry);
+	loglevel = console_get_loglevel();
+	if (loglevel.flags.dmr) {
+		console_log(LOGLEVEL_DMR "smstxbuf: sending entry:\n");
+		smstxbuf_print_entry(smstxbuf_first_entry);
+	}
 
 	if (smstxbuf_first_entry->motorola_tms_sms)
 		dmr_data_send_motorola_tms_sms(1, NULL, 0, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
@@ -130,6 +149,7 @@ void smstxbuf_process(void) {
 	else
 		smstxbuf_first_entry->send_tries++;
 	last_sms_send_try_at = time(NULL);
+	daemon_poll_setmaxtimeout(0);
 }
 
 void smstxbuf_deinit(void) {

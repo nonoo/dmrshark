@@ -338,6 +338,17 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 										 	console_log(LOGLEVEL_DMR "    this ack is for sms tx buffer entry:\n");
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
 										 	smstxbuf_remove_first_entry();
+
+											smstxbuf_first_entry = smstxbuf_get_first_entry();
+											if (smstxbuf_first_entry != NULL &&
+												smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
+												smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
+												((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
+												 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
+												 	console_log(LOGLEVEL_DMR "    this ack is also for the second sms tx buffer entry:\n");
+												 	smstxbuf_print_entry(smstxbuf_first_entry);
+												 	smstxbuf_remove_first_entry();
+											}
 									} else
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
 								} else
@@ -565,7 +576,6 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 									srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
 										dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-										return;
 								}
 
 								smstxbuf_first_entry = smstxbuf_get_first_entry();

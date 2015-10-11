@@ -542,7 +542,7 @@ void command_process(char *input_buffer) {
 	}
 
 	if (strcmp(tok, "s") == 0) { // TODO: remove
-		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 1, "beer");
+		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 0, "beer");
 		return;
 	}
 
