@@ -283,6 +283,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	dmrpacket_data_header_responsetype_t data_response_type = DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT;
 	smstxbuf_t *smstxbuf_first_entry;
 	data_packet_txbuf_t *data_packet_txbuf_first_entry;
+	flag_t smstxbuf_first_two_entries_are_the_same;
 
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
 		return;
@@ -335,19 +336,24 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 										smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
 										((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
 										 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
+											smstxbuf_first_two_entries_are_the_same = 0;
+										 	if (smstxbuf_first_entry->next != NULL &&
+												smstxbuf_first_entry->next->dst_id == data_packet_header->common.src_llid &&
+												smstxbuf_first_entry->next->src_id == data_packet_header->common.dst_llid &&
+												((smstxbuf_first_entry->next->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
+												 (smstxbuf_first_entry->next->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group)) &&
+												strncmp(smstxbuf_first_entry->msg, smstxbuf_first_entry->next->msg, DMRPACKET_MAX_FRAGMENTSIZE) == 0)
+													smstxbuf_first_two_entries_are_the_same = 1;
+
 										 	console_log(LOGLEVEL_DMR "    this ack is for sms tx buffer entry:\n");
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
 										 	smstxbuf_remove_first_entry();
 
 											smstxbuf_first_entry = smstxbuf_get_first_entry();
-											if (smstxbuf_first_entry != NULL &&
-												smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
-												smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
-												((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
-												 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
-												 	console_log(LOGLEVEL_DMR "    this ack is also for the second sms tx buffer entry:\n");
-												 	smstxbuf_print_entry(smstxbuf_first_entry);
-												 	smstxbuf_remove_first_entry();
+											if (smstxbuf_first_entry != NULL && smstxbuf_first_two_entries_are_the_same) {
+											 	console_log(LOGLEVEL_DMR "    this ack is also for the second sms tx buffer entry:\n");
+											 	smstxbuf_print_entry(smstxbuf_first_entry);
+											 	smstxbuf_remove_first_entry();
 											}
 									} else
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);

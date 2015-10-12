@@ -112,7 +112,7 @@ void data_packet_txbuf_process(void) {
 
 	timeout = config_get_mindatapacketsendretryintervalinsec()+ceil(dmrpacket_get_time_in_ms_needed_to_send(&data_packet_txbuf_first_entry->data_packet)/1000.0);
 	if (time(NULL)-last_send_try_at < timeout) {
-		daemon_poll_setmaxtimeout(timeout);
+		daemon_poll_setmaxtimeout(timeout-(time(NULL)-last_send_try_at));
 		return;
 	}
 

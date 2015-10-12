@@ -120,7 +120,7 @@ void smstxbuf_process(void) {
 		return;
 
 	if (time(NULL)-last_sms_send_try_at < config_get_smssendretryintervalinsec()) {
-		daemon_poll_setmaxtimeout(time(NULL)-last_sms_send_try_at);
+		daemon_poll_setmaxtimeout(config_get_smssendretryintervalinsec()-(time(NULL)-last_sms_send_try_at));
 		return;
 	}
 
