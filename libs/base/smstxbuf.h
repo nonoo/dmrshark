@@ -21,6 +21,7 @@
 #include "dmr.h"
 
 #include <libs/dmrpacket/dmrpacket-data.h>
+#include <libs/comm/repeaters.h>
 
 #include <time.h>
 
@@ -31,6 +32,8 @@ typedef struct smstxbuf_st {
 	uint8_t selective_ack_tries;
 
 	flag_t motorola_tms_sms;
+	repeater_t *repeater;
+	dmr_timeslot_t ts;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
@@ -40,7 +43,7 @@ typedef struct smstxbuf_st {
 
 void smstxbuf_print_entry(smstxbuf_t *entry);
 void smstxbuf_print(void);
-void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg);
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg);
 
 void smstxbuf_remove_first_entry(void);
 smstxbuf_t *smstxbuf_get_first_entry(void);

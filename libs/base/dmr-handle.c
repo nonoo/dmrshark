@@ -59,6 +59,12 @@ void dmr_handle_voice_call_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, r
 
 	if (repeater->slot[ipscpacket->timeslot-1].echo_buf_first_entry != NULL)
 		repeaters_play_and_free_echo_buf(repeater, ipscpacket->timeslot-1);
+
+	if (repeater->slot[ipscpacket->timeslot-1].src_id != DMRSHARK_DEFAULT_DMR_ID &&
+		(repeater->slot[ipscpacket->timeslot-1].dst_id == DMRSHARK_DEFAULT_DMR_ID || (repeater->slot[ipscpacket->timeslot-1].dst_id == 9990 && ipscpacket->timeslot == 2))) {
+			if (repeater->slot[ipscpacket->timeslot-1].voicestream != NULL && repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
+				dmr_data_send_sms_rms_volume(repeater, ipscpacket->timeslot-1, ipscpacket->src_id, repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol); // TODO: delay after voice call ends
+	}
 }
 
 void dmr_handle_voice_call_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -108,6 +114,12 @@ void dmr_handle_voice_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 
 	if (repeater->slot[ts].echo_buf_first_entry != NULL)
 		repeaters_play_and_free_echo_buf(repeater, ts);
+
+	if (repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID &&
+		(repeater->slot[ts].dst_id == DMRSHARK_DEFAULT_DMR_ID || (repeater->slot[ts].dst_id == 9990 && ts == 1))) {
+			if (repeater->slot[ts].voicestream != NULL && repeater->slot[ts].voicestream->avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
+				dmr_data_send_sms_rms_volume(repeater, ts, repeater->slot[ts].src_id, repeater->slot[ts].voicestream->avg_rms_vol);
+	}
 }
 
 void dmr_handle_voice_lc_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -609,6 +621,11 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
 								is_motorola_tms_sms_received = 1;
+							} else if (tms_msg_length == 10) {
+								console_log(LOGLEVEL_DMR "      motorola tms message has an empty payload\n");
+								message_data = (uint8_t *)"";
+								message_data_length = 0;
+								is_motorola_tms_sms_received = 1;
 							} else
 								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
 							break;
@@ -638,16 +655,15 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	else {
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
-		else {
+		else
 			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
 
-			// Message is OK, and for us?
-			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
-				srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
-					dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-					if (is_motorola_tms_sms_received && tms_msg_payload != NULL)
-						dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4] & 0b11111);
-			}
+		// Message is OK, and for us?
+		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
+			srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
+				dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+				if (is_motorola_tms_sms_received && tms_msg_payload != NULL)
+					dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4] & 0b11111);
 		}
 	}
 }

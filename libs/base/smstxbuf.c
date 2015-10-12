@@ -53,7 +53,8 @@ void smstxbuf_print(void) {
 	}
 }
 
-void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg) {
+// In case of repeater is 0, the SMS will be sent broadcast.
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg) {
 	smstxbuf_t *new_smstxbuf_entry;
 	loglevel_t loglevel;
 
@@ -72,6 +73,8 @@ void smstxbuf_add(dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag
 	new_smstxbuf_entry->call_type = calltype;
 	new_smstxbuf_entry->dst_id = dstid;
 	new_smstxbuf_entry->src_id = srcid;
+	new_smstxbuf_entry->repeater = repeater;
+	new_smstxbuf_entry->ts = ts;
 
 	console_log(LOGLEVEL_DMR "smstxbuf: adding new sms:\n");
 	loglevel = console_get_loglevel();
@@ -140,9 +143,9 @@ void smstxbuf_process(void) {
 	}
 
 	if (smstxbuf_first_entry->motorola_tms_sms)
-		dmr_data_send_motorola_tms_sms(1, NULL, 0, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+		dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 	else
-		dmr_data_send_sms(1, NULL, 0, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+		dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 
 	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) // Group messages are unconfirmed, so we send them only once.
 		smstxbuf_remove_first_entry();

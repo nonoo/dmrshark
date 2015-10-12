@@ -19,6 +19,7 @@
 
 #include "dmr-data.h"
 #include "data-packet-txbuf.h"
+#include "smstxbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/comm/repeaters.h>
@@ -207,4 +208,12 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	data_packet.number_of_csbk_preambles_to_send = 3;
 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);
+}
+
+void dmr_data_send_sms_rms_volume(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, float avg_rms_vol) {
+	char msg[50];
+
+	snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB * dmrshark by HA2NON", (int)avg_rms_vol);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, dstid, DMRSHARK_DEFAULT_DMR_ID, 0, msg);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, dstid, DMRSHARK_DEFAULT_DMR_ID, 1, msg);
 }

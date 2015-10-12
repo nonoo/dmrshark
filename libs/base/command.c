@@ -536,13 +536,13 @@ void command_process(char *input_buffer) {
 			return;
 		}
 
-		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 0, tok);
-		smstxbuf_add(d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 1, tok);
+		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 0, tok);
+		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 1, tok);
 		return;
 	}
 
 	if (strcmp(tok, "s") == 0) { // TODO: remove
-		smstxbuf_add(DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 0, "beer");
+		smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 0, "beer");
 		return;
 	}
 

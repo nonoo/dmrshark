@@ -29,4 +29,6 @@ void dmr_data_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr
 void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap);
 void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, char *msg);
 
+void dmr_data_send_sms_rms_volume(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, float avg_rms_vol);
+
 #endif

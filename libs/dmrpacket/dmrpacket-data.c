@@ -295,8 +295,11 @@ char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *o
 	char *outptr = outbuf+add_to_left;
 	size_t outsize = sizeof(outbuf)-add_to_left;
 
-	if (data == NULL || data_length == 0)
+	if (data == NULL)
 		return NULL;
+
+	if (data_length == 0)
+		return "";
 
 	memset(outbuf, 0, sizeof(outbuf));
 	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x) to %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), src_dd_format,
