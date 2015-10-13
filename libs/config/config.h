@@ -65,6 +65,7 @@ int config_get_smssendretryintervalinsec(void);
 int config_get_smssendmaxretrycount(void);
 int config_get_mindatapacketsendretryintervalinsec(void);
 int config_get_datapacketsendmaxretrycount(void);
+int config_get_smsretransmittimeoutinsec(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

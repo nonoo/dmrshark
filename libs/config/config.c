@@ -638,7 +638,7 @@ int config_get_mindatapacketsendretryintervalinsec(void) {
 	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 2;
+	defaultvalue = 3;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -656,6 +656,23 @@ int config_get_datapacketsendmaxretrycount(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 3;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_smsretransmittimeoutinsec(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "smsretransmittimeoutinsec";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 5;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -745,6 +762,7 @@ void config_init(char *configfilename) {
 	free(tmp_addr);
 	config_get_mindatapacketsendretryintervalinsec();
 	config_get_datapacketsendmaxretrycount();
+	config_get_smsretransmittimeoutinsec();
 
 	config_writeconfigfile();
 }

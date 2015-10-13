@@ -19,6 +19,7 @@
 
 #include "base.h"
 #include "smstxbuf.h"
+#include "smsrtbuf.h"
 #include "data-packet-txbuf.h"
 
 #include <libs/daemon/console.h>
@@ -97,6 +98,7 @@ void base_bytestobits(uint8_t *bytes, uint16_t bytes_length, flag_t *bits, uint1
 }
 
 void base_process(void) {
+	smsrtbuf_process();
 	smstxbuf_process();
 	data_packet_txbuf_process();
 }
@@ -110,6 +112,7 @@ void base_init(void) {
 void base_deinit(void) {
 	console_log("base: deinit\n");
 
+	smsrtbuf_deinit();
 	smstxbuf_deinit();
 	data_packet_txbuf_deinit();
 }

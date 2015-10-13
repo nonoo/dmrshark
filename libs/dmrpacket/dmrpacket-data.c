@@ -291,7 +291,7 @@ char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *o
 	int result;
 	size_t insize = 0;
 	char *inptr;
-	static char outbuf[DMRPACKET_MAX_FRAGMENTSIZE*4+1]; // Max. char width is 4 bytes.
+	static char outbuf[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE]; // Max. char width is 4 bytes.
 	char *outptr = outbuf+add_to_left;
 	size_t outsize = sizeof(outbuf)-add_to_left;
 
@@ -470,7 +470,7 @@ static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr
 	ip_packet->ihl = 5;
 	ip_packet->version = 4;
 	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + payload_size);
-	ip_packet->id = htonl(7777);
+	ip_packet->id = htonl(0x2ec1);
 	ip_packet->ttl = (calltype == DMR_CALL_TYPE_PRIVATE ? 64 : 1);
 	ip_packet->protocol = IPPROTO_UDP;
 	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);

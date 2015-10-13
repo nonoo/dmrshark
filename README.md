@@ -105,6 +105,7 @@ The file has the following configuration variables:
 - **smssendmaxretrycount**: Retry SMS sending from the SMS TX buffer this many times.
 - **mindatapacketsendretryintervalinsec**: Retry sending data (including SMS) packets in this interval. SMSes are added to the SMS TX buffer for the first time, then the buffer adds them to the data packet TX buffer for transmitting.
 - **datapacketsendmaxretrycount**: Retry sending data packets (including SMS) this many times.
+- **smsretransmittimeoutinsec**: Retransmit Motorola TMS as normal SMS and vica versa after this many seconds of the last successful receive. Set to 0 to disable retransmitting.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 

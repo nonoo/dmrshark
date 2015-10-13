@@ -56,7 +56,8 @@ typedef struct {
 } dmrpacket_data_block_t;
 
 // n_DFragMax, see DMR AI spec. page 163.
-#define DMRPACKET_MAX_FRAGMENTSIZE 1500
+#define DMRPACKET_MAX_FRAGMENTSIZE			1500
+#define DMRPACKET_DATA_MAX_DECODED_SMS_SIZE (DMRPACKET_MAX_FRAGMENTSIZE*4+1)
 
 typedef struct {
 	uint8_t bytes[DMRPACKET_MAX_FRAGMENTSIZE];

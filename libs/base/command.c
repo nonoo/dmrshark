@@ -22,6 +22,7 @@
 #include "types.h"
 #include "base.h"
 #include "smstxbuf.h"
+#include "smsrtbuf.h"
 #include "dmr-data.h"
 #include "data-packet-txbuf.h"
 
@@ -95,6 +96,7 @@ void command_process(char *input_buffer) {
 		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
 		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
 		console_log("  smslist                                                        - print the contents of the sms tx buffer\n");
+		console_log("  smsrtlist                                                      - print the contents of the sms retransmit buffer\n");
 		console_log("  dptlist                                                        - print the contents of the data packet tx buffer\n");
 		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
 		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
@@ -399,6 +401,11 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
+	if (strcmp(tok, "smsrtlist") == 0) {
+		smsrtbuf_print();
+		return;
+	}
+
 	if (strcmp(tok, "dptlist") == 0) {
 		data_packet_txbuf_print();
 		return;
@@ -538,11 +545,6 @@ void command_process(char *input_buffer) {
 
 		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 0, tok);
 		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, 1, tok);
-		return;
-	}
-
-	if (strcmp(tok, "s") == 0) { // TODO: remove
-		smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, 0, "beer");
 		return;
 	}
 

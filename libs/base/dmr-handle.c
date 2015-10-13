@@ -19,6 +19,7 @@
 
 #include "dmr-handle.h"
 #include "smstxbuf.h"
+#include "smsrtbuf.h"
 #include "data-packet-txbuf.h"
 #include "dmr-data.h"
 
@@ -505,7 +506,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	dmr_id_t srcid;
 	dmr_call_type_t calltype;
 	smstxbuf_t *smstxbuf_first_entry;
-	flag_t is_motorola_tms_sms_received = 0;
+	smsrtbuf_sms_type_t received_sms_type = SMSRTBUF_SMS_TYPE_UNKNOWN;
 
 	if (ipscpacket == NULL || repeater == NULL || data_fragment == NULL)
 		return;
@@ -519,6 +520,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			ip_packet = (struct ip *)data_fragment->bytes;
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  received ip based packet data\n");
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    version: %u\n", ip_packet->ip_v);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    id: 0x%.4x\n", ntohs(ip_packet->ip_id));
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    fragment offset: 0x%.4x\n", ntohs(ip_packet->ip_off));
 			ipaddr = ntohl(ip_packet->ip_dst.s_addr);
 			dstid = (ipaddr & 0xffffff);
 			if (ipaddr & (0b11100000 << 24)) {
@@ -612,12 +615,12 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							if (tms_msg_length > 10) {
 								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
-								is_motorola_tms_sms_received = 1;
+								received_sms_type = SMSRTBUF_SMS_TYPE_MOTOROLA_TMS;
 							} else if (tms_msg_length == 10) {
 								console_log(LOGLEVEL_DMR "      motorola tms message has an empty payload\n");
 								message_data = (uint8_t *)"";
 								message_data_length = 0;
-								is_motorola_tms_sms_received = 1;
+								received_sms_type = SMSRTBUF_SMS_TYPE_MOTOROLA_TMS;
 							} else
 								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
 							break;
@@ -635,6 +638,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			message_data = data_fragment->bytes+2; // Hytera has a 2 byte pre-padding.
 			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
 			dd_format = repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format;
+			received_sms_type = SMSRTBUF_SMS_TYPE_NORMAL;
 			break;
 		default:
 			console_log(LOGLEVEL_DMR "  unhandled service access point: %s\n", dmrpacket_data_header_get_readable_sap(repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point));
@@ -647,14 +651,16 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	else {
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
-		else
+		else {
 			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
+			smsrtbuf_add_decoded_message(received_sms_type, dstid, srcid, decoded_message);
+		}
 
 		// Message is OK, and for us?
 		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 			srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
 				dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-				if (is_motorola_tms_sms_received && tms_msg_payload != NULL)
+				if (received_sms_type == SMSRTBUF_SMS_TYPE_MOTOROLA_TMS && tms_msg_payload != NULL)
 					dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4] & 0b11111);
 		}
 	}
