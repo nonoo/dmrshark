@@ -15,6 +15,10 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
+// This SMS TX buffer takes care of sending SMSes and retrying when send
+// fails. It's a FIFO, and only one (the first) element is tried to be
+// sent at a time.
+
 #include DEFAULTCONFIG
 
 #include "smstxbuf.h"
@@ -35,7 +39,15 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 	char added_at_str[20];
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
-	console_log(LOGLEVEL_DMR "  dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n", entry->dst_id, entry->src_id,
+	if (entry->repeater == NULL)
+		console_log(LOGLEVEL_DMR "  repeater: all ");
+	else {
+		console_log(LOGLEVEL_DMR "  repeater: %s ts: %u ",
+			repeaters_get_display_string_for_ip(&entry->repeater->ipaddr),
+			entry->ts+1);
+	}
+	console_log("dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n",
+		entry->dst_id, entry->src_id,
 		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, (entry->motorola_tms_sms ? "motorola" : "standard"), entry->msg);
 }
 

@@ -60,11 +60,7 @@ void dmr_handle_voice_call_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, r
 	if (repeater->slot[ipscpacket->timeslot-1].echo_buf_first_entry != NULL)
 		repeaters_play_and_free_echo_buf(repeater, ipscpacket->timeslot-1);
 
-	if (repeater->slot[ipscpacket->timeslot-1].src_id != DMRSHARK_DEFAULT_DMR_ID &&
-		(repeater->slot[ipscpacket->timeslot-1].dst_id == DMRSHARK_DEFAULT_DMR_ID || (repeater->slot[ipscpacket->timeslot-1].dst_id == 9990 && ipscpacket->timeslot == 2))) {
-			if (repeater->slot[ipscpacket->timeslot-1].voicestream != NULL && repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
-				dmr_data_send_sms_rms_volume(repeater, ipscpacket->timeslot-1, ipscpacket->src_id, repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol); // TODO: delay after voice call ends
-	}
+	dmr_data_send_sms_rms_volume_if_needed(repeater, ipscpacket->timeslot-1);
 }
 
 void dmr_handle_voice_call_start(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -115,11 +111,7 @@ void dmr_handle_voice_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 	if (repeater->slot[ts].echo_buf_first_entry != NULL)
 		repeaters_play_and_free_echo_buf(repeater, ts);
 
-	if (repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID &&
-		(repeater->slot[ts].dst_id == DMRSHARK_DEFAULT_DMR_ID || (repeater->slot[ts].dst_id == 9990 && ts == 1))) {
-			if (repeater->slot[ts].voicestream != NULL && repeater->slot[ts].voicestream->avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
-				dmr_data_send_sms_rms_volume(repeater, ts, repeater->slot[ts].src_id, repeater->slot[ts].voicestream->avg_rms_vol);
-	}
+	dmr_data_send_sms_rms_volume_if_needed(repeater, ts);
 }
 
 void dmr_handle_voice_lc_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {

@@ -28,6 +28,10 @@
 #include <string.h>
 #include <math.h>
 
+// All data packets which need an ack should be put into the data packet
+// TX buffer, which is a FIFO. Only one item gets sent at a time and
+// retried periodically until an ack is received.
+
 static data_packet_txbuf_t *data_packet_txbuf_first_entry = NULL;
 static data_packet_txbuf_t *data_packet_txbuf_last_entry = NULL;
 

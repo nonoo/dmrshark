@@ -210,10 +210,28 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);
 }
 
-void dmr_data_send_sms_rms_volume(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, float avg_rms_vol) {
+void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t ts) {
 	char msg[50];
 
-	snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB * dmrshark by HA2NON", (int)avg_rms_vol);
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, dstid, DMRSHARK_DEFAULT_DMR_ID, 0, msg);
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, dstid, DMRSHARK_DEFAULT_DMR_ID, 1, msg);
+	// No RMS volume SMS for echo service replies.
+	if (repeater->slot[ts].src_id == DMRSHARK_DEFAULT_DMR_ID || repeater->slot[ts].src_id == 9990)
+		return;
+
+	// Only sending RMS volume after echo service requests.
+	if (repeater->slot[ts].dst_id != DMRSHARK_DEFAULT_DMR_ID && repeater->slot[ts].dst_id != 9990)
+		return;
+
+	// DMRPlus echo service is only active on TS2.
+	if (repeater->slot[ts].dst_id == 9990 && ts != 1)
+		return;
+
+	if (repeater->slot[ts].voicestream == NULL)
+		return;
+
+	if (repeater->slot[ts].voicestream->avg_rms_vol == VOICESTREAMS_INVALID_RMS_VALUE)
+		return;
+
+	snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB * dmrshark by HA2NON", (int)repeater->slot[ts].voicestream->avg_rms_vol);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, 0, msg);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, 1, msg);
 }

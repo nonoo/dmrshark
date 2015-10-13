@@ -24,7 +24,7 @@
 #define DMR_CALL_TYPE_GROUP						0x01
 typedef uint8_t dmr_call_type_t;
 
-typedef uint8_t dmr_timeslot_t;
+typedef uint8_t dmr_timeslot_t; // Note that the value for TS1 is 0, and for TS2 is 1.
 typedef uint32_t dmr_id_t;
 typedef uint8_t dmr_color_code_t;
 

@@ -9,6 +9,7 @@ It can be used for:
 - Playing back previously recorded AMBE voice files to repeaters.
 - Echo service.
 - Measure actual and average RMS volume of the calls, and upload them to a remote database, so users can adjust their mic gain settings.
+- Sends average RMS volume as an SMS after an echo test.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
 - Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format).
@@ -100,6 +101,10 @@ The file has the following configuration variables:
 - **httpserverenabled**: Set this to 1 to enable built-in HTTP/Websockets server, which is needed for streaming.
 - **httpserverport**: Port to bind the HTTP/Websockets server.
 - **masteripaddr**: Set this to the IP address of the DMR master software. This IP will be the source address for outgoing dmrshark packets to the repeaters.
+- **smssendretryintervalinsec**: Retry SMS sending from the SMS TX buffer in this interval.
+- **smssendmaxretrycount**: Retry SMS sending from the SMS TX buffer this many times.
+- **mindatapacketsendretryintervalinsec**: Retry sending data (including SMS) packets in this interval. SMSes are added to the SMS TX buffer for the first time, then the buffer adds them to the data packet TX buffer for transmitting.
+- **datapacketsendmaxretrycount**: Retry sending data packets (including SMS) this many times.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
 
