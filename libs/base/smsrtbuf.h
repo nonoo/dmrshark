@@ -20,14 +20,29 @@
 
 #include "dmr.h"
 
-#define SMSRTBUF_SMS_TYPE_UNKNOWN		0
-#define SMSRTBUF_SMS_TYPE_NORMAL		1
-#define SMSRTBUF_SMS_TYPE_MOTOROLA_TMS	2
-typedef uint8_t smsrtbuf_sms_type_t;
+#include <libs/dmrpacket/dmrpacket-data.h>
+
+#include <time.h>
+
+typedef struct smsrtbuf_st {
+	dmr_sms_type_t sms_type;
+	dmr_id_t dstid;
+	dmr_id_t srcid;
+	char orig_msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE];
+	char sent_msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE+50];
+	time_t last_added_at;
+	flag_t currently_sending;
+
+	struct smsrtbuf_st *next;
+	struct smsrtbuf_st *prev;
+} smsrtbuf_t;
 
 void smsrtbuf_print(void);
 
-void smsrtbuf_add_decoded_message(smsrtbuf_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, char *msg);
+smsrtbuf_t *smsrtbuf_find_entry(dmr_id_t dstid, char *msg);
+void smsrtbuf_add_decoded_message(dmr_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, char *msg);
+void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry);
+void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry);
 
 void smsrtbuf_process(void);
 void smsrtbuf_deinit(void);

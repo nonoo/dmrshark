@@ -23,6 +23,7 @@
 
 #include "smstxbuf.h"
 #include "dmr-data.h"
+#include "smsrtbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -48,7 +49,7 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 	}
 	console_log("dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n",
 		entry->dst_id, entry->src_id,
-		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, (entry->motorola_tms_sms ? "motorola" : "standard"), entry->msg);
+		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_sms_type(entry->sms_type), entry->msg);
 }
 
 void smstxbuf_print(void) {
@@ -66,7 +67,7 @@ void smstxbuf_print(void) {
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg) {
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_sms_type_t sms_type, char *msg) {
 	smstxbuf_t *new_smstxbuf_entry;
 	loglevel_t loglevel;
 
@@ -81,7 +82,7 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 
 	strncpy(new_smstxbuf_entry->msg, msg, DMRPACKET_MAX_FRAGMENTSIZE);
 	new_smstxbuf_entry->added_at = time(NULL);
-	new_smstxbuf_entry->motorola_tms_sms = motorola_tms_sms;
+	new_smstxbuf_entry->sms_type = sms_type;
 	new_smstxbuf_entry->call_type = calltype;
 	new_smstxbuf_entry->dst_id = dstid;
 	new_smstxbuf_entry->src_id = srcid;
@@ -103,7 +104,7 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	daemon_poll_setmaxtimeout(0);
 }
 
-void smstxbuf_remove_first_entry(void) {
+static void smstxbuf_remove_first_entry(void) {
 	smstxbuf_t *nextentry;
 	loglevel_t loglevel;
 
@@ -121,6 +122,34 @@ void smstxbuf_remove_first_entry(void) {
 	smstxbuf_first_entry = nextentry;
 	if (smstxbuf_first_entry == NULL)
 		smstxbuf_last_entry = NULL;
+}
+
+void smstxbuf_first_entry_sent_successfully(void) {
+	smsrtbuf_t *smsrtbuf_entry;
+
+	if (smstxbuf_first_entry == NULL)
+		return;
+
+	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
+
+	console_log(LOGLEVEL_DMR "smstxbuf: first entry sent successfully\n");
+	if (smsrtbuf_entry != NULL)
+		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
+	smstxbuf_remove_first_entry();
+}
+
+static void smstxbuf_first_entry_send_unsuccessful(void) {
+	smsrtbuf_t *smsrtbuf_entry;
+
+	if (smstxbuf_first_entry == NULL)
+		return;
+
+	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
+
+	console_log(LOGLEVEL_DMR "smstxbuf: first entry send unsuccessful\n");
+	if (smsrtbuf_entry != NULL)
+		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
+	smstxbuf_remove_first_entry();
 }
 
 smstxbuf_t *smstxbuf_get_first_entry(void) {
@@ -142,7 +171,7 @@ void smstxbuf_process(void) {
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
 		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
-		smstxbuf_remove_first_entry();
+		smstxbuf_first_entry_send_unsuccessful();
 		if (smstxbuf_first_entry == NULL)
 			return;
 	}
@@ -154,10 +183,16 @@ void smstxbuf_process(void) {
 		smstxbuf_print_entry(smstxbuf_first_entry);
 	}
 
-	if (smstxbuf_first_entry->motorola_tms_sms)
-		dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
-	else
-		dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+	switch (smstxbuf_first_entry->sms_type) {
+		case DMR_SMS_TYPE_MOTOROLA_TMS:
+			dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+			break;
+		case DMR_SMS_TYPE_NORMAL:
+			dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+			break;
+		default:
+			break;
+	}
 
 	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) // Group messages are unconfirmed, so we send them only once.
 		smstxbuf_remove_first_entry();

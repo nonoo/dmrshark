@@ -31,7 +31,7 @@ typedef struct smstxbuf_st {
 	uint8_t send_tries;
 	uint8_t selective_ack_tries;
 
-	flag_t motorola_tms_sms;
+	dmr_sms_type_t sms_type;
 	repeater_t *repeater;
 	dmr_timeslot_t ts;
 	dmr_call_type_t call_type;
@@ -43,9 +43,9 @@ typedef struct smstxbuf_st {
 
 void smstxbuf_print_entry(smstxbuf_t *entry);
 void smstxbuf_print(void);
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, flag_t motorola_tms_sms, char *msg);
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_sms_type_t sms_type, char *msg);
 
-void smstxbuf_remove_first_entry(void);
+void smstxbuf_first_entry_sent_successfully(void);
 smstxbuf_t *smstxbuf_get_first_entry(void);
 
 void smstxbuf_process(void);

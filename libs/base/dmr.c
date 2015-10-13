@@ -26,3 +26,11 @@ char *dmr_get_readable_call_type(dmr_call_type_t call_type) {
 		default: return "unknown";
 	}
 }
+
+char *dmr_get_readable_sms_type(dmr_sms_type_t sms_type) {
+	switch (sms_type) {
+		case DMR_SMS_TYPE_NORMAL: return "normal";
+		case DMR_SMS_TYPE_MOTOROLA_TMS: return "motorola tms";
+		default: return "unknown";
+	}
+}

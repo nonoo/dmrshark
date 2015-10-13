@@ -470,7 +470,7 @@ static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr
 	ip_packet->ihl = 5;
 	ip_packet->version = 4;
 	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + payload_size);
-	ip_packet->id = htonl(0x2ec1);
+	ip_packet->id = htons(0x2ec1);
 	ip_packet->ttl = (calltype == DMR_CALL_TYPE_PRIVATE ? 64 : 1);
 	ip_packet->protocol = IPPROTO_UDP;
 	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);

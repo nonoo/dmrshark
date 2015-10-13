@@ -20,47 +20,26 @@
 #include "smsrtbuf.h"
 #include "smstxbuf.h"
 
-#include <libs/dmrpacket/dmrpacket-data.h>
 #include <libs/daemon/console.h>
 #include <libs/config/config.h>
 
-#include <time.h>
 #include <string.h>
 #include <stdlib.h>
-
-typedef struct smsrtbuf_st {
-	smsrtbuf_sms_type_t sms_type;
-	dmr_id_t dstid;
-	dmr_id_t srcid;
-	char msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE];
-	time_t last_added_at;
-
-	struct smsrtbuf_st *next;
-	struct smsrtbuf_st *prev;
-} smsrtbuf_t;
 
 static smsrtbuf_t *smsrtbuf_first_entry = NULL;
 static smsrtbuf_t *smsrtbuf_last_entry = NULL;
 
-static char *smsrtbuf_get_readable_sms_type(smsrtbuf_sms_type_t sms_type) {
-	switch (sms_type) {
-		case SMSRTBUF_SMS_TYPE_NORMAL: return "normal";
-		case SMSRTBUF_SMS_TYPE_MOTOROLA_TMS: return "motorola tms";
-		default: return "unknown";
-	}
-}
-
 static void smsrtbuf_print_entry(smsrtbuf_t *entry) {
-	int time_left;
+	time_t time_left;
 
 	if (entry == NULL)
 		return;
 
 	time_left = config_get_smsretransmittimeoutinsec()-(time(NULL)-entry->last_added_at);
-	if (time(NULL)-entry->last_added_at < 0)
+	if (time_left < 0)
 		time_left = 0;
 	console_log("  time left: %u type: %s dst: %u src: %u msg: %s\n", time_left,
-		smsrtbuf_get_readable_sms_type(entry->sms_type), entry->dstid, entry->srcid, entry->msg);
+		dmr_get_readable_sms_type(entry->sms_type), entry->dstid, entry->srcid, entry->orig_msg);
 }
 
 void smsrtbuf_print(void) {
@@ -78,28 +57,32 @@ void smsrtbuf_print(void) {
 	}
 }
 
-static smsrtbuf_t *smsrtbuf_findentry(smsrtbuf_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
+smsrtbuf_t *smsrtbuf_find_entry(dmr_id_t dstid, char *msg) {
 	smsrtbuf_t *entry = smsrtbuf_first_entry;
 
+	if (msg == NULL)
+		return NULL;
+
 	while (entry) {
-		if (entry->sms_type == sms_type && entry->dstid == dstid && entry->srcid == srcid && strncmp(entry->msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE-1) == 0)
-			return entry;
+		if (entry->dstid == dstid &&
+			(strncmp(entry->sent_msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE) == 0 || strncmp(entry->orig_msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE) == 0))
+				return entry;
 
 		entry = entry->next;
 	}
 	return NULL;
 }
 
-void smsrtbuf_add_decoded_message(smsrtbuf_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
+void smsrtbuf_add_decoded_message(dmr_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, char *msg) {
 	smsrtbuf_t *new_entry;
 	loglevel_t loglevel;
 
-	if (msg == NULL || sms_type == SMSRTBUF_SMS_TYPE_UNKNOWN || srcid == DMRSHARK_DEFAULT_DMR_ID || config_get_smsretransmittimeoutinsec() == 0)
+	if (msg == NULL || sms_type == DMR_SMS_TYPE_UNKNOWN || srcid == DMRSHARK_DEFAULT_DMR_ID || config_get_smsretransmittimeoutinsec() == 0)
 		return;
 
 	loglevel = console_get_loglevel();
 
-	new_entry = smsrtbuf_findentry(sms_type, dstid, srcid, msg);
+	new_entry = smsrtbuf_find_entry(dstid, msg);
 	if (new_entry != NULL) {
 		// Entry already in the buffer.
 		new_entry->last_added_at = time(NULL);
@@ -114,7 +97,7 @@ void smsrtbuf_add_decoded_message(smsrtbuf_sms_type_t sms_type, dmr_id_t dstid, 
 	new_entry->sms_type = sms_type;
 	new_entry->dstid = dstid;
 	new_entry->srcid = srcid;
-	strncpy(new_entry->msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE-1);
+	strncpy(new_entry->orig_msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE-1);
 	new_entry->last_added_at = time(NULL);
 
 	if (loglevel.flags.dmr) {
@@ -156,35 +139,93 @@ static void smsrtbuf_remove_entry(smsrtbuf_t *entry) {
 	free(entry);
 }
 
+void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
+	char msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE+50] = {0,};
+	loglevel_t loglevel;
+
+	if (entry == NULL)
+		return;
+
+	loglevel = console_get_loglevel();
+	if (loglevel.flags.dmr) {
+		console_log(LOGLEVEL_DMR "smsrtbuf: entry sent successfully:\n");
+		smsrtbuf_print_entry(entry);
+	}
+	snprintf(msg, sizeof(msg), "Retransmitted SMS to %u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+	switch (entry->sms_type) {
+		case DMR_SMS_TYPE_NORMAL:
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
+			break;
+		case DMR_SMS_TYPE_MOTOROLA_TMS:
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, msg);
+			break;
+		default:
+			break;
+	}
+
+	smsrtbuf_remove_entry(entry);
+}
+
+void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry) {
+	char msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE+50] = {0,};
+	loglevel_t loglevel;
+
+	if (entry == NULL)
+		return;
+
+	loglevel = console_get_loglevel();
+	if (loglevel.flags.dmr) {
+		console_log(LOGLEVEL_DMR "smsrtbuf: failed to retransmit entry:\n");
+		smsrtbuf_print_entry(entry);
+	}
+	snprintf(msg, sizeof(msg), "Failed retransmitting SMS to %u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+	switch (entry->sms_type) {
+		case DMR_SMS_TYPE_NORMAL:
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
+			break;
+		case DMR_SMS_TYPE_MOTOROLA_TMS:
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, msg);
+			break;
+		default:
+			break;
+	}
+
+	smsrtbuf_remove_entry(entry);
+}
+
 void smsrtbuf_process(void) {
 	smsrtbuf_t *entry = smsrtbuf_first_entry;
 	loglevel_t loglevel;
-	char msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE+50] = {0,};
 
 	while (entry) {
-		if (time(NULL)-entry->last_added_at > config_get_smsretransmittimeoutinsec()) {
+		if (!entry->currently_sending && time(NULL)-entry->last_added_at > config_get_smsretransmittimeoutinsec()) {
 			loglevel = console_get_loglevel();
-			snprintf(msg, sizeof(msg), "%u: %s", entry->srcid, entry->msg); // TODO: add callsign
-if (entry->srcid == 2161005 || entry->dstid == 2161005) { // TODO: remove
+			snprintf(entry->sent_msg, sizeof(entry->sent_msg), "%u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+
 			switch (entry->sms_type) {
-				case SMSRTBUF_SMS_TYPE_NORMAL:
+				case DMR_SMS_TYPE_NORMAL:
 					if (loglevel.flags.dmr) {
 						console_log(LOGLEVEL_DMR "smsrtbuf: retransmitting as motorola tms sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
-					smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, 1, msg);
+					smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, entry->sent_msg);
+					entry->currently_sending = 1;
 					break;
-				case SMSRTBUF_SMS_TYPE_MOTOROLA_TMS:
+				case DMR_SMS_TYPE_MOTOROLA_TMS:
 					if (loglevel.flags.dmr) {
 						console_log(LOGLEVEL_DMR "smsrtbuf: retransmitting as normal sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
-					smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, 0, msg);
+					smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, entry->sent_msg);
+					entry->currently_sending = 1;
 					break;
 				default:
+					smsrtbuf_remove_entry(entry);
 					break;
 			}
-}
+		}
+
+		if (entry->currently_sending && time(NULL)-entry->last_added_at > 600) { // Cleanup
 			smsrtbuf_remove_entry(entry);
 			break;
 		}
