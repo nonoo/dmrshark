@@ -31,6 +31,7 @@
 #include <libs/comm/snmp.h>
 #include <libs/comm/repeaters.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/remotedb/userdb.h>
 #include <libs/comm/comm.h>
 #include <libs/voicestreams/voicestreams.h>
 #include <libs/comm/httpserver.h>
@@ -81,6 +82,7 @@ void command_process(char *input_buffer) {
 		console_log("  repstat [host]                                                 - reads repeater status from host using snmp\n");
 		console_log("  repinfo [host]                                                 - reads repeater info from host using snmp\n");
 		console_log("  replist                                                        - list repeaters\n");
+		console_log("  userlist                                                       - list users got from remote db\n");
 		console_log("  streamlist                                                     - list voice streams\n");
 		console_log("  remotedbmaintain                                               - start db maintenance\n");
 		console_log("  remotedbreplistmaintain                                        - start repeater list db maintenance\n");
@@ -181,6 +183,11 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "replist") == 0) {
 		repeaters_list();
+		return;
+	}
+
+	if (strcmp(tok, "userlist") == 0) {
+		userdb_print();
 		return;
 	}
 

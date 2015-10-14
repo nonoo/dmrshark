@@ -94,6 +94,8 @@ The file has the following configuration variables:
 - **remotedbreconnecttrytimeoutinsec**: If the remote database connection gets lost, dmrshark will try to reconnect in this interval.
 - **remotedbdeleteolderthansec**: Clear remote database log entries older than this many seconds.
 - **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
+- **userdbtablename**: Table to get DMR ID and callsign associations from.
+- **remotedbuserlistdlperiodinsec**: Update user list in this interval. Set it to 0 to disable user list download.
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
 - **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).

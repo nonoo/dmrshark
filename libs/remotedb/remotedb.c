@@ -18,6 +18,7 @@
 #include DEFAULTCONFIG
 
 #include "remotedb.h"
+#include "userdb.h"
 
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
@@ -219,6 +220,8 @@ static flag_t remotedb_thread_process(void) {
 	static time_t lastconnecttriedat = 0;
 	static time_t lastmaintenanceat = 0;
 	static time_t lastrepeaterlistmaintenanceat = 0;
+	static time_t lastuserlistqueryat = 0;
+	static flag_t userdb_dl_ok = 0;
 	flag_t query_left_in_buffer = 0;
 
 	if (remotedb_conn == NULL)
@@ -238,6 +241,14 @@ static flag_t remotedb_thread_process(void) {
 	if (time(NULL)-lastrepeaterlistmaintenanceat > config_get_repeaterinactivetimeoutinsec()) {
 		remotedb_maintain_repeaterlist();
 		lastrepeaterlistmaintenanceat = time(NULL);
+	}
+
+	// If user list db download was unnsuccessful, we retry it every minute.
+	if (config_get_remotedbuserlistdlperiodinsec()) {
+		if (time(NULL)-lastuserlistqueryat > config_get_remotedbuserlistdlperiodinsec() || (!userdb_dl_ok && time(NULL)-lastuserlistqueryat > 60)) {
+			userdb_dl_ok = userdb_reload(remotedb_conn);
+			lastuserlistqueryat = time(NULL);
+		}
 	}
 
 	// Do we have a query in the buffer?
@@ -349,4 +360,6 @@ void remotedb_deinit(void) {
 	pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
 	console_log("remotedb: waiting for remote db thread to exit\n");
 	pthread_join(remotedb_thread, &status);
+
+	userdb_deinit();
 }

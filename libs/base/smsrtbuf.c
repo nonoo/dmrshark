@@ -22,12 +22,12 @@
 
 #include <libs/daemon/console.h>
 #include <libs/config/config.h>
+#include <libs/remotedb/userdb.h>
 
 #include <string.h>
 #include <stdlib.h>
 
 static smsrtbuf_t *smsrtbuf_first_entry = NULL;
-static smsrtbuf_t *smsrtbuf_last_entry = NULL;
 
 static void smsrtbuf_print_entry(smsrtbuf_t *entry) {
 	time_t time_left;
@@ -106,12 +106,7 @@ void smsrtbuf_add_decoded_message(dmr_sms_type_t sms_type, dmr_id_t dstid, dmr_i
 	}
 
 	if (smsrtbuf_first_entry == NULL)
-		smsrtbuf_first_entry = smsrtbuf_last_entry = new_entry;
-	else {
-		smsrtbuf_last_entry->next = new_entry;
-		new_entry->prev = smsrtbuf_last_entry;
-		smsrtbuf_last_entry = new_entry;
-	}
+		smsrtbuf_first_entry = new_entry;
 }
 
 static void smsrtbuf_remove_entry(smsrtbuf_t *entry) {
@@ -133,8 +128,6 @@ static void smsrtbuf_remove_entry(smsrtbuf_t *entry) {
 
 	if (smsrtbuf_first_entry == entry)
 		smsrtbuf_first_entry = entry->next;
-	if (smsrtbuf_last_entry == entry)
-		smsrtbuf_last_entry = entry->prev;
 
 	free(entry);
 }
@@ -151,7 +144,7 @@ void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
 		console_log(LOGLEVEL_DMR "smsrtbuf: entry sent successfully:\n");
 		smsrtbuf_print_entry(entry);
 	}
-	snprintf(msg, sizeof(msg), "Retransmitted SMS to %u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+	snprintf(msg, sizeof(msg), "Retransmitted SMS to %s: %s", userdb_get_display_str_for_id(entry->srcid), entry->orig_msg);
 	switch (entry->sms_type) {
 		case DMR_SMS_TYPE_NORMAL:
 			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
@@ -178,7 +171,7 @@ void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry) {
 		console_log(LOGLEVEL_DMR "smsrtbuf: failed to retransmit entry:\n");
 		smsrtbuf_print_entry(entry);
 	}
-	snprintf(msg, sizeof(msg), "Failed retransmitting SMS to %u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+	snprintf(msg, sizeof(msg), "Failed retransmitting SMS to %s: %s", userdb_get_display_str_for_id(entry->srcid), entry->orig_msg);
 	switch (entry->sms_type) {
 		case DMR_SMS_TYPE_NORMAL:
 			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, entry->srcid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
@@ -200,7 +193,7 @@ void smsrtbuf_process(void) {
 	while (entry) {
 		if (!entry->currently_sending && time(NULL)-entry->last_added_at > config_get_smsretransmittimeoutinsec()) {
 			loglevel = console_get_loglevel();
-			snprintf(entry->sent_msg, sizeof(entry->sent_msg), "%u: %s", entry->srcid, entry->orig_msg); // TODO: add callsign
+			snprintf(entry->sent_msg, sizeof(entry->sent_msg), "%s: %s", userdb_get_display_str_for_id(entry->srcid), entry->orig_msg);
 
 			switch (entry->sms_type) {
 				case DMR_SMS_TYPE_NORMAL:
@@ -243,4 +236,5 @@ void smsrtbuf_deinit(void) {
 		smsrtbuf_remove_entry(entry);
 		entry = next_entry;
 	}
+	smsrtbuf_first_entry = NULL;
 }

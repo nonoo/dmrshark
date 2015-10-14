@@ -468,6 +468,24 @@ char *config_get_remotedbtableprefix(void) {
 	return value;
 }
 
+char *config_get_userdbtablename(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "userdbtablename";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "dmr-db-users";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 int config_get_remotedbreconnecttrytimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;
@@ -511,6 +529,23 @@ int config_get_remotedbdeleteolderthansec(void) {
 
 	pthread_mutex_lock(&config_mutex);
 	defaultvalue = 86400;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_remotedbuserlistdlperiodinsec(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "remotedbuserlistdlperiodinsec";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 3600;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -753,8 +788,11 @@ void config_init(char *configfilename) {
 	free(tmp_str);
 	tmp_str = config_get_remotedbtableprefix();
 	free(tmp_str);
+	tmp_str = config_get_userdbtablename();
+	free(tmp_str);
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();
+	config_get_remotedbuserlistdlperiodinsec();
 	config_get_updatestatstableenabled();
 	config_get_httpserverenabled();
 	config_get_httpserverport();
