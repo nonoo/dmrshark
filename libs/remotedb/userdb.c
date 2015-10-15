@@ -28,15 +28,22 @@
 #include <string.h>
 
 static userdb_t *userdb_first_entry = NULL;
+static pthread_mutex_t userdb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 userdb_t *userdb_get_entry_for_id(dmr_id_t id) {
-	userdb_t *entry = userdb_first_entry;
+	userdb_t *entry;
+
+	pthread_mutex_lock(&userdb_mutex);
+	entry = userdb_first_entry;
 
 	while (entry) {
-		if (entry->id == id)
+		if (entry->id == id) {
+			pthread_mutex_unlock(&userdb_mutex);
 			return entry;
+		}
 		entry = entry->next;
 	}
+	pthread_mutex_unlock(&userdb_mutex);
 	return NULL;
 }
 
@@ -52,10 +59,14 @@ char *userdb_get_display_str_for_id(dmr_id_t id) {
 }
 
 void userdb_print(void) {
-	userdb_t *entry = userdb_first_entry;
+	userdb_t *entry;
+
+	pthread_mutex_lock(&userdb_mutex);
+	entry = userdb_first_entry;
 
 	if (entry == NULL) {
 		console_log("userdb: empty\n");
+		pthread_mutex_unlock(&userdb_mutex);
 		return;
 	}
 	console_log("userdb:\n");
@@ -63,11 +74,15 @@ void userdb_print(void) {
 		console_log("  %6u: %s\n", entry->id, entry->callsign);
 		entry = entry->next;
 	}
+	pthread_mutex_unlock(&userdb_mutex);
 }
 
 static void userdb_clear(void) {
-	userdb_t *entry = userdb_first_entry;
+	userdb_t *entry;
 	userdb_t *next_entry;
+
+	pthread_mutex_lock(&userdb_mutex);
+	entry = userdb_first_entry;
 
 	while (entry) {
 		next_entry = entry->next;
@@ -75,6 +90,7 @@ static void userdb_clear(void) {
 		entry = next_entry;
 	}
 	userdb_first_entry = NULL;
+	pthread_mutex_unlock(&userdb_mutex);
 }
 
 // Returns 1 on success.
@@ -113,6 +129,7 @@ flag_t userdb_reload(MYSQL *remotedb_conn) {
 	}
 
 	userdb_clear();
+	pthread_mutex_lock(&userdb_mutex);
 	while ((row = mysql_fetch_row(result))) {
 		new_entry = (userdb_t *)calloc(1, sizeof(userdb_t));
 		if (new_entry == NULL) {
@@ -134,6 +151,7 @@ flag_t userdb_reload(MYSQL *remotedb_conn) {
 		userdb_first_entry = new_entry;
 		usercount++;
 	}
+	pthread_mutex_unlock(&userdb_mutex);
 	mysql_free_result(result);
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: loaded %u users\n", usercount);
