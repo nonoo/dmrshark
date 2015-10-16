@@ -6,13 +6,15 @@ It can be used for:
 
 - Tracking and decoding voice calls, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
 - Saving raw AMBE and decoded voice data to raw or MP3 files.
+- Streaming voice calls as plain HTTP MP3 streams or Websocket MP3 streams.
 - Playing back previously recorded AMBE voice files to repeaters.
 - Echo service.
 - Measure actual and average RMS volume of the calls, and upload them to a remote database, so users can adjust their mic gain settings.
-- Sends average RMS volume as an SMS after an echo test.
+- Sends average RMS volume and average RSSI as an SMS after an echo test.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
 - Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format).
+- SMS command interface (see the explanation below).
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's traffic passing by.
@@ -94,7 +96,7 @@ The file has the following configuration variables:
 - **remotedbreconnecttrytimeoutinsec**: If the remote database connection gets lost, dmrshark will try to reconnect in this interval.
 - **remotedbdeleteolderthansec**: Clear remote database log entries older than this many seconds.
 - **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
-- **userdbtablename**: Table to get DMR ID and callsign associations from.
+- **userdbtablename**: Table to get DMR ID and callsign associations from. This is used when retransmitting messages and when the info command is used.
 - **remotedbuserlistdlperiodinsec**: Update user list in this interval. Set it to 0 to disable user list download.
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
@@ -103,17 +105,16 @@ The file has the following configuration variables:
 - **httpserverenabled**: Set this to 1 to enable built-in HTTP/Websockets server, which is needed for streaming.
 - **httpserverport**: Port to bind the HTTP/Websockets server.
 - **masteripaddr**: Set this to the IP address of the DMR master software. This IP will be the source address for outgoing dmrshark packets to the repeaters.
-- **smssendretryintervalinsec**: Retry SMS sending from the SMS TX buffer in this interval.
 - **smssendmaxretrycount**: Retry SMS sending from the SMS TX buffer this many times.
 - **mindatapacketsendretryintervalinsec**: Retry sending data (including SMS) packets in this interval. SMSes are added to the SMS TX buffer for the first time, then the buffer adds them to the data packet TX buffer for transmitting.
 - **datapacketsendmaxretrycount**: Retry sending data packets (including SMS) this many times.
 - **smsretransmittimeoutinsec**: Retransmit Motorola TMS as normal SMS and vica versa after this many seconds of the last successful receive. Set to 0 to disable retransmitting.
 
-The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql).
+The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql) and [here](https://github.com/nonoo/ha5kdr-dmr-db/blob/master/example.sql).
 
 ## Configuring voice streams
 
-You can also define voice streams as .ini structure groups. Example:
+You can define voice streams as .ini structure groups. Example:
 
 ```
 [stream-hg5ruc-ts1]
@@ -169,3 +170,17 @@ You can connect to a running process using the remote console, whether it's runn
 If you are on the console, enter the command **help** or **h** to get the list of available commands.
 
 For displaying the live log and repeater info tables on a webpage, you can use the [dmrshark Wordpress plugin](https://github.com/nonoo/dmrshark-wordpress-plugin). You can see a working example [here](http://ham-dmr.hu/elo-statusz/) or [here](http://live.ham-dmr.hu/).
+
+## Command interface
+
+The first word of the message sent to dmrshark's DMR ID (7777) is a command. Currently these are supported:
+
+- **help**: Sends back the list of available commands.
+- **info**: Send the DMR ID or the callsign of the user as the 2nd word, dmrshark will send you name, country and callsign info back.
+- **ping**: Sends back the text "pong".
+- If the first word of the message is an email address, the message will be put into the MySQL database from where it can be sent as an email.
+
+## Echo service
+
+If you send voice to dmrshark's ID (7777), it will play it back and send average volume and RSSI info as a message after playback. Both private and group calls are supported on both timeslots.
+Average volume and RSSI info message is also sent after standard DMRplus echo service calls (TS2/TG9990).

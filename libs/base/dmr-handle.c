@@ -547,7 +547,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 
 	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "dmrshark commands: info [callsign/dmrid] * see github.com/nonoo/dmrshark for more info");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info");
 		return;
 	}
 
