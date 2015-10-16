@@ -618,6 +618,7 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 	}
 
 	free(data_blocks);
+	daemon_poll_setmaxtimeout(0);
 }
 
 void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet) {
@@ -631,38 +632,53 @@ void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet) 
 	}
 }
 
-static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater, dmr_timeslot_t ts) {
+static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater) {
 	struct timeval currtime = {0,};
 	struct timeval difftime = {0,};
 	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf_entry_to_send;
+	dmr_timeslot_t ts;
 
-	if (repeater == NULL || ts < 0 || ts > 1 || repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
-			return;
+	if (repeater == NULL)
+		return;
+
+	if (repeater->slot[0].ipsc_tx_rawpacketbuf != NULL || repeater->slot[1].ipsc_tx_rawpacketbuf != NULL)
+		daemon_poll_setmaxtimeout(0);
+
+	gettimeofday(&currtime, NULL);
+	timersub(&currtime, &repeater->last_ipsc_packet_sent_time, &difftime);
+	if (difftime.tv_sec*1000+difftime.tv_usec/1000 < IPSC_PACKET_SEND_INTERVAL_IN_MS)
+		return;
+
+	if (repeater->last_ipsc_packet_sent_from_slot == 1)
+		ts = 0;
+	else
+		ts = 1;
+	repeater->last_ipsc_packet_sent_from_slot = ts;
+
+	if (repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL) {
+		gettimeofday(&repeater->last_ipsc_packet_sent_time, NULL);
+		return;
+	}
 
 	// If there's a call and it's not for us or by us.
 	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_IDLE && repeater->slot[ts].dst_id != DMRSHARK_DEFAULT_DMR_ID &&
 		repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID)
 			return;
 
-	gettimeofday(&currtime, NULL);
-	timersub(&currtime, &repeater->slot[ts].last_ipsc_packet_sent_time, &difftime);
 	ipsc_tx_rawpacketbuf_entry_to_send = repeater->slot[ts].ipsc_tx_rawpacketbuf;
-	if (difftime.tv_sec*1000+difftime.tv_usec/1000 >= IPSC_PACKET_SEND_INTERVAL_IN_MS || ipsc_tx_rawpacketbuf_entry_to_send->nowait) { // Sending a frame every x ms.
-		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet from tx buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
-		if (repeaters_send_raw_ipsc_packet(repeater, &ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw)) {
-			// Sending the packet to our IPSC processing loop too.
-			//ipsc_processpacket(&ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw, sizeof(ipscpacket_raw_t));
 
-			// Shifting the buffer.
-			repeater->slot[ts].ipsc_tx_rawpacketbuf = repeater->slot[ts].ipsc_tx_rawpacketbuf->next;
-			free(ipsc_tx_rawpacketbuf_entry_to_send);
-			gettimeofday(&repeater->slot[ts].last_ipsc_packet_sent_time, NULL);
-		}
-		if (repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
-			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: tx packet buffer got empty\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+	console_log(LOGLEVEL_REPEATERS "repeaters [%s]: sending ipsc packet from tx buffer\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
+	if (repeaters_send_raw_ipsc_packet(repeater, &ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw)) {
+		// Sending the packet to our IPSC processing loop too.
+		//ipsc_processpacket(&ipsc_tx_rawpacketbuf_entry_to_send->ipscpacket_raw, sizeof(ipscpacket_raw_t));
+
+		// Shifting the buffer.
+		repeater->slot[ts].ipsc_tx_rawpacketbuf = repeater->slot[ts].ipsc_tx_rawpacketbuf->next;
+		free(ipsc_tx_rawpacketbuf_entry_to_send);
 	}
-	if (repeater->slot[ts].ipsc_tx_rawpacketbuf != NULL)
-		daemon_poll_setmaxtimeout(0);
+	gettimeofday(&repeater->last_ipsc_packet_sent_time, NULL);
+	if (repeater->slot[ts].ipsc_tx_rawpacketbuf == NULL)
+		console_log(LOGLEVEL_REPEATERS "repeaters [%s]: tx packet buffer got empty\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 }
 
 void repeaters_process(void) {
@@ -672,8 +688,10 @@ void repeaters_process(void) {
 	struct timeval difftime = {0,};
 
 	while (repeater) {
-		repeaters_process_ipsc_tx_rawpacketbuf(repeater, 0);
-		repeaters_process_ipsc_tx_rawpacketbuf(repeater, 1);
+		if (repeater->slot[0].state != REPEATER_SLOT_STATE_IDLE || repeater->slot[1].state != REPEATER_SLOT_STATE_IDLE)
+			daemon_poll_setmaxtimeout(IPSC_PACKET_SEND_INTERVAL_IN_MS);
+
+		repeaters_process_ipsc_tx_rawpacketbuf(repeater);
 
 		if (time(NULL)-repeater->last_active_time > config_get_repeaterinactivetimeoutinsec()) {
 			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: timed out\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));

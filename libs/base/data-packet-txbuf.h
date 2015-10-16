@@ -42,6 +42,7 @@ void data_packet_txbuf_print_entry(data_packet_txbuf_t *entry);
 void data_packet_txbuf_print(void);
 void data_packet_txbuf_add(flag_t broadcast_to_all_repeaters, repeater_t *repeater, dmr_timeslot_t ts, dmrpacket_data_packet_t *data_packet);
 
+void data_packet_txbuf_found_station_for_first_entry(repeater_t *repeater, dmr_timeslot_t ts);
 void data_packet_txbuf_remove_first_entry(void);
 data_packet_txbuf_t *data_packet_txbuf_get_first_entry(void);
 

@@ -66,7 +66,6 @@ typedef struct {
 	uint8_t ipsc_tx_seqnum;
 	uint8_t ipsc_tx_voice_frame_num;
 	vbptc_16_11_t ipsc_tx_emb_sig_lc_vbptc_storage;
-	struct timeval last_ipsc_packet_sent_time;
 
 	// This holds the last received frame's number in a voice superframe if we are in a call.
 	uint8_t voice_frame_num;
@@ -83,6 +82,8 @@ typedef struct repeater_st {
 	flag_t snmpignored;
 	time_t last_repeaterinfo_request_time;
 	struct timeval last_rssi_request_time;
+	dmr_timeslot_t last_ipsc_packet_sent_from_slot;
+	struct timeval last_ipsc_packet_sent_time;
 	dmr_id_t id;
 	char type[25];
 	char fwversion[25];

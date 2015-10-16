@@ -556,7 +556,8 @@ void command_process(char *input_buffer) {
 	}
 
 	if (strcmp(tok, "s") == 0) {
-		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, "BEER");
+//		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, "dmrshark commands: info [callsign/dmrid] * see github.com/nonoo/dmrshark for more info");
+		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, "BEER");
 		return;
 	}
 

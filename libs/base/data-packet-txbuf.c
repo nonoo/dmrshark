@@ -92,6 +92,15 @@ void data_packet_txbuf_add(flag_t broadcast_to_all_repeaters, repeater_t *repeat
 	daemon_poll_setmaxtimeout(0);
 }
 
+void data_packet_txbuf_found_station_for_first_entry(repeater_t *repeater, dmr_timeslot_t ts) {
+	if (data_packet_txbuf_first_entry == NULL)
+		return;
+
+	data_packet_txbuf_first_entry->repeater = repeater;
+	data_packet_txbuf_first_entry->ts = ts;
+	data_packet_txbuf_first_entry->broadcast_to_all_repeaters = 0;
+}
+
 void data_packet_txbuf_remove_first_entry(void) {
 	data_packet_txbuf_t *nextentry;
 

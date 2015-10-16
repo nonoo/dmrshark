@@ -176,6 +176,10 @@ void smstxbuf_process(void) {
 	if (data_packet_txbuf_get_first_entry() != NULL) // Only sending an SMS if data packet TX buffer is empty.
 		return;
 
+	// We allow some time for the TMS ack to arrive.
+	if (smstxbuf_first_entry->waiting_for_tms_ack_started_at != 0 && time(NULL)-smstxbuf_first_entry->waiting_for_tms_ack_started_at < 10)
+		return;
+
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
 		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);

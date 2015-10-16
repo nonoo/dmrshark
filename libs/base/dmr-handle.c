@@ -270,7 +270,8 @@ static void dmr_handle_data_call_start(repeater_t *repeater, ipscpacket_t *ipscp
 	repeater->slot[ipscpacket->timeslot-1].dst_id = ipscpacket->dst_id;
 	repeater->slot[ipscpacket->timeslot-1].src_id = ipscpacket->src_id;
 
-	console_log(LOGLEVEL_DMR "dmr [%s]: data call started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ipscpacket->timeslot);
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call (%u -> %u) started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr),
+		ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot);
 	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_DATA_CALL_RUNNING);
 }
 
@@ -331,12 +332,15 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 							 	data_packet_txbuf_print_entry(data_packet_txbuf_first_entry);
 							 	data_packet_txbuf_remove_first_entry();
 
-
 								// Checking if SMS TX buffer entry can be removed too.
 								smstxbuf_first_entry = smstxbuf_get_first_entry();
 								if (smstxbuf_first_entry != NULL) {
 									if (smstxbuf_first_entry->sms_type == DMR_SMS_TYPE_MOTOROLA_TMS) {
 										console_log(LOGLEVEL_DMR "    this ack is for a tms sms tx buffer entry, waiting for the tms ack\n");
+										smstxbuf_first_entry->waiting_for_tms_ack_started_at = time(NULL);
+										dmr_handle_data_call_start(repeater, ipscpacket);
+										// From now on, we don't have to broadcast data packets as we know where the station is.
+										data_packet_txbuf_found_station_for_first_entry(repeater, ipscpacket->timeslot-1);
 										return;
 									}
 
@@ -375,6 +379,10 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 					} else
 						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us, data packet tx buffer is empty\n");
 
+					if (data_packet_header->common.src_llid != DMRSHARK_DEFAULT_DMR_ID &&
+						data_packet_header->common.dst_llid == DMRSHARK_DEFAULT_DMR_ID)
+							smsrtbuf_got_ack(data_packet_header->common.src_llid, data_packet_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE);
+
 					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT:
@@ -391,6 +399,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 						return;
 					}
 					repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
+					data_packet_txbuf_reset_last_send_try_time();
 					break;
 			}
 			break;
@@ -454,6 +463,9 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  data packet tx buffer is empty, ignoring selective ack\n");
 		return;
 	}
+
+	// From now on, we don't have to broadcast data packets as we know where the station is.
+	data_packet_txbuf_found_station_for_first_entry(repeater, ts);
 
 	// Responding only if we are the sender of the message.
 	if (dstid != data_packet_txbuf_first_entry->data_packet.header.common.src_llid || srcid != data_packet_txbuf_first_entry->data_packet.header.common.dst_llid) {
@@ -703,6 +715,9 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us, sms tx buffer is empty\n");
 
+								if (dstid == DMRSHARK_DEFAULT_DMR_ID && srcid != DMRSHARK_DEFAULT_DMR_ID)
+									smsrtbuf_got_tms_ack(srcid, calltype);
+
 								return;
 							}
 
@@ -748,7 +763,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 		else {
 			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
 			if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid != DMRSHARK_DEFAULT_DMR_ID)
-				smsrtbuf_add_decoded_message(received_sms_type, dstid, srcid, decoded_message);
+				smsrtbuf_add_decoded_message(repeater, ipscpacket->timeslot-1, received_sms_type, dstid, srcid, calltype, decoded_message);
 		}
 
 		// Message is OK, and for us?

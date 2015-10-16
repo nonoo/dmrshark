@@ -30,6 +30,7 @@ typedef struct smstxbuf_st {
 	time_t added_at;
 	uint8_t send_tries;
 	uint8_t selective_ack_tries;
+	time_t waiting_for_tms_ack_started_at;
 
 	dmr_sms_type_t sms_type;
 	repeater_t *repeater;

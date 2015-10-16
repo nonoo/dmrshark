@@ -656,7 +656,7 @@ int config_get_mindatapacketsendretryintervalinsec(void) {
 	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 3;
+	defaultvalue = 1;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;
@@ -673,7 +673,7 @@ int config_get_datapacketsendmaxretrycount(void) {
 	int defaultvalue;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = 3;
+	defaultvalue = 15;
 	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error) {
 		value = defaultvalue;

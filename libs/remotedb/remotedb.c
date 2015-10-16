@@ -341,7 +341,8 @@ void remotedb_init(void) {
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 		pthread_create(&remotedb_thread, &attr, remotedb_thread_init, NULL);
-	}
+	} else
+		console_log("remotedb: no server configured\n");
 	free(server);
 }
 

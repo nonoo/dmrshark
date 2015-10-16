@@ -28,7 +28,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-static uint8_t dmr_data_motorola_tms_tx_seqnum = 26;
+static uint8_t dmr_data_motorola_tms_tx_seqnum = 0;
 
 void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr_timeslot_t ts, dmrpacket_data_header_sap_t sap) {
 	dmrpacket_data_header_t data_header;
@@ -157,7 +157,7 @@ void dmr_data_send_motorola_tms_sms(flag_t broadcast_to_all_repeaters, repeater_
 
 	dmr_data_motorola_tms_tx_seqnum++;
 	ip_packet = dmrpacket_data_construct_payload_motorola_sms(msg, dstid, srcid, calltype, dmr_data_motorola_tms_tx_seqnum);
-	dmr_data_send_ip_packet(broadcast_to_all_repeaters, 3, repeater, ts, calltype, dstid, srcid, ip_packet);
+	dmr_data_send_ip_packet(broadcast_to_all_repeaters, 1, repeater, ts, calltype, dstid, srcid, ip_packet);
 	free(ip_packet);
 }
 
@@ -171,7 +171,7 @@ void dmr_data_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr
 
 	dmr_data_motorola_tms_tx_seqnum++;
 	ip_packet = dmrpacket_data_construct_payload_motorola_tms_ack(dstid, srcid, calltype, rx_seqnum);
-	dmr_data_send_ip_packet(0, 3, repeater, ts, calltype, dstid, srcid, ip_packet);
+	dmr_data_send_ip_packet(0, 1, repeater, ts, calltype, dstid, srcid, ip_packet);
 	free(ip_packet);
 }
 
@@ -205,13 +205,14 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	// data_packet.header.short_data_defined.full_message will be filled by repeaters_send_data_packet()
 	data_packet.header.short_data_defined.bit_padding = 0;
 
-	data_packet.number_of_csbk_preambles_to_send = 3;
+	data_packet.number_of_csbk_preambles_to_send = 1;
 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);
 }
 
 void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t ts) {
 	char msg[100];
+	int8_t avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
 	// No RMS volume SMS for echo service replies.
 	if (repeater->slot[ts].src_id == DMRSHARK_DEFAULT_DMR_ID || repeater->slot[ts].src_id == 9990)
@@ -225,16 +226,17 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 	if (repeater->slot[ts].dst_id == 9990 && ts != 1)
 		return;
 
-	if (repeater->slot[ts].voicestream == NULL)
-		return;
+	if (repeater->slot[ts].voicestream != NULL)
+		avg_rms_vol = repeater->slot[ts].voicestream->avg_rms_vol;
 
-	if (repeater->slot[ts].voicestream->avg_rms_vol == VOICESTREAMS_INVALID_RMS_VALUE)
-		return;
-
-	if (repeater->slot[ts].avg_rssi != 0)
-		snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB, avg. RSSI %ddB * dmrshark by HA2NON", (int)repeater->slot[ts].voicestream->avg_rms_vol, repeater->slot[ts].avg_rssi);
+	if (repeater->slot[ts].avg_rssi != 0 && avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
+		snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB, avg. RSSI %ddB * dmrshark by HA2NON", avg_rms_vol, repeater->slot[ts].avg_rssi);
+	else if (repeater->slot[ts].avg_rssi != 0 && avg_rms_vol == VOICESTREAMS_INVALID_RMS_VALUE)
+		snprintf(msg, sizeof(msg), "Avg. RSSI %ddB * dmrshark by HA2NON", repeater->slot[ts].avg_rssi);
+	else if (repeater->slot[ts].avg_rssi == 0 && avg_rms_vol != VOICESTREAMS_INVALID_RMS_VALUE)
+		snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB * dmrshark by HA2NON", avg_rms_vol);
 	else
-		snprintf(msg, sizeof(msg), "Avg. RMS vol.: %ddB * dmrshark by HA2NON", (int)repeater->slot[ts].voicestream->avg_rms_vol);
+		return;
 
 	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
 	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, msg);

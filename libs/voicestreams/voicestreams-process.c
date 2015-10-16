@@ -277,7 +277,9 @@ void voicestreams_processpacket(ipscpacket_t *ipscpacket, repeater_t *repeater) 
 	}
 
 	voicestream = repeater->slot[ipscpacket->timeslot-1].voicestream;
-	if (voicestream == NULL || !voicestream->streaming_active_call || !voicestream->enabled)
+	if (voicestream == NULL)
+		return;
+	if (!voicestream->streaming_active_call || !voicestream->enabled)
 		return;
 
 	// Some listed repeater has already streaming on this stream?
