@@ -3,5 +3,5 @@
 - Quadratic residue error correction
 - GPS position data decoding
 - Inserting decoded SMS messages into a database table
-- Hytera-Motorola SMS retransmitting
 - Radio check
+- Sending SMS messages from a database table
