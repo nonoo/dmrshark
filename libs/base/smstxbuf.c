@@ -24,6 +24,7 @@
 #include "smstxbuf.h"
 #include "dmr-data.h"
 #include "smsrtbuf.h"
+#include "data-packet-txbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/daemon/daemon-poll.h>
@@ -74,6 +75,16 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	if (msg == NULL)
 		return;
 
+	if (smstxbuf_last_entry != NULL &&
+		smstxbuf_last_entry->dst_id == dstid &&
+		smstxbuf_last_entry->src_id == srcid &&
+		smstxbuf_last_entry->sms_type == sms_type &&
+		smstxbuf_last_entry->repeater == repeater &&
+		smstxbuf_last_entry->ts == ts &&
+		smstxbuf_last_entry->call_type == calltype &&
+		strncmp(smstxbuf_last_entry->msg, msg, sizeof(smstxbuf_last_entry->msg)) == 0)
+			return; // We won't add duplicate entries.
+
 	new_smstxbuf_entry = (smstxbuf_t *)calloc(1, sizeof(smstxbuf_t));
 	if (new_smstxbuf_entry == NULL) {
 		console_log("  error: can't allocate memory for new sms buffer entry\n");
@@ -94,9 +105,9 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	if (loglevel.flags.dmr)
 		smstxbuf_print_entry(new_smstxbuf_entry);
 
-	if (smstxbuf_last_entry == NULL) {
+	if (smstxbuf_last_entry == NULL)
 		smstxbuf_last_entry = smstxbuf_first_entry = new_smstxbuf_entry;
-	} else {
+	else {
 		// Putting the new entry to the end of the linked list.
 		smstxbuf_last_entry->next = new_smstxbuf_entry;
 		smstxbuf_last_entry = new_smstxbuf_entry;
@@ -157,16 +168,13 @@ smstxbuf_t *smstxbuf_get_first_entry(void) {
 }
 
 void smstxbuf_process(void) {
-	static time_t last_sms_send_try_at = 0;
 	loglevel_t loglevel;
 
 	if (smstxbuf_first_entry == NULL)
 		return;
 
-	if (time(NULL)-last_sms_send_try_at < config_get_smssendretryintervalinsec()) {
-		daemon_poll_setmaxtimeout(config_get_smssendretryintervalinsec()-(time(NULL)-last_sms_send_try_at));
+	if (data_packet_txbuf_get_first_entry() != NULL) // Only sending an SMS if data packet TX buffer is empty.
 		return;
-	}
 
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
 		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed\n");
@@ -198,7 +206,6 @@ void smstxbuf_process(void) {
 		smstxbuf_remove_first_entry();
 	else
 		smstxbuf_first_entry->send_tries++;
-	last_sms_send_try_at = time(NULL);
 	daemon_poll_setmaxtimeout(0);
 }
 

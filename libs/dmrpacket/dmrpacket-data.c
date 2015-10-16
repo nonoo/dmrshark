@@ -445,7 +445,7 @@ void dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpac
 }
 
 // Constructs a DMR-compatible IP/UDP packet. Returned memory area must be freed after use.
-static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t *payload, uint16_t payload_size) {
+static struct iphdr *dmrpacket_data_construct_payload_ip_packet(uint16_t dstport, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t *payload, uint16_t payload_size) {
 	uint8_t *ip_packet_bytes;
 	struct iphdr *ip_packet;
 	struct udphdr *udp_packet;
@@ -470,7 +470,6 @@ static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr
 	ip_packet->ihl = 5;
 	ip_packet->version = 4;
 	ip_packet->tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr) + payload_size);
-	ip_packet->id = htons(0x2ec1);
 	ip_packet->ttl = (calltype == DMR_CALL_TYPE_PRIVATE ? 64 : 1);
 	ip_packet->protocol = IPPROTO_UDP;
 	ip_packet->check = comm_calcipheaderchecksum((struct ip *)ip_packet);
@@ -484,22 +483,21 @@ static struct iphdr *dmrpacket_construct_payload_ip_packet(uint16_t dstport, dmr
 }
 
 // Constructs a Motorola TMS ACK UDP packet. Returned memory area must be freed after use.
-struct iphdr *dmrpacket_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum) {
+struct iphdr *dmrpacket_data_construct_payload_motorola_tms_ack(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t rx_seqnum) {
 	static uint8_t ack_payload[] = { 0x00, 0x03, 0xbf, 0x00, 0x00 };
 
-	ack_payload[4] = rx_seqnum & 0b11111;
-	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, ack_payload, sizeof(ack_payload));
+	ack_payload[4] = rx_seqnum;
+	return dmrpacket_data_construct_payload_ip_packet(4007, dstid, srcid, calltype, ack_payload, sizeof(ack_payload));
 }
 
 // Constructs a Motorola TMS message UDP packet. Returned memory area must be freed after use.
 // See TMS patent at http://www.google.com/patents/US8023973
-struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum) {
+struct iphdr *dmrpacket_data_construct_payload_motorola_sms(char *msg, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, uint8_t tx_seqnum) {
 	// If the 3rd byte is 0xa0, then the receiving party won't send a TMS ACK. 0xe0 implies a TMS ACK packet.
 	static uint8_t motorola_header[] = { 0x00, 0x00, 0xe0, 0x00, 0x00, 0x04, 0x0d, 0x00, 0x0a, 0x00 };
 
 	uint8_t *payload;
 	uint16_t payload_size;
-	uint16_t tms_packet_length;
 	char *utf16le_msg;
 	uint16_t utf16le_msg_length;
 
@@ -515,15 +513,14 @@ struct iphdr *dmrpacket_construct_payload_motorola_sms(char *msg, dmr_id_t dstid
 	}
 
 	memcpy(payload, motorola_header, sizeof(motorola_header));
-	tms_packet_length = sizeof(struct udphdr)+utf16le_msg_length;
-	payload[0] = (tms_packet_length >> 8) & 0xff;
-	payload[1] = tms_packet_length & 0xff;
-	payload[4] = (tx_seqnum & 0b11111) | 0b10000000;
+	payload[0] = ((payload_size-2) >> 8) & 0xff;
+	payload[1] = (payload_size-2) & 0xff;
+	payload[4] = tx_seqnum | 0b10000000;
 	memcpy(payload+sizeof(motorola_header), utf16le_msg, utf16le_msg_length);
 
-	return dmrpacket_construct_payload_ip_packet(4007, dstid, srcid, calltype, payload, payload_size);
+	return dmrpacket_data_construct_payload_ip_packet(4007, dstid, srcid, calltype, payload, payload_size);
 }
 
-uint16_t dmrpacket_get_time_in_ms_needed_to_send(dmrpacket_data_packet_t *data_packet) {
+uint16_t dmrpacket_data_get_time_in_ms_needed_to_send(dmrpacket_data_packet_t *data_packet) {
 	return IPSC_PACKET_SEND_INTERVAL_IN_MS*(data_packet->number_of_csbk_preambles_to_send+1+data_packet->fragment.data_blocks_needed);
 }

@@ -21,6 +21,7 @@
 #include "smstxbuf.h"
 #include "smsrtbuf.h"
 #include "data-packet-txbuf.h"
+#include "dmr-handle.h"
 
 #include <libs/daemon/console.h>
 

@@ -35,6 +35,8 @@
 static data_packet_txbuf_t *data_packet_txbuf_first_entry = NULL;
 static data_packet_txbuf_t *data_packet_txbuf_last_entry = NULL;
 
+static time_t data_packet_txbuf_last_send_try_at = 0;
+
 void data_packet_txbuf_print_entry(data_packet_txbuf_t *entry) {
 	char added_at_str[20];
 
@@ -101,22 +103,27 @@ void data_packet_txbuf_remove_first_entry(void) {
 	data_packet_txbuf_first_entry = nextentry;
 	if (data_packet_txbuf_first_entry == NULL)
 		data_packet_txbuf_last_entry = NULL;
+	else
+		daemon_poll_setmaxtimeout(0);
 }
 
 data_packet_txbuf_t *data_packet_txbuf_get_first_entry(void) {
 	return data_packet_txbuf_first_entry;
 }
 
+void data_packet_txbuf_reset_last_send_try_time(void) {
+	data_packet_txbuf_last_send_try_at = time(NULL);
+}
+
 void data_packet_txbuf_process(void) {
-	static time_t last_send_try_at = 0;
 	uint16_t timeout;
 
 	if (data_packet_txbuf_first_entry == NULL)
 		return;
 
-	timeout = config_get_mindatapacketsendretryintervalinsec()+ceil(dmrpacket_get_time_in_ms_needed_to_send(&data_packet_txbuf_first_entry->data_packet)/1000.0);
-	if (time(NULL)-last_send_try_at < timeout) {
-		daemon_poll_setmaxtimeout(timeout-(time(NULL)-last_send_try_at));
+	timeout = config_get_mindatapacketsendretryintervalinsec()+ceil(dmrpacket_data_get_time_in_ms_needed_to_send(&data_packet_txbuf_first_entry->data_packet)/1000.0);
+	if (time(NULL)-data_packet_txbuf_last_send_try_at < timeout) {
+		daemon_poll_setmaxtimeout(timeout-(time(NULL)-data_packet_txbuf_last_send_try_at));
 		return;
 	}
 
@@ -142,7 +149,7 @@ void data_packet_txbuf_process(void) {
 			data_packet_txbuf_remove_first_entry();
 	} else
 		data_packet_txbuf_first_entry->send_tries++;
-	last_send_try_at = time(NULL);
+	data_packet_txbuf_reset_last_send_try_time();
 	daemon_poll_setmaxtimeout(0);
 }
 

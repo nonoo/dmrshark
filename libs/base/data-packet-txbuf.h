@@ -45,6 +45,8 @@ void data_packet_txbuf_add(flag_t broadcast_to_all_repeaters, repeater_t *repeat
 void data_packet_txbuf_remove_first_entry(void);
 data_packet_txbuf_t *data_packet_txbuf_get_first_entry(void);
 
+void data_packet_txbuf_reset_last_send_try_time(void);
+
 void data_packet_txbuf_process(void);
 void data_packet_txbuf_deinit(void);
 

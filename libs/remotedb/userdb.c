@@ -47,6 +47,23 @@ userdb_t *userdb_get_entry_for_id(dmr_id_t id) {
 	return NULL;
 }
 
+userdb_t *userdb_get_entry_for_callsign(char *callsign) {
+	userdb_t *entry;
+
+	pthread_mutex_lock(&userdb_mutex);
+	entry = userdb_first_entry;
+
+	while (entry) {
+		if (strcasecmp(entry->callsign, callsign) == 0) {
+			pthread_mutex_unlock(&userdb_mutex);
+			return entry;
+		}
+		entry = entry->next;
+	}
+	pthread_mutex_unlock(&userdb_mutex);
+	return NULL;
+}
+
 char *userdb_get_display_str_for_id(dmr_id_t id) {
 	userdb_t *entry = userdb_get_entry_for_id(id);
 	static char result[50];
@@ -71,7 +88,7 @@ void userdb_print(void) {
 	}
 	console_log("userdb:\n");
 	while (entry) {
-		console_log("  %6u: %s\n", entry->id, entry->callsign);
+		console_log("  id: %6u callsign: %8s name: %s country: %s\n", entry->id, entry->callsign, entry->name, entry->country);
 		entry = entry->next;
 	}
 	pthread_mutex_unlock(&userdb_mutex);
@@ -144,8 +161,8 @@ flag_t userdb_reload(MYSQL *remotedb_conn) {
 			continue;
 		}
 		strncpy(new_entry->callsign, row[1], sizeof(new_entry->callsign));
-		strncpy(new_entry->name, row[1], sizeof(new_entry->name));
-		strncpy(new_entry->country, row[1], sizeof(new_entry->country));
+		strncpy(new_entry->name, row[2], sizeof(new_entry->name));
+		strncpy(new_entry->country, row[3], sizeof(new_entry->country));
 
 		new_entry->next = userdb_first_entry;
 		userdb_first_entry = new_entry;

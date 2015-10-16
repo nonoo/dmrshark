@@ -555,5 +555,10 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
+	if (strcmp(tok, "s") == 0) {
+		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 2161005, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, "BEER");
+		return;
+	}
+
 	console_log("error: unknown command, see help, or go get a beer.\n");
 }

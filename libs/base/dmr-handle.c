@@ -25,12 +25,14 @@
 
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/remotedb/userdb.h>
 #include <libs/voicestreams/voicestreams-process.h>
 #include <libs/dmrpacket/dmrpacket-lc.h>
 #include <libs/dmrpacket/dmrpacket-slot-type.h>
 #include <libs/dmrpacket/dmrpacket-csbk.h>
 #include <libs/dmrpacket/dmrpacket-sync.h>
 #include <libs/dmrpacket/dmrpacket-emb.h>
+#include <libs/dmrpacket/dmrpacket-data.h>
 #include <libs/coding/trellis.h>
 #include <libs/base/base.h>
 #include <libs/comm/comm.h>
@@ -38,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 void dmr_handle_voice_call_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
 	if (ip_packet == NULL || ipscpacket == NULL || repeater == NULL)
@@ -438,7 +441,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmrpacket_data_fragment_t *data_fragment) {
 	uint16_t i;
 	flag_t bits[8];
-	uint8_t j;
+	int8_t j;
 	flag_t *selective_blocks;
 	uint16_t selective_blocks_size;
 	data_packet_txbuf_t *data_packet_txbuf_first_entry;
@@ -467,7 +470,7 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 
 	console_log(LOGLEVEL_DMR "  replying to selective ack\n");
 
-	selective_blocks_size = data_fragment->bytes_stored-4; // Cutting out the CRC.
+	selective_blocks_size = (data_fragment->bytes_stored-4)*8; // -4 - cutting out the fragment CRC.
 	selective_blocks = (flag_t *)calloc(1, selective_blocks_size);
 	if (selective_blocks == NULL) {
 		console_log("  error: can't allocate memory for selective reply blocks\n");
@@ -475,9 +478,9 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 	}
 
 	// See the bottom of DMR AI spec. page 85. for the format.
-	for (i = 0; i < selective_blocks_size; i++) {
+	for (i = 0; i < data_fragment->bytes_stored-4; i++) {
 		base_bytetobits(data_fragment->bytes[i], bits);
-		for (j = 7; j > 0; j--) {
+		for (j = 7; j >= 0; j--) {
 			if (bits[j] == 0) {
 				console_log(LOGLEVEL_DMRDATA "  adding data block %u to selective reply\n", i*8+(7-j));
 				selective_blocks[i*8+(7-j)] = 1;
@@ -489,6 +492,85 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 	data_packet_txbuf_first_entry->data_packet.number_of_csbk_preambles_to_send = 0;
 	repeaters_send_data_packet(repeater, ts, selective_blocks, selective_blocks_size, &data_packet_txbuf_first_entry->data_packet);
 	free(selective_blocks);
+
+	data_packet_txbuf_reset_last_send_try_time();
+}
+
+// Handles SMSs sent to us.
+static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t srcid, dmr_sms_type_t sms_type, char *decoded_message) {
+	char *tok;
+	union {
+		struct {
+			char *email;
+		} email;
+		struct {
+			dmr_id_t id;
+			char msg[100];
+			userdb_t *userdb_entry;
+		} info;
+	} u;
+	char *endptr;
+
+	if (repeater == NULL || decoded_message == NULL)
+		return;
+
+	tok = strtok(decoded_message, " ");
+	if (tok == NULL)
+		return;
+
+	if (strstr(tok, "@") != NULL) { // Got an email address?
+		u.email.email = tok;
+		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "missing email body");
+			return;
+		}
+		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
+		// TODO
+		return;
+	}
+
+	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
+		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "dmrshark commands: info [callsign/dmrid] * see github.com/nonoo/dmrshark for more info");
+		return;
+	}
+
+	if (strcasecmp(tok, "ping") == 0) {
+		console_log(LOGLEVEL_DMR "  got \"ping\" command\n");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "pong");
+		return;
+	}
+
+	if (strcasecmp(tok, "info") == 0) {
+		console_log(LOGLEVEL_DMR "  got \"info\" command\n");
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "missing callsign/dmrid");
+			return;
+		}
+
+		errno = 0;
+		u.info.id = strtol(tok, &endptr, 10);
+		if (errno == 0 && *endptr == 0) { // We have a DMR id to query.
+			u.info.userdb_entry = userdb_get_entry_for_id(u.info.id);
+			if (u.info.userdb_entry == NULL) {
+				snprintf(u.info.msg, sizeof(u.info.msg), "unknown id %s", tok);
+				return;
+			}
+		} else { // We have a callsign to query.
+			u.info.userdb_entry = userdb_get_entry_for_callsign(tok);
+			if (u.info.userdb_entry == NULL) {
+				snprintf(u.info.msg, sizeof(u.info.msg), "unknown callsign %s", tok);
+				return;
+			}
+		}
+		snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s from %s",
+			u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.userdb_entry->name, u.info.userdb_entry->country);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, u.info.msg);
+	}
+
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "unknown dmrshark command, send \"help\" for help");
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
@@ -522,6 +604,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    version: %u\n", ip_packet->ip_v);
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    id: 0x%.4x\n", ntohs(ip_packet->ip_id));
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    fragment offset: 0x%.4x\n", ntohs(ip_packet->ip_off));
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    dscp/ecn: 0x%.2x\n", data_fragment->bytes[1]);
+			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    flags: 0x%.2x\n", data_fragment->bytes[6] >> 5);
 			ipaddr = ntohl(ip_packet->ip_dst.s_addr);
 			dstid = (ipaddr & 0xffffff);
 			if (ipaddr & (0b11100000 << 24)) {
@@ -571,13 +655,22 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 					switch (ntohs(udp_packet->dest)) {
 						case 4007: // Motorola SMS UDP port.
-							// The message has a 10 byte header.
-							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      motorola tms header: ");
-							tms_msg_length = ntohs(udp_packet->len)-sizeof(struct udphdr);
+							if (ntohs(udp_packet->len)-sizeof(struct udphdr) < 3) {
+								console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      tms message is too short\n");
+								return;
+							}
+
 							tms_msg_payload = (uint8_t *)(udp_packet)+sizeof(struct udphdr);
-							for (i = 0; i < min(10, tms_msg_length); i += 2) {
+							tms_msg_length = tms_msg_payload[0] << 8 | tms_msg_payload[1];
+
+							if (tms_msg_length != ntohs(udp_packet->len)-sizeof(struct udphdr)-2) { // -2 - TMS header size field
+								console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      invalid tms length\n");
+								return;
+							}
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      motorola tms message (%u bytes): ", tms_msg_length);
+							for (i = 0; i < tms_msg_length+2; i += 2) {
 								console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "%.2x", *(tms_msg_payload+i));
-								if (i+1 < min(10, tms_msg_length))
+								if (i+1 < tms_msg_length)
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "%.2x", *(tms_msg_payload+i+1));
 							}
 							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "\n");
@@ -588,12 +681,13 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								// If the Motorola TMS ACK is for us, we reply with a standard ACK.
 								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
 									srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      motorola tms ack is for us\n");
 										dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 								}
 
 								smstxbuf_first_entry = smstxbuf_get_first_entry();
 								if (smstxbuf_first_entry != NULL) {
-									if (!smstxbuf_first_entry->sms_type != DMR_SMS_TYPE_MOTOROLA_TMS) {
+									if (smstxbuf_first_entry->sms_type != DMR_SMS_TYPE_MOTOROLA_TMS) {
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      sms tx buffer entry is not a motorola tms sms\n");
 										return;
 									}
@@ -653,15 +747,18 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
 		else {
 			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
-			smsrtbuf_add_decoded_message(received_sms_type, dstid, srcid, decoded_message);
+			if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid != DMRSHARK_DEFAULT_DMR_ID)
+				smsrtbuf_add_decoded_message(received_sms_type, dstid, srcid, decoded_message);
 		}
 
 		// Message is OK, and for us?
-		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
-			srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID && calltype == DMR_CALL_TYPE_PRIVATE) {
+		if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID) {
+			if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested) {
 				dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 				if (received_sms_type == DMR_SMS_TYPE_MOTOROLA_TMS && tms_msg_payload != NULL)
-					dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4] & 0b11111);
+					dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4]);
+			}
+			dmr_handle_received_sms(repeater, ipscpacket->timeslot-1, srcid, received_sms_type, decoded_message);
 		}
 	}
 }
@@ -685,6 +782,10 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 		}
 	}
 	if (erroneous_block_found) {
+		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
+			console_log(LOGLEVEL_DMR "  found erroneous blocks, but won't send selective ack for response\n");
+			return;
+		}
 		if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES) {
 			console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES);
 			return;

@@ -32,6 +32,7 @@ typedef struct userdb_st {
 } userdb_t;
 
 userdb_t *userdb_get_entry_for_id(dmr_id_t id);
+userdb_t *userdb_get_entry_for_callsign(char *callsign);
 char *userdb_get_display_str_for_id(dmr_id_t id);
 void userdb_print(void);
 
