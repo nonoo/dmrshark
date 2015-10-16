@@ -37,6 +37,7 @@ typedef struct {
 	char query[REMOTEDB_MAXQUERYSIZE];
 } remotedb_query_t;
 
+static pthread_mutex_t remotedb_mutex_remotedb_conn = PTHREAD_MUTEX_INITIALIZER;
 static MYSQL *remotedb_conn = NULL;
 static pthread_t remotedb_thread;
 
@@ -71,6 +72,46 @@ static void remotedb_addquery(char *query) {
 		}
 	}
 	pthread_mutex_unlock(&remotedb_mutex_querybuf);
+}
+
+void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg) {
+	char *tableprefix = NULL;
+	char query[512] = {0,};
+	char *dstemail_escaped;
+	char *msg_escaped;
+	uint16_t dstemail_length;
+	uint16_t msg_length;
+
+	if (dstemail == NULL || msg == NULL)
+		return;
+
+	dstemail_length = strlen(dstemail);
+	dstemail_escaped = (char *)calloc(1, dstemail_length*2+1);
+	if (dstemail_escaped == NULL) {
+		console_log("remotedb error: can't allocate memory for escaped destination email address\n");
+		return;
+	}
+	msg_length = strlen(msg);
+	msg_escaped = (char *)calloc(1, msg_length*2+1);
+	if (msg_escaped == NULL) {
+		console_log("remotedb error: can't allocate memory for escaped email message\n");
+		free(dstemail_escaped);
+		return;
+	}
+
+	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
+	mysql_real_escape_string(remotedb_conn, dstemail_escaped, dstemail, dstemail_length);
+	mysql_real_escape_string(remotedb_conn, msg_escaped, msg, msg_length);
+	pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
+
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "insert into `%semails-out` (`dstemail`, `srcid`, `msg`, `addedat`) values ('%s', %u, '%s', now())",
+		tableprefix, dstemail_escaped, srcid, msg_escaped);
+	free(tableprefix);
+	free(dstemail_escaped);
+	free(msg_escaped);
+
+	remotedb_addquery(query);
 }
 
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
@@ -228,8 +269,10 @@ static flag_t remotedb_thread_process(void) {
 		return 0;
 
 	if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
+		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 		if (mysql_ping(remotedb_conn) != 0)
 			remotedb_thread_connect();
+		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 		lastconnecttriedat = time(NULL);
 	}
 
@@ -246,7 +289,9 @@ static flag_t remotedb_thread_process(void) {
 	// If user list db download was unnsuccessful, we retry it every minute.
 	if (config_get_remotedbuserlistdlperiodinsec()) {
 		if (time(NULL)-lastuserlistqueryat > config_get_remotedbuserlistdlperiodinsec() || (!userdb_dl_ok && time(NULL)-lastuserlistqueryat > 60)) {
+			pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 			userdb_dl_ok = userdb_reload(remotedb_conn);
+			pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 			lastuserlistqueryat = time(NULL);
 		}
 	}
@@ -255,8 +300,10 @@ static flag_t remotedb_thread_process(void) {
 	pthread_mutex_lock(&remotedb_mutex_querybuf);
 	if (remotedb_querybuf[0].query[0] != 0) {
 		console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", remotedb_querybuf[0].query);
+		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 		if (mysql_query(remotedb_conn, remotedb_querybuf[0].query))
 			console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
+		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 
 		console_log(LOGLEVEL_REMOTEDB LOGLEVEL_DEBUG "remotedb: shifting the query buffer\n");
 		for (i = 1; i < REMOTEDB_QUERYBUFSIZE; i++)
@@ -283,6 +330,7 @@ static void *remotedb_thread_init(void *arg) {
 
 	pthread_cond_init(&remotedb_cond_wakeup, NULL);
 
+	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 	remotedb_conn = mysql_init(NULL);
 	if (remotedb_conn == NULL)
 		console_log("remotedb error: can't initialize mysql\n");
@@ -295,6 +343,7 @@ static void *remotedb_thread_init(void *arg) {
 		mysql_options(remotedb_conn, MYSQL_OPT_READ_TIMEOUT, &opt);
 
 		remotedb_thread_connect();
+		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 
 		while (1) {
 			pthread_mutex_lock(&remotedb_mutex_thread_should_stop);
@@ -315,8 +364,10 @@ static void *remotedb_thread_init(void *arg) {
 			}
 		}
 
+		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 		mysql_close(remotedb_conn);
 		remotedb_conn = NULL;
+		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 	}
 
 	pthread_mutex_destroy(&remotedb_mutex_thread_should_stop);

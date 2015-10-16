@@ -22,6 +22,8 @@
 
 #include <netinet/ip.h>
 
+void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg);
+
 void remotedb_update_repeater(repeater_t *repeater);
 void remotedb_update_repeater_lastactive(repeater_t *repeater);
 

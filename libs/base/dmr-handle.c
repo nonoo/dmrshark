@@ -514,6 +514,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 	union {
 		struct {
 			char *email;
+			char msg[100];
 		} email;
 		struct {
 			dmr_id_t id;
@@ -530,7 +531,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 	if (tok == NULL)
 		return;
 
-	if (strstr(tok, "@") != NULL) { // Got an email address?
+	if (strstr(tok, "@") != NULL && strstr(tok, ".") != NULL) { // Got an email address?
 		u.email.email = tok;
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
@@ -538,7 +539,9 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 			return;
 		}
 		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
-		// TODO
+		remotedb_add_email_to_send(u.email.email, srcid, tok);
+		snprintf(u.email.msg, sizeof(u.email.msg), "email sent to %s", u.email.email);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, u.email.msg);
 		return;
 	}
 
