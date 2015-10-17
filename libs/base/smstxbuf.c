@@ -42,15 +42,15 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
 	if (entry->repeater == NULL)
-		console_log(LOGLEVEL_SMS "  repeater: all ");
+		console_log("  repeater: all ");
 	else {
-		console_log(LOGLEVEL_SMS "  repeater: %s ts: %u ",
+		console_log("  repeater: %s ts: %u ",
 			repeaters_get_display_string_for_ip(&entry->repeater->ipaddr),
 			entry->ts+1);
 	}
 	console_log("dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n",
 		entry->dst_id, entry->src_id,
-		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_sms_type(entry->sms_type), entry->msg);
+		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_data_type(entry->data_type), entry->msg);
 }
 
 void smstxbuf_print(void) {
@@ -68,9 +68,8 @@ void smstxbuf_print(void) {
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_sms_type_t sms_type, char *msg) {
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_data_type_t data_type, char *msg) {
 	smstxbuf_t *new_smstxbuf_entry;
-	loglevel_t loglevel;
 
 	if (msg == NULL)
 		return;
@@ -78,7 +77,7 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	if (smstxbuf_last_entry != NULL &&
 		smstxbuf_last_entry->dst_id == dstid &&
 		smstxbuf_last_entry->src_id == srcid &&
-		smstxbuf_last_entry->sms_type == sms_type &&
+		smstxbuf_last_entry->data_type == data_type &&
 		smstxbuf_last_entry->repeater == repeater &&
 		smstxbuf_last_entry->ts == ts &&
 		smstxbuf_last_entry->call_type == calltype &&
@@ -93,17 +92,15 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 
 	strncpy(new_smstxbuf_entry->msg, msg, DMRPACKET_MAX_FRAGMENTSIZE);
 	new_smstxbuf_entry->added_at = time(NULL);
-	new_smstxbuf_entry->sms_type = sms_type;
+	new_smstxbuf_entry->data_type = data_type;
 	new_smstxbuf_entry->call_type = calltype;
 	new_smstxbuf_entry->dst_id = dstid;
 	new_smstxbuf_entry->src_id = srcid;
 	new_smstxbuf_entry->repeater = repeater;
 	new_smstxbuf_entry->ts = ts;
 
-	console_log(LOGLEVEL_SMS "smstxbuf: adding new sms:\n");
-	loglevel = console_get_loglevel();
-	if (loglevel.flags.sms)
-		smstxbuf_print_entry(new_smstxbuf_entry);
+	console_log("smstxbuf: adding new sms:\n");
+	smstxbuf_print_entry(new_smstxbuf_entry);
 
 	if (smstxbuf_last_entry == NULL)
 		smstxbuf_last_entry = smstxbuf_first_entry = new_smstxbuf_entry;
@@ -123,8 +120,8 @@ static void smstxbuf_remove_first_entry(void) {
 		return;
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.sms && loglevel.flags.debug) {
-		console_log(LOGLEVEL_SMS LOGLEVEL_DEBUG "smstxbuf: removing first entry:\n");
+	if (loglevel.flags.dataq && loglevel.flags.debug) {
+		console_log(LOGLEVEL_DATAQ LOGLEVEL_DEBUG "smstxbuf: removing first entry:\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 	}
 
@@ -143,7 +140,7 @@ void smstxbuf_first_entry_sent_successfully(void) {
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 
-	console_log(LOGLEVEL_SMS "smstxbuf: first entry sent successfully\n");
+	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry sent successfully\n");
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
 	smstxbuf_remove_first_entry();
@@ -157,7 +154,7 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 
-	console_log(LOGLEVEL_SMS "smstxbuf: first entry send unsuccessful\n");
+	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry send unsuccessful\n");
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
 	smstxbuf_remove_first_entry();
@@ -181,7 +178,7 @@ void smstxbuf_process(void) {
 		return;
 
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
-		console_log(LOGLEVEL_SMS "smstxbuf: all tries of sending the first entry has failed\n");
+		console_log(LOGLEVEL_DATAQ "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 		smstxbuf_first_entry_send_unsuccessful();
 		if (smstxbuf_first_entry == NULL)
@@ -190,16 +187,16 @@ void smstxbuf_process(void) {
 
 	smstxbuf_first_entry->selective_ack_tries = 0;
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.sms) {
-		console_log(LOGLEVEL_SMS "smstxbuf: sending entry:\n");
+	if (loglevel.flags.dataq) {
+		console_log(LOGLEVEL_DATAQ "smstxbuf: sending entry:\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 	}
 
-	switch (smstxbuf_first_entry->sms_type) {
-		case DMR_SMS_TYPE_MOTOROLA_TMS:
+	switch (smstxbuf_first_entry->data_type) {
+		case DMR_DATA_TYPE_MOTOROLA_TMS_SMS:
 			dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 			break;
-		case DMR_SMS_TYPE_NORMAL:
+		case DMR_DATA_TYPE_NORMAL_SMS:
 			dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
 			break;
 		default:

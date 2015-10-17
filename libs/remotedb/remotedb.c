@@ -31,7 +31,7 @@
 #include <unistd.h>
 
 #define REMOTEDB_QUERYBUFSIZE	10
-#define REMOTEDB_MAXQUERYSIZE	1024
+#define REMOTEDB_MAXQUERYSIZE	2000
 
 typedef struct {
 	char query[REMOTEDB_MAXQUERYSIZE];
@@ -76,7 +76,7 @@ static void remotedb_addquery(char *query) {
 
 void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	char *dstemail_escaped;
 	char *msg_escaped;
 	uint16_t dstemail_length;
@@ -114,9 +114,37 @@ void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg) {
 	remotedb_addquery(query);
 }
 
+void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t timeslot, dmr_data_type_t decoded_data_type, char *decoded_data) {
+	char *tableprefix = NULL;
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
+	uint16_t decoded_data_length;
+	char *decoded_data_escaped = NULL;
+
+	decoded_data_length = strlen(decoded_data);
+	decoded_data_escaped = (char *)calloc(1, decoded_data_length*2+1);
+	if (decoded_data_escaped == NULL) {
+		console_log("remotedb error: can't allocate memory for escaped data\n");
+		return;
+	}
+	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
+	mysql_real_escape_string(remotedb_conn, decoded_data_escaped, decoded_data, decoded_data_length);
+	pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
+
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
+		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
+		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
+		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
+	free(tableprefix);
+	free(decoded_data_escaped);
+
+	remotedb_addquery(query);
+}
+
 static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	int8_t rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	int8_t avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
@@ -124,6 +152,9 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 		return;
 
 	if (remotedb_conn == NULL)
+		return;
+
+	if (repeater->slot[timeslot-1].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
 		return;
 
 	if (repeater->slot[timeslot-1].voicestream) {
@@ -144,7 +175,7 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timesl
 
 void remotedb_update_repeater(repeater_t *repeater) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	if (repeater == NULL || remotedb_conn == NULL || repeater->id == 0 || strlen(repeater->callsign) == 0)
 		return;
@@ -164,7 +195,7 @@ void remotedb_update_repeater(repeater_t *repeater) {
 
 void remotedb_update_repeater_lastactive(repeater_t *repeater) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	if (repeater == NULL || remotedb_conn == NULL || repeater->id == 0 || strlen(repeater->callsign) == 0)
 		return;
@@ -186,7 +217,7 @@ void remotedb_update(repeater_t *repeater) {
 // Updates the stats table with the duration of the call.
 void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	int talktime;
 
 	if (repeater == NULL || !config_get_updatestatstableenabled() || timeslot > 1 || timeslot < 0)
@@ -208,7 +239,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 
 void remotedb_maintain(void) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
 	tableprefix = config_get_remotedbtableprefix();
@@ -221,7 +252,7 @@ void remotedb_maintain(void) {
 
 void remotedb_maintain_repeaterlist(void) {
 	char *tableprefix = NULL;
-	char query[512] = {0,};
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing repeater entries older than %u seconds\n", config_get_repeaterinactivetimeoutinsec());
 	tableprefix = config_get_remotedbtableprefix();

@@ -105,8 +105,8 @@ void log_loglevel(loglevel_t *loglevel) {
 	else
 		console_log("off\n");
 
-	console_log("  sms ");
-	if (loglevel->flags.sms)
+	console_log("  dataq ");
+	if (loglevel->flags.dataq)
 		console_log("on\n");
 	else
 		console_log("off\n");

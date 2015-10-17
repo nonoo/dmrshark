@@ -168,10 +168,10 @@ dmrpacket_data_block_t *dmrpacket_data_decode_block(dmrpacket_data_block_bytes_t
 	if (bytes == NULL)
 		return NULL;
 
-	console_log(LOGLEVEL_DMRDATA "dmrpacket data: decoding ");
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: decoding ");
 	if (!confirmed)
-		console_log(LOGLEVEL_DMRDATA "un");
-	console_log(LOGLEVEL_DMRDATA "confirmed data block type %s\n", dmrpacket_data_get_readable_data_type(data_type));
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "un");
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "confirmed data block type %s\n", dmrpacket_data_get_readable_data_type(data_type));
 
 	memset(&data_block, 0, sizeof(dmrpacket_data_block_t));
 	data_block.data_length = dmrpacket_data_get_block_size(data_type, confirmed);
@@ -237,7 +237,7 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 
 	memset(&data, 0, sizeof(dmrpacket_data_fragment_t));
 
-	console_log(LOGLEVEL_DMRDATA "dmrpacket data: extracting fragment from %u blocks\n", blocks_count);
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: extracting fragment from %u blocks\n", blocks_count);
 	for (i = 0; i < blocks_count; i++) {
 		if (blocks[i].data_length == 0)
 			continue;
@@ -278,22 +278,24 @@ dmrpacket_data_fragment_t *dmrpacket_data_extract_fragment_from_blocks(dmrpacket
 	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  fragment crc: %.8x, calculated: %.8x (", data.crc, crcval);
 
 	if (crcval == data.crc) {
-		console_log(LOGLEVEL_DMRDATA "ok)\n");
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "ok)\n");
 		return &data;
 	} else {
-		console_log(LOGLEVEL_DMRDATA "error)\n");
+		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "error)\n");
 		return NULL;
 	}
 }
 
+// Result must be freed after use.
 char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *out_length, dmrpacket_data_header_dd_format_t src_dd_format, dmrpacket_data_header_dd_format_t dst_dd_format, uint8_t add_to_left) {
 	iconv_t iconv_handle;
 	int result;
 	size_t insize = 0;
 	char *inptr;
-	static char outbuf[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE]; // Max. char width is 4 bytes.
-	char *outptr = outbuf+add_to_left;
-	size_t outsize = sizeof(outbuf)-add_to_left;
+	char *outbuf;
+	uint16_t outbuf_size = data_length*4+1;
+	char *outptr;
+	size_t outbytesleft = outbuf_size-add_to_left;
 
 	if (data == NULL)
 		return NULL;
@@ -301,8 +303,7 @@ char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *o
 	if (data_length == 0)
 		return "";
 
-	memset(outbuf, 0, sizeof(outbuf));
-	console_log(LOGLEVEL_DMRDATA "dmrpacket data: converting message from format %s (%.2x) to %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), src_dd_format,
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmrpacket data: converting message from format %s (%.2x) to %s (%.2x)\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), src_dd_format,
 		dmrpacket_data_header_get_readable_dd_format(dst_dd_format), dst_dd_format);
 
 	iconv_handle = iconv_open(dmrpacket_data_header_get_readable_dd_format(dst_dd_format), dmrpacket_data_header_get_readable_dd_format(src_dd_format));
@@ -314,18 +315,27 @@ char *dmrpacket_data_convertmsg(uint8_t *data, uint16_t data_length, uint16_t *o
 		return NULL;
 	}
 
+	outbuf = (char *)calloc(1, outbuf_size); // Max. char width is 4 bytes.
+	if (outbuf == NULL) {
+		console_log("dmrpacket data error: can't allocate memory for message charset conversion\n");
+		iconv_close(iconv_handle);
+		return NULL;
+	}
+	outptr = outbuf+add_to_left;
 	insize = data_length;
 	inptr = (char *)data;
-	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outsize);
+	result = iconv(iconv_handle, &inptr, &insize, &outptr, &outbytesleft);
 	iconv_close(iconv_handle);
 	if (result < 0) {
 		console_log(LOGLEVEL_DMRDATA "dmrpacket data warning: can't convert data from %s to %s, iconv error\n", dmrpacket_data_header_get_readable_dd_format(src_dd_format), dmrpacket_data_header_get_readable_dd_format(src_dd_format));
-		*out_length = min(data_length, sizeof(outbuf));
-		memcpy(outbuf, data, *out_length);
+		if (out_length != NULL) {
+			*out_length = min(data_length, outbuf_size);
+			memcpy(outbuf, data, *out_length);
+		}
+	} else {
+		if (out_length != NULL)
+			*out_length = outbuf_size-outbytesleft;
 	}
-
-	if (out_length != NULL)
-		*out_length = sizeof(outbuf)-outsize;
 	return outbuf;
 }
 
@@ -351,16 +361,18 @@ dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_frag
 	uint8_t i;
 	uint16_t j;
 	dmrpacket_data_block_t *data_blocks;
+	loglevel_t loglevel;
 
 	if (fragment == NULL || fragment->data_blocks_needed == 0)
 		return NULL;
 
 	data_blocks = (dmrpacket_data_block_t *)calloc(1, fragment->data_blocks_needed*sizeof(dmrpacket_data_block_t));
 	if (data_blocks == NULL) {
-		console_log("  error: can't allocate memory for data blocks\n");
+		console_log("  dmrpacket data error: can't allocate memory for data blocks\n");
 		return NULL;
 	}
 
+	loglevel = console_get_loglevel();
 	for (i = 0; i < fragment->data_blocks_needed; i++) {
 		data_blocks[i].serialnr = i % 128;
 		data_blocks[i].data_length = dmrpacket_data_get_block_size(data_type, confirmed);
@@ -389,10 +401,12 @@ dmrpacket_data_block_t *dmrpacket_data_construct_data_blocks(dmrpacket_data_frag
 		// Applying CRC mask, see DMR AI spec. page 143.
 		data_blocks[i].crc ^= 0x01ff;
 
-		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  block #%u length: %u crc: %.4x bytes: ", i, data_blocks[i].data_length, data_blocks[i].crc);
-		for (j = 0; j < data_blocks[i].data_length; j++)
-			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", data_blocks[i].data[j]);
-		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "\n");
+		if (loglevel.flags.dmrdata && loglevel.flags.debug) {
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  block #%u length: %u crc: %.4x bytes: ", i, data_blocks[i].data_length, data_blocks[i].crc);
+			for (j = 0; j < data_blocks[i].data_length; j++)
+				console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x", data_blocks[i].data[j]);
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
+		}
 	}
 	return data_blocks;
 }
@@ -439,7 +453,7 @@ void dmrpacket_data_construct_fragment(uint8_t *data, uint16_t data_size, dmrpac
 			fragment->bytes_stored, fragment->crc, fragment->data_blocks_needed, fragment->data_blocks_needed*block_size);
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  data bytes: ");
 		for (i = 0; i < fragment->bytes_stored; i++)
-			console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "%.2x", fragment->bytes[i]);
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%.2x", fragment->bytes[i]);
 		console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG " %.8x\n", fragment->crc);
 	}
 }
@@ -455,7 +469,7 @@ static struct iphdr *dmrpacket_data_construct_payload_ip_packet(uint16_t dstport
 
 	ip_packet_bytes = (uint8_t *)calloc(1, sizeof(struct iphdr)+sizeof(struct udphdr)+payload_size);
 	if (ip_packet_bytes == NULL) {
-		console_log("  error: can't allocate memory for ip packet bytes\n");
+		console_log("dmrpacket data error: can't allocate memory for ip packet bytes\n");
 		return NULL;
 	}
 
@@ -505,10 +519,14 @@ struct iphdr *dmrpacket_data_construct_payload_motorola_sms(char *msg, dmr_id_t 
 		return NULL;
 
 	utf16le_msg = dmrpacket_data_convertmsg((uint8_t *)msg, strlen(msg), &utf16le_msg_length, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE, 0);
+	if (utf16le_msg == NULL) {
+		console_log("dmrpacket data error: can't convert message for motorola sms packet\n");
+		return NULL;
+	}
 	payload_size = sizeof(motorola_header)+utf16le_msg_length;
 	payload = (uint8_t *)calloc(1, payload_size);
 	if (payload == NULL) {
-		console_log("  error: can't allocate memory for motorola sms packet bytes\n");
+		console_log("dmrpacket data error: can't allocate memory for motorola sms packet bytes\n");
 		return NULL;
 	}
 
@@ -517,6 +535,7 @@ struct iphdr *dmrpacket_data_construct_payload_motorola_sms(char *msg, dmr_id_t 
 	payload[1] = (payload_size-2) & 0xff;
 	payload[4] = tx_seqnum | 0b10000000;
 	memcpy(payload+sizeof(motorola_header), utf16le_msg, utf16le_msg_length);
+	free(utf16le_msg);
 
 	return dmrpacket_data_construct_payload_ip_packet(4007, dstid, srcid, calltype, payload, payload_size);
 }

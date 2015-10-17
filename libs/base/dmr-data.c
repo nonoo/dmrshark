@@ -37,7 +37,7 @@ void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr
 	if (repeater == NULL)
 		return;
 
-	console_log("dmr data: sending ack to %u on repeater %s ts%u, status %u\n", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1, repeater->slot[ts].rx_seqnum);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending ack to %u on repeater %s ts%u, status %u\n", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1, repeater->slot[ts].rx_seqnum);
 
 	memset(&data_header, 0, sizeof(dmrpacket_data_header_t));
 	data_header.common.dst_is_a_group = 0;
@@ -70,25 +70,25 @@ void dmr_data_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t 
 	if (repeater == NULL || selective_blocks == NULL || selective_blocks_size == 0)
 		return;
 
-	console_log("dmr data: sending selective ack to %u on repeater %s ts%u, blocks: ", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending selective ack to %u on repeater %s ts%u, blocks: ", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 
 	payload_size = ceil(selective_blocks_size/8.0);
 	dmrpacket_data_get_needed_blocks_count(payload_size, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0, &data_blocks_needed);
 	payload_size = data_blocks_needed*dmrpacket_data_get_block_size(DMRPACKET_DATA_TYPE_RATE_12_DATA, 0)-4;
 	payload = (uint8_t *)malloc(payload_size);
 	if (payload == NULL) {
-		console_log("error: can't allocate memory for selective ack payload\n");
+		console_log("dmr data error: can't allocate memory for selective ack payload\n");
 		return;
 	}
 	memset(payload, 0xff, payload_size);
 	for (i = 0; i < selective_blocks_size; i++) {
 		if (selective_blocks[i]) {
-			console_log("%u ", i);
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "%u ", i);
 
 			payload[i/8] &= ~(1 << (i % 8));
 		}
 	}
-	console_log("\n");
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "\n");
 
 	dmrpacket_data_construct_fragment(payload, payload_size, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0, &data_packet.fragment);
 	free(payload);
@@ -122,7 +122,7 @@ static void dmr_data_send_ip_packet(flag_t broadcast_to_all_repeaters, uint8_t n
 	if ((!broadcast_to_all_repeaters && repeater == NULL) || ip_packet == NULL)
 		return;
 
-	console_log("dmr data: sending %s ip packet to %u on ts%u\n", dmr_get_readable_call_type(calltype), dstid, ts+1);
+	console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "dmr data: sending %s ip packet to %u on ts%u\n", dmr_get_readable_call_type(calltype), dstid, ts+1);
 
 	data_packet.data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
 	dmrpacket_data_construct_fragment((uint8_t *)ip_packet, ntohs(ip_packet->tot_len), data_packet.data_type, confirmed, &data_packet.fragment);
@@ -153,7 +153,7 @@ void dmr_data_send_motorola_tms_sms(flag_t broadcast_to_all_repeaters, repeater_
 	if ((!broadcast_to_all_repeaters && repeater == NULL) || msg == NULL)
 		return;
 
-	console_log("dmr data: sending %s motorola sms to %u on ts%u: %s\n", dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending %s motorola sms to %u on ts%u: %s\n", dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
 	dmr_data_motorola_tms_tx_seqnum++;
 	ip_packet = dmrpacket_data_construct_payload_motorola_sms(msg, dstid, srcid, calltype, dmr_data_motorola_tms_tx_seqnum);
@@ -167,7 +167,7 @@ void dmr_data_send_motorola_tms_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr
 	if (repeater == NULL)
 		return;
 
-	console_log("dmr data: sending %s motorola tms ack to %u on ts%u for rx seqnum 0x%.2x\n", dmr_get_readable_call_type(calltype), dstid, ts+1, rx_seqnum);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending %s motorola tms ack to %u on ts%u for rx seqnum 0x%.2x\n", dmr_get_readable_call_type(calltype), dstid, ts+1, rx_seqnum);
 
 	dmr_data_motorola_tms_tx_seqnum++;
 	ip_packet = dmrpacket_data_construct_payload_motorola_tms_ack(dstid, srcid, calltype, rx_seqnum);
@@ -184,12 +184,13 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	if ((!broadcast_to_all_repeaters && repeater == NULL) || msg == NULL)
 		return;
 
-	console_log("dmr-data: sending %s sms to %u on ts%u: %s\n", dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
+	console_log(LOGLEVEL_DMRDATA "dmr-data: sending %s sms to %u on ts%u: %s\n", dmr_get_readable_call_type(calltype), dstid, ts+1, msg);
 
 	// We are using a 2 byte left padding because Hytera devices seem to add it to every message they send, and cut it from every message they receive.
 	utf16le_msg = dmrpacket_data_convertmsg((uint8_t *)msg, strlen(msg), &utf16le_msg_length, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF8, DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE, 2);
 	data_packet.data_type = (calltype == DMR_CALL_TYPE_PRIVATE ? DMRPACKET_DATA_TYPE_RATE_34_DATA : DMRPACKET_DATA_TYPE_RATE_12_DATA);
 	dmrpacket_data_construct_fragment((uint8_t *)utf16le_msg, utf16le_msg_length, data_packet.data_type, confirmed, &data_packet.fragment);
+	free(utf16le_msg);
 
 	// Constructing the data header.
 	data_packet.header.common.dst_is_a_group = (calltype == DMR_CALL_TYPE_GROUP);
@@ -238,6 +239,6 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 	else
 		return;
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, msg);
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, msg);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_NORMAL_SMS, msg);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg);
 }

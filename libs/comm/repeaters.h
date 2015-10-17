@@ -61,6 +61,12 @@ typedef struct {
 	voicestream_t *voicestream;
 	uint8_t ipsc_last_received_seqnum;
 
+	dmr_id_t decoded_data_dstid;
+	dmr_id_t decoded_data_srcid;
+	char decoded_data[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE];
+	dmr_data_type_t decoded_data_type;
+	flag_t decoded_data_acked;
+
 	// These variables are used for sending IPSC packets to the repeater.
 	ipscrawpacketbuf_t *ipsc_tx_rawpacketbuf;
 	uint8_t ipsc_tx_seqnum;

@@ -26,14 +26,14 @@
 #include <time.h>
 
 typedef struct smsrtbuf_st {
-	dmr_sms_type_t orig_sms_type;
+	dmr_data_type_t orig_data_type;
 	repeater_t *repeater;
 	dmr_timeslot_t ts;
 	dmr_id_t dstid;
 	dmr_id_t srcid;
 	dmr_call_type_t calltype;
-	char orig_msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE];
-	char sent_msg[DMRPACKET_DATA_MAX_DECODED_SMS_SIZE+50];
+	char orig_msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE];
+	char sent_msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE+50];
 	time_t last_added_at;
 	flag_t currently_sending;
 
@@ -44,7 +44,7 @@ typedef struct smsrtbuf_st {
 void smsrtbuf_print(void);
 
 smsrtbuf_t *smsrtbuf_find_entry(dmr_id_t dstid, char *msg);
-void smsrtbuf_add_decoded_message(repeater_t *repeater, dmr_timeslot_t ts, dmr_sms_type_t sms_type, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, char *msg);
+void smsrtbuf_add_decoded_message(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_type_t data_type, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, char *msg);
 void smsrtbuf_got_ack(dmr_id_t dstid, dmr_call_type_t calltype);
 void smsrtbuf_got_tms_ack(dmr_id_t dstid, dmr_call_type_t calltype);
 void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry);

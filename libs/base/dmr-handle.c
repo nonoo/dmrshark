@@ -52,7 +52,7 @@ void dmr_handle_voice_call_end(struct ip *ip_packet, ipscpacket_t *ipscpacket, r
 	voicestreams_process_call_end(repeater->slot[ipscpacket->timeslot-1].voicestream, repeater);
 
 	console_log(LOGLEVEL_DMR "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMR "->%s]: %s call end on ts %u src id %u dst id %u\n",
+	console_log(LOGLEVEL_DMR "->%s]: %s call end on ts %u src %u dst %u\n",
 		repeaters_get_display_string_for_ip(&ip_packet->ip_dst), dmr_get_readable_call_type(repeater->slot[ipscpacket->timeslot-1].call_type),
 		ipscpacket->timeslot, repeater->slot[ipscpacket->timeslot-1].src_id, repeater->slot[ipscpacket->timeslot-1].dst_id);
 	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_IDLE);
@@ -75,7 +75,7 @@ void dmr_handle_voice_call_start(struct ip *ip_packet, ipscpacket_t *ipscpacket,
 		dmr_handle_voice_call_end(ip_packet, ipscpacket, repeater);
 
 	console_log(LOGLEVEL_DMR "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMR "->%s]: %s call start on ts %u src id %u dst id %u\n",
+	console_log(LOGLEVEL_DMR "->%s]: %s call start on ts %u src %u dst %u\n",
 		repeaters_get_display_string_for_ip(&ip_packet->ip_dst), dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->timeslot, ipscpacket->src_id, ipscpacket->dst_id);
 	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_VOICE_CALL_RUNNING);
 	repeater->slot[ipscpacket->timeslot-1].call_started_at = time(NULL);
@@ -248,20 +248,7 @@ void dmr_handle_voice_frame(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 	}
 }
 
-void dmr_handle_data_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
-	if (repeater == NULL)
-		return;
-
-	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
-		return;
-
-	console_log(LOGLEVEL_DMR "dmr [%s]: data call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
-	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
-	repeater->slot[ts].call_ended_at = time(NULL);
-	repeater->slot[ts].data_packet_header_valid = 0;
-}
-
-static void dmr_handle_data_call_start(repeater_t *repeater, ipscpacket_t *ipscpacket) {
+static void dmr_handle_data_call_start(struct ip *ip_packet, repeater_t *repeater, ipscpacket_t *ipscpacket) {
 	if (repeater == NULL)
 		return;
 
@@ -283,9 +270,34 @@ static void dmr_handle_data_call_start(repeater_t *repeater, ipscpacket_t *ipscp
 	if (repeater->slot[ipscpacket->timeslot-1].voicestream)
 		repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol = repeater->slot[ipscpacket->timeslot-1].voicestream->rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
-	console_log(LOGLEVEL_DMR "dmr [%s]: data call (%u -> %u) started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr),
-		ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot);
+	console_log(LOGLEVEL_DMR "dmr [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_DMR "->%s]: %s data call start on ts %u src %u dst %u\n",
+		repeaters_get_display_string_for_ip(&ip_packet->ip_dst), dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->timeslot, ipscpacket->src_id, ipscpacket->dst_id);
 	repeaters_state_change(repeater, ipscpacket->timeslot-1, REPEATER_SLOT_STATE_DATA_CALL_RUNNING);
+
+	remotedb_update_repeater(repeater);
+}
+
+static void dmr_handle_data_call_end_results(repeater_t *repeater, dmr_timeslot_t ts) {
+	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
+	repeater->slot[ts].call_ended_at = time(NULL);
+	repeater->slot[ts].data_packet_header_valid = 0;
+
+	if (repeater->slot[ts].decoded_data_acked) {
+		if (repeater->slot[ts].decoded_data_type != DMR_DATA_TYPE_UNKNOWN && isprint(repeater->slot[ts].decoded_data[0]))
+			remotedb_add_data_to_log(repeater, ts+1, repeater->slot[ts].decoded_data_type, repeater->slot[ts].decoded_data);
+
+		repeater->slot[ts].decoded_data_dstid = 0;
+		repeater->slot[ts].decoded_data_srcid = 0;
+		repeater->slot[ts].decoded_data_acked = 0;
+		repeater->slot[ts].decoded_data_type = DMR_DATA_TYPE_UNKNOWN;
+		memset(repeater->slot[ts].decoded_data, 0, sizeof(repeater->slot[ts].decoded_data));
+	}
+
+	repeater->slot[ts].dst_id = 0;
+	repeater->slot[ts].src_id = 0;
+
+	remotedb_update_repeater(repeater);
 }
 
 void dmr_handle_data_call_end(repeater_t *repeater, dmr_timeslot_t ts) {
@@ -296,9 +308,18 @@ void dmr_handle_data_call_end(repeater_t *repeater, dmr_timeslot_t ts) {
 		return;
 
 	console_log(LOGLEVEL_DMR "dmr [%s]: data call ended on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
-	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
-	repeater->slot[ts].call_ended_at = time(NULL);
-	repeater->slot[ts].data_packet_header_valid = 0;
+	dmr_handle_data_call_end_results(repeater, ts);
+}
+
+void dmr_handle_data_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
+	if (repeater == NULL)
+		return;
+
+	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+		return;
+
+	console_log(LOGLEVEL_DMR "dmr [%s]: data call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	dmr_handle_data_call_end_results(repeater, ts);
 }
 
 void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repeater_t *repeater) {
@@ -330,14 +351,15 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->udt.appended_blocks;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
 			data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
 			console_log(LOGLEVEL_DMRDATA "  response type: %s\n", dmrpacket_data_header_get_readable_response_type(data_response_type));
 
 			switch (data_response_type) {
-				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK: // Got a response for a previously sent data packet by us?
+				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK:
+					// Got a response for a previously sent data packet by us?
 					data_packet_txbuf_first_entry = data_packet_txbuf_get_first_entry();
 					if (data_packet_txbuf_first_entry != NULL) {
 						if (data_packet_txbuf_first_entry->data_packet.header.common.dst_llid == data_packet_header->common.src_llid &&
@@ -350,12 +372,12 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 								// Checking if SMS TX buffer entry can be removed too.
 								smstxbuf_first_entry = smstxbuf_get_first_entry();
 								if (smstxbuf_first_entry != NULL) {
-									if (smstxbuf_first_entry->sms_type == DMR_SMS_TYPE_MOTOROLA_TMS) {
+									if (smstxbuf_first_entry->data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS) {
 										console_log(LOGLEVEL_DMR "    this ack is for a tms sms tx buffer entry, waiting for the tms ack\n");
 										smstxbuf_first_entry->waiting_for_tms_ack_started_at = time(NULL);
 										// From now on, we don't have to broadcast data packets as we know where the station is.
 										data_packet_txbuf_found_station_for_first_entry(repeater, ipscpacket->timeslot-1);
-										// We don't end the call here.
+										dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 										return;
 									}
 
@@ -383,12 +405,12 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 											 	smstxbuf_first_entry_sent_successfully();
 											}
 									} else
-										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst: %u src: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    sms tx buffer is empty, ack is not for that\n");
 
 						} else {
-							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us (dst id: %u src id: %u)\n",
+							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  ack is not for us (dst: %u src: %u)\n",
 								data_packet_txbuf_first_entry->data_packet.header.common.dst_llid, data_packet_txbuf_first_entry->data_packet.header.common.src_llid);
 						}
 					} else
@@ -397,6 +419,14 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 					if (data_packet_header->common.src_llid != DMRSHARK_DEFAULT_DMR_ID &&
 						data_packet_header->common.dst_llid == DMRSHARK_DEFAULT_DMR_ID)
 							smsrtbuf_got_ack(data_packet_header->common.src_llid, data_packet_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE);
+
+					// Ack is for the previously decoded SMS?
+					if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_NORMAL_SMS &&
+						data_packet_header->common.dst_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
+						data_packet_header->common.src_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
+							console_log(LOGLEVEL_DMR "  slot sms ack\n"); // TODO
+							repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
+					}
 
 					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
@@ -412,7 +442,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
 					if (data_packet_header->common.src_llid == DMRSHARK_DEFAULT_DMR_ID) {
 						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is sent by us, ignoring\n");
-						// We don't end the data call here, just ignoring further data blocks by keeping data packet header invalid.
+						dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 						return;
 					}
 					repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
@@ -423,7 +453,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->unconfirmed_data.blocks_to_follow;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
 			if (data_packet_header->confirmed_data.full_message) {
@@ -432,7 +462,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].rx_seqnum = data_packet_header->confirmed_data.sendseqnum;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->confirmed_data.blocks_to_follow;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
 			if (data_packet_header->short_data_defined.full_message) {
@@ -440,7 +470,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_defined.appended_blocks;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_defined.appended_blocks;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_RAW:
 			if (data_packet_header->short_data_raw.full_message) {
@@ -448,12 +478,12 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_raw.appended_blocks;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_raw.appended_blocks;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_PROPRIETARY_DATA:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = 0;
-			dmr_handle_data_call_start(repeater, ipscpacket);
+			dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 			break;
 		default:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
@@ -461,7 +491,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 			return;
 	}
 
-	console_log(LOGLEVEL_DMR "  expecting %u blocks, full message has %u blocks\n", repeater->slot[ipscpacket->timeslot-1].data_blocks_expected,
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  expecting %u blocks, full message has %u blocks\n", repeater->slot[ipscpacket->timeslot-1].data_blocks_expected,
 		repeater->slot[ipscpacket->timeslot-1].full_message_block_count);
 
 	memcpy(&repeater->slot[ipscpacket->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));
@@ -490,7 +520,7 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 
 	// Responding only if we are the sender of the message.
 	if (dstid != data_packet_txbuf_first_entry->data_packet.header.common.src_llid || srcid != data_packet_txbuf_first_entry->data_packet.header.common.dst_llid) {
-		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is not for the message we try to send, ignoring (dst id: %u src id: %u)\n",
+		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is not for the message we try to send, ignoring (dst: %u src: %u)\n",
 			data_packet_txbuf_first_entry->data_packet.header.common.dst_llid, data_packet_txbuf_first_entry->data_packet.header.common.src_llid);
 		return;
 	}
@@ -530,7 +560,7 @@ static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t t
 }
 
 // Handles SMSs sent to us.
-static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t srcid, dmr_sms_type_t sms_type, char *decoded_message) {
+static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t srcid, dmr_data_type_t data_type, char *decoded_message) {
 	char *tok;
 	union {
 		struct {
@@ -556,25 +586,25 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		u.email.email = tok;
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "missing email body");
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "missing email body");
 			return;
 		}
 		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
 		remotedb_add_email_to_send(u.email.email, srcid, tok);
 		snprintf(u.email.msg, sizeof(u.email.msg), "email sent to %s", u.email.email);
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, u.email.msg);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, u.email.msg);
 		return;
 	}
 
 	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info");
 		return;
 	}
 
 	if (strcasecmp(tok, "ping") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"ping\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "pong");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "pong");
 		return;
 	}
 
@@ -582,7 +612,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		console_log(LOGLEVEL_DMR "  got \"info\" command\n");
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "missing callsign/dmrid");
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "missing callsign/dmrid");
 			return;
 		}
 
@@ -603,10 +633,10 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		}
 		snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s from %s",
 			u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.userdb_entry->name, u.info.userdb_entry->country);
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, u.info.msg);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, u.info.msg);
 	}
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, sms_type, "unknown dmrshark command, send \"help\" for help");
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "unknown dmrshark command, send \"help\" for help");
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
@@ -614,8 +644,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	struct udphdr *udp_packet;
 	uint8_t *message_data = NULL;
 	uint16_t message_data_length = 0;
+	char *decoded_message;
 	dmrpacket_data_header_dd_format_t dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
-	char *decoded_message = NULL;
 	uint8_t i;
 	uint8_t *tms_msg_payload = NULL;
 	uint16_t tms_msg_length;
@@ -624,7 +654,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	dmr_id_t srcid;
 	dmr_call_type_t calltype;
 	smstxbuf_t *smstxbuf_first_entry;
-	dmr_sms_type_t received_sms_type = DMR_SMS_TYPE_UNKNOWN;
+	dmr_data_type_t received_data_type = DMR_DATA_TYPE_UNKNOWN;
 
 	if (ipscpacket == NULL || repeater == NULL || data_fragment == NULL)
 		return;
@@ -712,7 +742,14 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "\n");
 
 							if (tms_msg_payload[0] == 0x00 && tms_msg_payload[1] == 0x03 && tms_msg_payload[2] == 0xbf) {
-								console_log(LOGLEVEL_DMR "      got a motorola tms ack\n");
+								console_log(LOGLEVEL_DMR "      motorola tms ack\n");
+
+								if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS &&
+									dstid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
+									srcid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
+										console_log(LOGLEVEL_DMR "  slot sms motorola tms ack\n"); // TODO
+										repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
+								}
 
 								// If the Motorola TMS ACK is for us, we reply with a standard ACK.
 								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
@@ -723,7 +760,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 								smstxbuf_first_entry = smstxbuf_get_first_entry();
 								if (smstxbuf_first_entry != NULL) {
-									if (smstxbuf_first_entry->sms_type != DMR_SMS_TYPE_MOTOROLA_TMS) {
+									if (smstxbuf_first_entry->data_type != DMR_DATA_TYPE_MOTOROLA_TMS_SMS) {
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      sms tx buffer entry is not a motorola tms sms\n");
 										return;
 									}
@@ -735,7 +772,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
 										 	smstxbuf_first_entry_sent_successfully();
 									} else
-										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us (dst id: %u src id: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us (dst: %u src: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us, sms tx buffer is empty\n");
 
@@ -748,12 +785,12 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							if (tms_msg_length > 10) {
 								message_data = (uint8_t *)(udp_packet)+sizeof(struct udphdr)+10;
 								message_data_length = ntohs(udp_packet->len)-sizeof(struct udphdr)-10;
-								received_sms_type = DMR_SMS_TYPE_MOTOROLA_TMS;
+								received_data_type = DMR_DATA_TYPE_MOTOROLA_TMS_SMS;
 							} else if (tms_msg_length == 10) {
 								console_log(LOGLEVEL_DMR "      motorola tms message has an empty payload\n");
 								message_data = (uint8_t *)"";
 								message_data_length = 0;
-								received_sms_type = DMR_SMS_TYPE_MOTOROLA_TMS;
+								received_data_type = DMR_DATA_TYPE_MOTOROLA_TMS_SMS;
 							} else
 								console_log(LOGLEVEL_DMR "      motorola tms message doesn't have a payload to decode\n");
 							break;
@@ -771,7 +808,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			message_data = data_fragment->bytes+2; // Hytera has a 2 byte pre-padding.
 			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
 			dd_format = repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format;
-			received_sms_type = DMR_SMS_TYPE_NORMAL;
+			received_data_type = DMR_DATA_TYPE_NORMAL_SMS;
 			break;
 		default:
 			console_log(LOGLEVEL_DMR "  unhandled service access point: %s\n", dmrpacket_data_header_get_readable_sap(repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point));
@@ -785,20 +822,27 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
 		else {
-			console_log(LOGLEVEL_DMR "  decoded message: %s\n", decoded_message); // TODO: upload decoded message to remotedb
+			console_log(LOGLEVEL_DMR "  decoded %s sms: %s\n", dmr_get_readable_data_type(received_data_type), decoded_message); // TODO: upload decoded message to remotedb
+			strncpy(repeater->slot[ipscpacket->timeslot-1].decoded_data, decoded_message, sizeof(repeater->slot[ipscpacket->timeslot-1].decoded_data));
+			repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid = dstid;
+			repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid = srcid;
+			repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 0;
+			repeater->slot[ipscpacket->timeslot-1].decoded_data_type = received_data_type;
+
 			if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid != DMRSHARK_DEFAULT_DMR_ID)
-				smsrtbuf_add_decoded_message(repeater, ipscpacket->timeslot-1, received_sms_type, dstid, srcid, calltype, decoded_message);
+				smsrtbuf_add_decoded_message(repeater, ipscpacket->timeslot-1, received_data_type, dstid, srcid, calltype, decoded_message);
 		}
 
 		// Message is OK, and for us?
 		if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid == DMRSHARK_DEFAULT_DMR_ID) {
 			if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested) {
 				dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-				if (received_sms_type == DMR_SMS_TYPE_MOTOROLA_TMS && tms_msg_payload != NULL)
+				if (received_data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS && tms_msg_payload != NULL)
 					dmr_data_send_motorola_tms_ack(repeater, ipscpacket->timeslot-1, calltype, srcid, dstid, tms_msg_payload[4]);
 			}
-			dmr_handle_received_sms(repeater, ipscpacket->timeslot-1, srcid, received_sms_type, decoded_message);
+			dmr_handle_received_sms(repeater, ipscpacket->timeslot-1, srcid, received_data_type, decoded_message);
 		}
+		free(decoded_message);
 	}
 }
 
@@ -908,11 +952,11 @@ void dmr_handle_data_34rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		!repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid)
 			return;
 
-	console_log(LOGLEVEL_DMR "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMR "->%s]: got 3/4 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "->%s]: got 3/4 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
 
-	console_log(LOGLEVEL_DMR "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 
 	packet_payload_info_bits = dmrpacket_extract_info_bits(&ipscpacket->payload_bits);
@@ -936,11 +980,11 @@ void dmr_handle_data_12rate(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		!repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid)
 			return;
 
-	console_log(LOGLEVEL_DMR "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-	console_log(LOGLEVEL_DMR "->%s]: got 1/2 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "dmr data [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "->%s]: got 1/2 rate block #%u/%u, ", repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
 		repeater->slot[ipscpacket->timeslot-1].data_blocks_received+1, repeater->slot[ipscpacket->timeslot-1].data_blocks_expected);
 
-	console_log(LOGLEVEL_DMR "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
+	console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "sync pattern: %s\n", dmrpacket_sync_get_readable_sync_pattern_type(dmrpacket_sync_get_sync_pattern_type(dmrpacket_sync_extract_bits(&ipscpacket->payload_bits))));
 	dmrpacket_slot_type_decode(dmrpacket_slot_type_extract_bits(&ipscpacket->payload_bits));
 
 	data_block_bytes = dmrpacket_data_convert_payload_bptc_data_bits_to_block_bytes(dmrpacket_data_extract_and_repair_bptc_data(&ipscpacket->payload_bits));

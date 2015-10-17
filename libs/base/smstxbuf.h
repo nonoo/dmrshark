@@ -32,7 +32,7 @@ typedef struct smstxbuf_st {
 	uint8_t selective_ack_tries;
 	time_t waiting_for_tms_ack_started_at;
 
-	dmr_sms_type_t sms_type;
+	dmr_data_type_t data_type;
 	repeater_t *repeater;
 	dmr_timeslot_t ts;
 	dmr_call_type_t call_type;
@@ -44,7 +44,7 @@ typedef struct smstxbuf_st {
 
 void smstxbuf_print_entry(smstxbuf_t *entry);
 void smstxbuf_print(void);
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_sms_type_t sms_type, char *msg);
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_data_type_t data_type, char *msg);
 
 void smstxbuf_first_entry_sent_successfully(void);
 smstxbuf_t *smstxbuf_get_first_entry(void);

@@ -24,16 +24,16 @@
 #define DMR_CALL_TYPE_GROUP						0x01
 typedef uint8_t dmr_call_type_t;
 
-#define DMR_SMS_TYPE_UNKNOWN					0x00
-#define DMR_SMS_TYPE_NORMAL						0x01
-#define DMR_SMS_TYPE_MOTOROLA_TMS				0x02
-typedef uint8_t dmr_sms_type_t;
+#define DMR_DATA_TYPE_UNKNOWN					0x00
+#define DMR_DATA_TYPE_NORMAL_SMS				0x01
+#define DMR_DATA_TYPE_MOTOROLA_TMS_SMS			0x02
+typedef uint8_t dmr_data_type_t;
 
 typedef uint8_t dmr_timeslot_t; // Note that the value for TS1 is 0, and for TS2 is 1.
 typedef uint32_t dmr_id_t;
 typedef uint8_t dmr_color_code_t;
 
 char *dmr_get_readable_call_type(dmr_call_type_t call_type);
-char *dmr_get_readable_sms_type(dmr_sms_type_t sms_type);
+char *dmr_get_readable_data_type(dmr_data_type_t data_type);
 
 #endif

@@ -41,7 +41,7 @@ void data_packet_txbuf_print_entry(data_packet_txbuf_t *entry) {
 	char added_at_str[20];
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
-	console_log(LOGLEVEL_DMR "  bcast: %u, dst id: %u src id: %u type: %s added at: %s send tries: %u bytes stored: %u crc: %.8x\n",
+	console_log(LOGLEVEL_DATAQ "  bcast: %u, dst id: %u src id: %u type: %s added at: %s send tries: %u bytes stored: %u crc: %.8x\n",
 		entry->broadcast_to_all_repeaters, entry->data_packet.header.common.dst_llid, entry->data_packet.header.common.src_llid,
 		dmr_get_readable_call_type(entry->data_packet.header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE),
 		added_at_str, entry->send_tries, entry->data_packet.fragment.bytes_stored, entry->data_packet.fragment.crc);
@@ -79,7 +79,7 @@ void data_packet_txbuf_add(flag_t broadcast_to_all_repeaters, repeater_t *repeat
 	new_data_packet_txbuf_entry->repeater = repeater;
 	new_data_packet_txbuf_entry->ts = ts;
 
-	console_log(LOGLEVEL_DMR "data packet txbuf: adding new entry:\n");
+	console_log(LOGLEVEL_DATAQ "data packet txbuf: adding new entry:\n");
 	data_packet_txbuf_print_entry(new_data_packet_txbuf_entry);
 
 	if (data_packet_txbuf_last_entry == NULL) {
@@ -137,7 +137,7 @@ void data_packet_txbuf_process(void) {
 	}
 
 	if (data_packet_txbuf_first_entry->send_tries >= config_get_datapacketsendmaxretrycount()) {
-		console_log(LOGLEVEL_DMR "data packet txbuf: all tries of sending the first entry has failed, removing:\n");
+		console_log(LOGLEVEL_DATAQ "data packet txbuf: all tries of sending the first entry has failed, removing:\n");
 		data_packet_txbuf_print_entry(data_packet_txbuf_first_entry);
 		data_packet_txbuf_remove_first_entry();
 		if (data_packet_txbuf_first_entry == NULL)
@@ -145,7 +145,7 @@ void data_packet_txbuf_process(void) {
 	}
 
 	data_packet_txbuf_first_entry->selective_ack_tries = 0;
-	console_log(LOGLEVEL_DMR "data packet txbuf: sending entry:\n");
+	console_log(LOGLEVEL_DATAQ "data packet txbuf: sending entry:\n");
 	data_packet_txbuf_print_entry(data_packet_txbuf_first_entry);
 
 	if (data_packet_txbuf_first_entry->broadcast_to_all_repeaters)
