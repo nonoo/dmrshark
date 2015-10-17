@@ -146,6 +146,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.coding = !loglevel.flags.coding;
 			else if (strcmp(tok, "httpserver") == 0)
 				loglevel.flags.httpserver = !loglevel.flags.httpserver;
+			else if (strcmp(tok, "sms") == 0)
+				loglevel.flags.sms = !loglevel.flags.sms;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);

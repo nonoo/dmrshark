@@ -257,6 +257,7 @@ void dmr_handle_data_call_timeout(repeater_t *repeater, dmr_timeslot_t ts) {
 
 	console_log(LOGLEVEL_DMR "dmr [%s]: data call timeout on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
+	repeater->slot[ts].call_ended_at = time(NULL);
 	repeater->slot[ts].data_packet_header_valid = 0;
 }
 
@@ -264,11 +265,23 @@ static void dmr_handle_data_call_start(repeater_t *repeater, ipscpacket_t *ipscp
 	if (repeater == NULL)
 		return;
 
+	if (repeater->slot[ipscpacket->timeslot-1].dst_id != ipscpacket->dst_id ||
+		repeater->slot[ipscpacket->timeslot-1].src_id != ipscpacket->src_id ||
+		repeater->slot[ipscpacket->timeslot-1].call_type != ipscpacket->call_type)
+			dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+
 	if (repeater->slot[ipscpacket->timeslot].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
 		return;
 
+	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 0;
+	repeater->slot[ipscpacket->timeslot-1].call_started_at = time(NULL);
+	repeater->slot[ipscpacket->timeslot-1].call_ended_at = 0;
+	repeater->slot[ipscpacket->timeslot-1].call_type = ipscpacket->call_type;
 	repeater->slot[ipscpacket->timeslot-1].dst_id = ipscpacket->dst_id;
 	repeater->slot[ipscpacket->timeslot-1].src_id = ipscpacket->src_id;
+	repeater->slot[ipscpacket->timeslot-1].rssi = repeater->slot[ipscpacket->timeslot-1].avg_rssi = 0;
+	if (repeater->slot[ipscpacket->timeslot-1].voicestream)
+		repeater->slot[ipscpacket->timeslot-1].voicestream->avg_rms_vol = repeater->slot[ipscpacket->timeslot-1].voicestream->rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
 	console_log(LOGLEVEL_DMR "dmr [%s]: data call (%u -> %u) started on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr),
 		ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot);
@@ -284,6 +297,7 @@ void dmr_handle_data_call_end(repeater_t *repeater, dmr_timeslot_t ts) {
 
 	console_log(LOGLEVEL_DMR "dmr [%s]: data call ended on ts%u\n", repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 	repeaters_state_change(repeater, ts, REPEATER_SLOT_STATE_IDLE);
+	repeater->slot[ts].call_ended_at = time(NULL);
 	repeater->slot[ts].data_packet_header_valid = 0;
 }
 
@@ -316,6 +330,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->udt.appended_blocks;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_RESPONSE:
 			data_response_type = dmrpacket_data_header_decode_response(data_packet_header);
@@ -338,9 +353,9 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 									if (smstxbuf_first_entry->sms_type == DMR_SMS_TYPE_MOTOROLA_TMS) {
 										console_log(LOGLEVEL_DMR "    this ack is for a tms sms tx buffer entry, waiting for the tms ack\n");
 										smstxbuf_first_entry->waiting_for_tms_ack_started_at = time(NULL);
-										dmr_handle_data_call_start(repeater, ipscpacket);
 										// From now on, we don't have to broadcast data packets as we know where the station is.
 										data_packet_txbuf_found_station_for_first_entry(repeater, ipscpacket->timeslot-1);
+										// We don't end the call here.
 										return;
 									}
 
@@ -392,10 +407,12 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_UNDELIVERABLE:
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_RECV_PKT_OUT_OF_SEQ:
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_DISALLOWED:
+					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
 					if (data_packet_header->common.src_llid == DMRSHARK_DEFAULT_DMR_ID) {
 						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is sent by us, ignoring\n");
+						// We don't end the data call here, just ignoring further data blocks by keeping data packet header invalid.
 						return;
 					}
 					repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->response.blocks_to_follow;
@@ -406,6 +423,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 		case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].full_message_block_count = repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->unconfirmed_data.blocks_to_follow;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
 			if (data_packet_header->confirmed_data.full_message) {
@@ -414,6 +432,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].rx_seqnum = data_packet_header->confirmed_data.sendseqnum;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->confirmed_data.blocks_to_follow;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
 			if (data_packet_header->short_data_defined.full_message) {
@@ -421,6 +440,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_defined.appended_blocks;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_defined.appended_blocks;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_RAW:
 			if (data_packet_header->short_data_raw.full_message) {
@@ -428,10 +448,12 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 				repeater->slot[ipscpacket->timeslot-1].full_message_block_count = data_packet_header->short_data_raw.appended_blocks;
 			}
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = data_packet_header->short_data_raw.appended_blocks;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_PROPRIETARY_DATA:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
 			repeater->slot[ipscpacket->timeslot-1].data_blocks_expected = 0;
+			dmr_handle_data_call_start(repeater, ipscpacket);
 			break;
 		default:
 			memset(repeater->slot[ipscpacket->timeslot-1].data_blocks, 0, sizeof(repeater->slot[ipscpacket->timeslot-1].data_blocks));
@@ -444,7 +466,6 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 	memcpy(&repeater->slot[ipscpacket->timeslot-1].data_packet_header, data_packet_header, sizeof(dmrpacket_data_header_t));
 	repeater->slot[ipscpacket->timeslot-1].data_packet_header_valid = 1;
-	dmr_handle_data_call_start(repeater, ipscpacket);
 }
 
 static void dmr_handle_data_selective_ack(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmrpacket_data_fragment_t *data_fragment) {
@@ -800,21 +821,26 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 		}
 	}
 	if (erroneous_block_found) {
-		if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
-			console_log(LOGLEVEL_DMR "  found erroneous blocks, but won't send selective ack for response\n");
-			return;
-		}
-		if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES) {
-			console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES);
-			return;
-		}
-		if (ipscpacket->src_id == DMRSHARK_DEFAULT_DMR_ID)
-			console_log(LOGLEVEL_DMR "  found erroneous blocks originating from us!\n");
-		else {
-			dmr_data_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count,
-				repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
-			repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent++;
-		}
+		if (ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
+			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
+				console_log(LOGLEVEL_DMR "  found erroneous blocks, but won't send selective ack for a response\n");
+				dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+				return;
+			}
+			if (repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent >= DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES) {
+				console_log(LOGLEVEL_DMR "  found erroneous blocks, but max. selective ack requests count (%u) reached\n", DATA_PACKET_SEND_MAX_SELECTIVE_ACK_TRIES);
+				dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
+				return;
+			}
+			if (ipscpacket->src_id == DMRSHARK_DEFAULT_DMR_ID)
+				console_log(LOGLEVEL_DMR "  found erroneous blocks originating from us!\n");
+			else {
+				dmr_data_send_selective_ack(repeater, ipscpacket->src_id, ipscpacket->dst_id, ipscpacket->timeslot-1, selective_blocks, repeater->slot[ipscpacket->timeslot-1].full_message_block_count,
+					repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+				repeater->slot[ipscpacket->timeslot-1].selective_ack_requests_sent++;
+			}
+		} else
+			console_log(LOGLEVEL_DMR "  found erroneous blocks, but packet is not for us, not sending selective ack\n");
 		free(selective_blocks);
 		return;
 	}

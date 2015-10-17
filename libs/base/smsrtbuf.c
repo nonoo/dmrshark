@@ -98,8 +98,8 @@ void smsrtbuf_add_decoded_message(repeater_t *repeater, dmr_timeslot_t ts, dmr_s
 	if (new_entry != NULL) {
 		// Entry already in the buffer.
 		new_entry->last_added_at = time(NULL);
-		if (loglevel.flags.dmr) {
-			console_log(LOGLEVEL_DMR "smsrtbuf: updated entry:\n");
+		if (loglevel.flags.sms) {
+			console_log(LOGLEVEL_SMS "smsrtbuf: updated entry:\n");
 			smsrtbuf_print_entry(new_entry);
 		}
 		return;
@@ -115,8 +115,8 @@ void smsrtbuf_add_decoded_message(repeater_t *repeater, dmr_timeslot_t ts, dmr_s
 	strncpy(new_entry->orig_msg, msg, DMRPACKET_DATA_MAX_DECODED_SMS_SIZE-1);
 	new_entry->last_added_at = time(NULL);
 
-	if (loglevel.flags.dmr) {
-		console_log(LOGLEVEL_DMR "smsrtbuf: added entry:\n");
+	if (loglevel.flags.sms) {
+		console_log(LOGLEVEL_SMS "smsrtbuf: added entry:\n");
 		smsrtbuf_print_entry(new_entry);
 	}
 
@@ -139,8 +139,8 @@ static void smsrtbuf_remove_entry(smsrtbuf_t *entry) {
 		return;
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr) {
-		console_log(LOGLEVEL_DMR "smsrtbuf: removing entry:\n");
+	if (loglevel.flags.sms) {
+		console_log(LOGLEVEL_SMS "smsrtbuf: removing entry:\n");
 		smsrtbuf_print_entry(entry);
 	}
 
@@ -161,7 +161,7 @@ void smsrtbuf_got_ack(dmr_id_t dstid, dmr_call_type_t calltype) {
 	entry = smsrtbuf_find_entry_by_ack(dstid, calltype);
 	if (entry) {
 		if (entry->orig_sms_type == DMR_SMS_TYPE_NORMAL) {
-			console_log(LOGLEVEL_DMR "smsrtbuf: entry found but it's not a normal sms so waiting for the tms ack\n");
+			console_log(LOGLEVEL_SMS "smsrtbuf: entry found but it's not a normal sms so waiting for the tms ack\n");
 			return;
 		}
 		smsrtbuf_remove_entry(entry);
@@ -174,7 +174,7 @@ void smsrtbuf_got_tms_ack(dmr_id_t dstid, dmr_call_type_t calltype) {
 	entry = smsrtbuf_find_entry_by_ack(dstid, calltype);
 	if (entry) {
 		if (entry->orig_sms_type == DMR_SMS_TYPE_MOTOROLA_TMS) {
-			console_log(LOGLEVEL_DMR "smsrtbuf: entry found but it's not a motorola tms sms so waiting for the tms ack\n");
+			console_log(LOGLEVEL_SMS "smsrtbuf: entry found but it's not a motorola tms sms so waiting for the tms ack\n");
 			return;
 		}
 		smsrtbuf_remove_entry(entry);
@@ -189,8 +189,8 @@ void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
 		return;
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr) {
-		console_log(LOGLEVEL_DMR "smsrtbuf: entry sent successfully:\n");
+	if (loglevel.flags.sms) {
+		console_log(LOGLEVEL_SMS "smsrtbuf: entry sent successfully:\n");
 		smsrtbuf_print_entry(entry);
 	}
 	snprintf(msg, sizeof(msg), "Retransmitted SMS to %s: %s", userdb_get_display_str_for_id(entry->dstid), entry->orig_msg);
@@ -207,8 +207,8 @@ void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry) {
 		return;
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr) {
-		console_log(LOGLEVEL_DMR "smsrtbuf: failed to retransmit entry:\n");
+	if (loglevel.flags.sms) {
+		console_log(LOGLEVEL_SMS "smsrtbuf: failed to retransmit entry:\n");
 		smsrtbuf_print_entry(entry);
 	}
 	snprintf(msg, sizeof(msg), "Failed retransmitting SMS to %s: %s", userdb_get_display_str_for_id(entry->dstid), entry->orig_msg);
@@ -228,16 +228,16 @@ void smsrtbuf_process(void) {
 
 			switch (entry->orig_sms_type) {
 				case DMR_SMS_TYPE_NORMAL:
-					if (loglevel.flags.dmr) {
-						console_log(LOGLEVEL_DMR "smsrtbuf: retransmitting as motorola tms sms:\n");
+					if (loglevel.flags.sms) {
+						console_log(LOGLEVEL_SMS "smsrtbuf: retransmitting as motorola tms sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
 					smstxbuf_add(NULL, 0, entry->calltype, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_MOTOROLA_TMS, entry->sent_msg);
 					entry->currently_sending = 1;
 					break;
 				case DMR_SMS_TYPE_MOTOROLA_TMS:
-					if (loglevel.flags.dmr) {
-						console_log(LOGLEVEL_DMR "smsrtbuf: retransmitting as normal sms:\n");
+					if (loglevel.flags.sms) {
+						console_log(LOGLEVEL_SMS "smsrtbuf: retransmitting as normal sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
 					smstxbuf_add(NULL, 0, entry->calltype, entry->dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_SMS_TYPE_NORMAL, entry->sent_msg);

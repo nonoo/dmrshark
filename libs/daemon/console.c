@@ -195,6 +195,7 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_VOICESTREAMS_VAL: return loglevel.flags.voicestreams;
 		case LOGLEVEL_CODING_VAL: return loglevel.flags.coding;
 		case LOGLEVEL_HTTPSERVER_VAL: return loglevel.flags.httpserver;
+		case LOGLEVEL_SMS_VAL: return loglevel.flags.sms;
 		default: return 1;
 	}
 }
@@ -214,6 +215,7 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_VOICESTREAMS_VAL:
 		case LOGLEVEL_CODING_VAL:
 		case LOGLEVEL_HTTPSERVER_VAL:
+		case LOGLEVEL_SMS_VAL:
 			return 1;
 		default: return 0;
 	}

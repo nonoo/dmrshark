@@ -291,7 +291,7 @@ void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repea
 	}
 }
 
-void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw, flag_t nowait) {
+void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw) {
 	ipscrawpacketbuf_t *newpbentry;
 	ipscrawpacketbuf_t *pbentry;
 
@@ -307,7 +307,6 @@ void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts
 	}
 
 	memcpy(&newpbentry->ipscpacket_raw, ipscpacket_raw, sizeof(ipscpacket_raw_t));
-	newpbentry->nowait = nowait;
 
 	pbentry = repeater->slot[ts].ipsc_tx_rawpacketbuf;
 	if (pbentry == NULL)
@@ -369,7 +368,7 @@ void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_cal
 	vbptc_16_11_construct(&repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage, emb_signalling_lc_bits->bits, sizeof(dmrpacket_emb_signalling_lc_bits_t));
 
 	for (i = 0; i < 3; i++)
-		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid))), 0);
+		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_LC_HEADER, calltype, dstid, srcid, ipscpacket_construct_payload_voice_lc_header(calltype, dstid, srcid))));
 }
 
 void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid) {
@@ -383,27 +382,27 @@ void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repe
 	switch (repeater->slot[ts].ipsc_tx_voice_frame_num) {
 		case 0:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 1:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_B, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 2:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_C, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 3:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_D, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 4:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_E, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		case 5:
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, calltype, dstid, srcid,
-				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
+				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_F, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))));
 			break;
 		default:
 			break;
@@ -417,7 +416,7 @@ void repeaters_end_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_
 	if (repeater == NULL)
 		return;
 
-	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC, calltype, dstid, srcid, ipscpacket_construct_payload_terminator_with_lc(calltype, dstid, srcid))), 0);
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_TERMINATOR_WITH_LC, calltype, dstid, srcid, ipscpacket_construct_payload_terminator_with_lc(calltype, dstid, srcid))));
 	vbptc_16_11_free(&repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage);
 }
 
@@ -591,14 +590,14 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 		csbk.data.preamble.csbk_blocks_to_follow--;
 		ipscpacket_payload = ipscpacket_construct_payload_csbk(&csbk);
 		repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_CSBK,
-			(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)), 0);
+			(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)));
 	}
 
 	// Sending data header.
 	console_log(LOGLEVEL_REPEATERS LOGLEVEL_DEBUG "  sending data header\n");
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_packet->header);
 	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER,
-		(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)), 0);
+		(data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid, ipscpacket_payload)));
 
 	// Sending data blocks.
 	for (i = 0; i < data_packet->fragment.data_blocks_needed; i++) { // Note: iterating through all blocks.
@@ -613,7 +612,7 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 			}
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts,
 				ipscpacket_get_slot_type_for_data_type(data_packet->data_type), (data_packet->header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE), data_packet->header.common.dst_llid, data_packet->header.common.src_llid,
-				ipscpacket_payload)), 0);
+				ipscpacket_payload)));
 		}
 	}
 

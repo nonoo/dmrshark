@@ -42,9 +42,9 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
 	if (entry->repeater == NULL)
-		console_log(LOGLEVEL_DMR "  repeater: all ");
+		console_log(LOGLEVEL_SMS "  repeater: all ");
 	else {
-		console_log(LOGLEVEL_DMR "  repeater: %s ts: %u ",
+		console_log(LOGLEVEL_SMS "  repeater: %s ts: %u ",
 			repeaters_get_display_string_for_ip(&entry->repeater->ipaddr),
 			entry->ts+1);
 	}
@@ -100,9 +100,9 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	new_smstxbuf_entry->repeater = repeater;
 	new_smstxbuf_entry->ts = ts;
 
-	console_log(LOGLEVEL_DMR "smstxbuf: adding new sms:\n");
+	console_log(LOGLEVEL_SMS "smstxbuf: adding new sms:\n");
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr)
+	if (loglevel.flags.sms)
 		smstxbuf_print_entry(new_smstxbuf_entry);
 
 	if (smstxbuf_last_entry == NULL)
@@ -123,8 +123,8 @@ static void smstxbuf_remove_first_entry(void) {
 		return;
 
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr && loglevel.flags.debug) {
-		console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "smstxbuf: removing first entry:\n");
+	if (loglevel.flags.sms && loglevel.flags.debug) {
+		console_log(LOGLEVEL_SMS LOGLEVEL_DEBUG "smstxbuf: removing first entry:\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 	}
 
@@ -143,7 +143,7 @@ void smstxbuf_first_entry_sent_successfully(void) {
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 
-	console_log(LOGLEVEL_DMR "smstxbuf: first entry sent successfully\n");
+	console_log(LOGLEVEL_SMS "smstxbuf: first entry sent successfully\n");
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
 	smstxbuf_remove_first_entry();
@@ -157,7 +157,7 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 
-	console_log(LOGLEVEL_DMR "smstxbuf: first entry send unsuccessful\n");
+	console_log(LOGLEVEL_SMS "smstxbuf: first entry send unsuccessful\n");
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
 	smstxbuf_remove_first_entry();
@@ -181,7 +181,7 @@ void smstxbuf_process(void) {
 		return;
 
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
-		console_log(LOGLEVEL_DMR "smstxbuf: all tries of sending the first entry has failed\n");
+		console_log(LOGLEVEL_SMS "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 		smstxbuf_first_entry_send_unsuccessful();
 		if (smstxbuf_first_entry == NULL)
@@ -190,8 +190,8 @@ void smstxbuf_process(void) {
 
 	smstxbuf_first_entry->selective_ack_tries = 0;
 	loglevel = console_get_loglevel();
-	if (loglevel.flags.dmr) {
-		console_log(LOGLEVEL_DMR "smstxbuf: sending entry:\n");
+	if (loglevel.flags.sms) {
+		console_log(LOGLEVEL_SMS "smstxbuf: sending entry:\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
 	}
 

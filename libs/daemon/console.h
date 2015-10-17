@@ -48,6 +48,8 @@
 #define LOGLEVEL_CODING_VAL			0x0e
 #define LOGLEVEL_HTTPSERVER			"\x0f"
 #define LOGLEVEL_HTTPSERVER_VAL		0x0f
+#define LOGLEVEL_SMS				"\x10"
+#define LOGLEVEL_SMS_VAL			0x10
 
 // Don't forget to add new loglevels to the log command handler in command.c,
 // and to the loglevel display list in log.c!
@@ -66,6 +68,7 @@ typedef union __attribute__((packed)) {
 		uint16_t voicestreams	: 1;
 		uint16_t coding			: 1;
 		uint16_t httpserver		: 1;
+		uint16_t sms			: 1;
 	} flags;
 	uint16_t raw;
 } loglevel_t;

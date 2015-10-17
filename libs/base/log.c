@@ -104,6 +104,12 @@ void log_loglevel(loglevel_t *loglevel) {
 		console_log("on\n");
 	else
 		console_log("off\n");
+
+	console_log("  sms ");
+	if (loglevel->flags.sms)
+		console_log("on\n");
+	else
+		console_log("off\n");
 }
 
 void log_cmdmissingparam(void) {

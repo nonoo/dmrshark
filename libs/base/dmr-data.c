@@ -54,7 +54,7 @@ void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr
 	data_header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK;
 
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
-	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, DMR_CALL_TYPE_PRIVATE, dstid, srcid, ipscpacket_payload)), 0);
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, DMR_CALL_TYPE_PRIVATE, dstid, srcid, ipscpacket_payload)));
 }
 
 // Selective blocks is a flag array which has 1 set where the corresponding block is erroneous.

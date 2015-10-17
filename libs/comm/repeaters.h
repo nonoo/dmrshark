@@ -51,7 +51,7 @@ typedef struct {
 	dmr_id_t dst_id;
 	dmr_id_t src_id;
 	dmrpacket_data_header_t data_packet_header;
-	flag_t data_packet_header_valid;
+	flag_t data_packet_header_valid; // If it's not valid, we won't process received data packets.
 	dmrpacket_data_block_t data_blocks[64];
 	uint8_t data_blocks_received;
 	uint8_t data_blocks_expected;
@@ -116,7 +116,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
-void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw, flag_t nowait);
+void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw);
 
 void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
