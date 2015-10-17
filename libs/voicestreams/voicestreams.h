@@ -83,7 +83,7 @@ typedef struct voicestream_st {
 	// Must be a multiple of VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT.
 	// Note that browsers can't decode MP3 frames encoded from too small PCM chunks.
 	// That's why we multiply the default AMBE frame samples count.
-	float mp3_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*25];
+	float mp3_buf[VOICESTREAMS_DECODED_AMBE_FRAME_SAMPLES_COUNT*50];
 	uint16_t mp3_buf_pos;
 #endif
 #endif

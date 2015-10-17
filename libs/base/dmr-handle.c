@@ -822,7 +822,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
 		else {
-			console_log(LOGLEVEL_DMR "  decoded %s sms: %s\n", dmr_get_readable_data_type(received_data_type), decoded_message);
+			console_log(LOGLEVEL_DMR "  decoded %s %s\n", dmr_get_readable_data_type(received_data_type), decoded_message);
 			strncpy(repeater->slot[ipscpacket->timeslot-1].decoded_data, decoded_message, sizeof(repeater->slot[ipscpacket->timeslot-1].decoded_data));
 			repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid = dstid;
 			repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid = srcid;

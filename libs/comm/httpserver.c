@@ -348,6 +348,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
 				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
+				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s/ws]: sent %u bytes\n", httpserver_client->host, bytes_sent);
 				if (bytes_sent < 0)
 					return -1;
 
