@@ -424,7 +424,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 					if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_NORMAL_SMS &&
 						data_packet_header->common.dst_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
 						data_packet_header->common.src_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
-							console_log(LOGLEVEL_DMR "  slot sms ack\n"); // TODO
+							console_log(LOGLEVEL_DMR "  slot sms ack\n");
 							repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
 					}
 
@@ -747,7 +747,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS &&
 									dstid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
 									srcid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
-										console_log(LOGLEVEL_DMR "  slot sms motorola tms ack\n"); // TODO
+										console_log(LOGLEVEL_DMR "  slot sms motorola tms ack\n");
 										repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
 								}
 
@@ -822,7 +822,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 		if (!isprint(decoded_message[0]))
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
 		else {
-			console_log(LOGLEVEL_DMR "  decoded %s sms: %s\n", dmr_get_readable_data_type(received_data_type), decoded_message); // TODO: upload decoded message to remotedb
+			console_log(LOGLEVEL_DMR "  decoded %s sms: %s\n", dmr_get_readable_data_type(received_data_type), decoded_message);
 			strncpy(repeater->slot[ipscpacket->timeslot-1].decoded_data, decoded_message, sizeof(repeater->slot[ipscpacket->timeslot-1].decoded_data));
 			repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid = dstid;
 			repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid = srcid;
