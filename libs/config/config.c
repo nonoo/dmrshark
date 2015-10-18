@@ -572,24 +572,6 @@ int config_get_remotedbmsgqueuepollintervalinsec(void) {
 	return value;
 }
 
-char *config_get_remotedbmsgqueuetablename(void) {
-	GError *error = NULL;
-	char *value = NULL;
-	char *key = "remotedbmsgqueuetablename";
-	char *defaultvalue = NULL;
-
-	pthread_mutex_lock(&config_mutex);
-	defaultvalue = APPNAME "-msg-queue";
-	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
-	if (error || value == NULL) {
-		value = strdup(defaultvalue);
-		if (value)
-			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
-	}
-	pthread_mutex_unlock(&config_mutex);
-	return value;
-}
-
 int config_get_updatestatstableenabled(void) {
 	GError *error = NULL;
 	int value = 0;
@@ -811,6 +793,8 @@ void config_init(char *configfilename) {
 	config_get_remotedbreconnecttrytimeoutinsec();
 	config_get_remotedbdeleteolderthansec();
 	config_get_remotedbuserlistdlperiodinsec();
+	config_get_remotedbmaintenanceperiodinsec();
+	config_get_remotedbmsgqueuepollintervalinsec();
 	config_get_updatestatstableenabled();
 	config_get_httpserverenabled();
 	config_get_httpserverport();

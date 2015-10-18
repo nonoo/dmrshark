@@ -239,7 +239,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 }
 
 static void remotedb_msgqueue_poll(void) {
-	char *tablename = NULL;
+	char *tableprefix = NULL;
 	char query[150] = {0,};
 	MYSQL_RES *result = NULL;
 	MYSQL_ROW row;
@@ -250,8 +250,8 @@ static void remotedb_msgqueue_poll(void) {
 	flag_t ids_ok;
 	char msg_to_send[DMRPACKET_MAX_FRAGMENTSIZE];
 
-	tablename = config_get_remotedbmsgqueuetablename();
-	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg` from `%s` where state='waiting'", tablename);
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg` from `%smsg-queue` where state='waiting'", tableprefix);
 
 	//console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
 	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
@@ -262,12 +262,12 @@ static void remotedb_msgqueue_poll(void) {
 	result = mysql_store_result(remotedb_conn);
 	if (result == NULL) {
 		console_log(LOGLEVEL_REMOTEDB "remotedb: can't allocate space for userdb query results\n");
-		free(tablename);
+		free(tableprefix);
 		return;
 	}
 
 	if (mysql_num_fields(result) != 4) {
-		free(tablename);
+		free(tableprefix);
 		mysql_free_result(result);
 		return;
 	}
@@ -297,10 +297,10 @@ static void remotedb_msgqueue_poll(void) {
 			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
 			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
 
-			snprintf(query, sizeof(query), "update `%s` set `state`='processing' where `index`='%s'", tablename, row[0]);
+			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='processing' where `index`='%s'", tableprefix, row[0]);
 		} else {
 			console_log("  invalid src, dst id or index\n");
-			snprintf(query, sizeof(query), "update `%s` set `state`='failure' where `index`='%s'", tablename, row[0]);
+			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='failure' where `index`='%s'", tableprefix, row[0]);
 		}
 
 		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
@@ -308,44 +308,41 @@ static void remotedb_msgqueue_poll(void) {
 			console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
 		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 	}
-	free(tablename);
+	free(tableprefix);
 	mysql_free_result(result);
 }
 
 void remotedb_msgqueue_updateentry(unsigned int db_id, flag_t success) {
-	char *tablename = NULL;
+	char *tableprefix = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	if (!config_get_remotedbmsgqueuepollintervalinsec())
 		return;
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: updating msg queue entry id: %u success: %u\n", db_id, success);
-	tablename = config_get_remotedbmsgqueuetablename();
-	snprintf(query, sizeof(query), "update `%s` set `state`='%s' where `index`=%u and (`state`='processing' or `state`='failure')", tablename, success ? "success" : "failure", db_id);
-	free(tablename);
+	tableprefix = config_get_remotedbtableprefix();
+	snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='%s' where `index`=%u and (`state`='processing' or `state`='failure')", tableprefix, success ? "success" : "failure", db_id);
+	free(tableprefix);
 
 	remotedb_addquery(query);
 }
 
 void remotedb_maintain(void) {
 	char *tableprefix = NULL;
-	char *tablename = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
 	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing log entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "delete from `%slog` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tableprefix, config_get_remotedbdeleteolderthansec());
-	free(tableprefix);
 	remotedb_addquery(query);
 
 	if (config_get_remotedbmsgqueuepollintervalinsec()) {
 		console_log(LOGLEVEL_REMOTEDB "remotedb: clearing msg entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
-		tablename = config_get_remotedbmsgqueuetablename();
-		snprintf(query, sizeof(query), "delete from `%s` where unix_timestamp(`addedat`) < (unix_timestamp() - %u)", tablename, config_get_remotedbdeleteolderthansec());
-		free(tablename);
+		snprintf(query, sizeof(query), "delete from `%smsg-queue` where unix_timestamp(`addedat`) < (unix_timestamp() - %u)", tableprefix, config_get_remotedbdeleteolderthansec());
 		remotedb_addquery(query);
 	}
+	free(tableprefix);
 }
 
 void remotedb_maintain_repeaterlist(void) {
