@@ -2,5 +2,4 @@
 - Golay error correction
 - Quadratic residue error correction
 - GPS position data decoding
-- Inserting decoded SMS messages into a database table
 - Radio check

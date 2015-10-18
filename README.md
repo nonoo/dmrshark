@@ -13,7 +13,7 @@ It can be used for:
 - Sends average RMS volume and average RSSI as an SMS after an echo test.
 - Automatic and periodic reading of repeater timeslot RSSI values during calls and also inserting them to the remote database.
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
-- Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format).
+- Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format) from/to SQL database tables.
 - SMS command interface (see the explanation below).
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
@@ -93,11 +93,12 @@ The file has the following configuration variables:
 - **remotedbpass**: Remote database password.
 - **remotedbname**: Remote database name.
 - **remotedbtableprefix**: Remote database table prefix.
+- **userdbtablename**: Table to get DMR ID and callsign associations from. This is used when retransmitting messages and when the info command is used.
 - **remotedbreconnecttrytimeoutinsec**: If the remote database connection gets lost, dmrshark will try to reconnect in this interval.
 - **remotedbdeleteolderthansec**: Clear remote database log entries older than this many seconds.
-- **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
-- **userdbtablename**: Table to get DMR ID and callsign associations from. This is used when retransmitting messages and when the info command is used.
 - **remotedbuserlistdlperiodinsec**: Update user list in this interval. Set it to 0 to disable user list download.
+- **remotedbmaintenanceperiodinsec**: Maintenance (deleting of old entries) will happen in this interval.
+- **remotedbmsgqueuepollintervalinsec**: Check for messages to send in the remote DB message queue. Set to 0 to disable.
 - **repeaterinfoupdateinsec**: Active repeaters will be queried for status in this interval.
 - **updatestatstableenabled**: Enter 1 here, if you want the repeater stats table to be updated when a heartbeat packet is received.
 - **ignoredhosts**: Ignore IP packets coming from these hosts (separated by commas).
