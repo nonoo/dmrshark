@@ -382,13 +382,13 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 									}
 
 									if (smstxbuf_first_entry->dst_id == data_packet_header->common.src_llid &&
-										smstxbuf_first_entry->src_id == data_packet_header->common.dst_llid &&
+										DMRSHARK_DEFAULT_DMR_ID == data_packet_header->common.dst_llid &&
 										((smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
 										 (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group))) {
 											smstxbuf_first_two_entries_are_the_same = 0;
 										 	if (smstxbuf_first_entry->next != NULL &&
 												smstxbuf_first_entry->next->dst_id == data_packet_header->common.src_llid &&
-												smstxbuf_first_entry->next->src_id == data_packet_header->common.dst_llid &&
+												DMRSHARK_DEFAULT_DMR_ID == data_packet_header->common.dst_llid &&
 												((smstxbuf_first_entry->next->call_type == DMR_CALL_TYPE_GROUP && data_packet_header->common.dst_is_a_group) ||
 												 (smstxbuf_first_entry->next->call_type == DMR_CALL_TYPE_PRIVATE && !data_packet_header->common.dst_is_a_group)) &&
 												strncmp(smstxbuf_first_entry->msg, smstxbuf_first_entry->next->msg, DMRPACKET_MAX_FRAGMENTSIZE) == 0)
@@ -405,7 +405,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 											 	smstxbuf_first_entry_sent_successfully();
 											}
 									} else
-										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst: %u src: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst: %u)\n", smstxbuf_first_entry->dst_id);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    sms tx buffer is empty, ack is not for that\n");
 
@@ -586,25 +586,25 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		u.email.email = tok;
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "missing email body");
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing email body", 0);
 			return;
 		}
 		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
 		remotedb_add_email_to_send(u.email.email, srcid, tok);
 		snprintf(u.email.msg, sizeof(u.email.msg), "email sent to %s", u.email.email);
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, u.email.msg);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.email.msg, 0);
 		return;
 	}
 
 	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info", 0);
 		return;
 	}
 
 	if (strcasecmp(tok, "ping") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"ping\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "pong");
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "pong", 0);
 		return;
 	}
 
@@ -612,7 +612,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		console_log(LOGLEVEL_DMR "  got \"info\" command\n");
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "missing callsign/dmrid");
+			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing callsign/dmrid", 0);
 			return;
 		}
 
@@ -633,10 +633,10 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		}
 		snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s from %s",
 			u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.userdb_entry->name, u.info.userdb_entry->country);
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, u.info.msg);
+		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
 	}
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, DMRSHARK_DEFAULT_DMR_ID, data_type, "unknown dmrshark command, send \"help\" for help");
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0);
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
@@ -766,13 +766,13 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 									}
 
 									if (smstxbuf_first_entry->dst_id == srcid &&
-										smstxbuf_first_entry->src_id == dstid &&
+										DMRSHARK_DEFAULT_DMR_ID == dstid &&
 										smstxbuf_first_entry->call_type == calltype) {
 										 	console_log(LOGLEVEL_DMR "      got ack for sms tx buffer entry:\n");
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
 										 	smstxbuf_first_entry_sent_successfully();
 									} else
-										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us (dst: %u src: %u)\n", smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id);
+										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us (dst: %u)\n", smstxbuf_first_entry->dst_id);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us, sms tx buffer is empty\n");
 

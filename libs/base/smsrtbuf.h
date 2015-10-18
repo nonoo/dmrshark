@@ -32,8 +32,8 @@ typedef struct smsrtbuf_st {
 	dmr_id_t dstid;
 	dmr_id_t srcid;
 	dmr_call_type_t calltype;
-	char orig_msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE];
-	char sent_msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE+50];
+	char orig_msg[DMRPACKET_MAX_FRAGMENTSIZE];
+	char sent_msg[DMRPACKET_MAX_FRAGMENTSIZE+50];
 	time_t last_added_at;
 	flag_t currently_sending;
 

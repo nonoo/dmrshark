@@ -59,6 +59,8 @@ int config_get_remotedbreconnecttrytimeoutinsec(void);
 int config_get_remotedbmaintenanceperiodinsec(void);
 int config_get_remotedbdeleteolderthansec(void);
 int config_get_remotedbuserlistdlperiodinsec(void);
+int config_get_remotedbmsgqueuepollintervalinsec(void);
+char *config_get_remotedbmsgqueuetablename(void);
 int config_get_updatestatstableenabled(void);
 int config_get_httpserverport(void);
 int config_get_httpserverenabled(void);

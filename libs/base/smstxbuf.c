@@ -30,6 +30,7 @@
 #include <libs/daemon/daemon-poll.h>
 #include <libs/comm/repeaters.h>
 #include <libs/config/config.h>
+#include <libs/remotedb/remotedb.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,9 +49,8 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 			repeaters_get_display_string_for_ip(&entry->repeater->ipaddr),
 			entry->ts+1);
 	}
-	console_log("dst id: %u src id: %u type: %s added at: %s send tries: %u type: %s msg: %s\n",
-		entry->dst_id, entry->src_id,
-		dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_data_type(entry->data_type), entry->msg);
+	console_log("dst id: %u type: %s added at: %s send tries: %u type: %s dbid: %u msg: %s\n",
+		entry->dst_id, dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_data_type(entry->data_type), entry->db_id, entry->msg);
 }
 
 void smstxbuf_print(void) {
@@ -68,7 +68,7 @@ void smstxbuf_print(void) {
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_data_type_t data_type, char *msg) {
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id) {
 	smstxbuf_t *new_smstxbuf_entry;
 
 	if (msg == NULL)
@@ -76,7 +76,6 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 
 	if (smstxbuf_last_entry != NULL &&
 		smstxbuf_last_entry->dst_id == dstid &&
-		smstxbuf_last_entry->src_id == srcid &&
 		smstxbuf_last_entry->data_type == data_type &&
 		smstxbuf_last_entry->repeater == repeater &&
 		smstxbuf_last_entry->ts == ts &&
@@ -95,9 +94,9 @@ void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t callt
 	new_smstxbuf_entry->data_type = data_type;
 	new_smstxbuf_entry->call_type = calltype;
 	new_smstxbuf_entry->dst_id = dstid;
-	new_smstxbuf_entry->src_id = srcid;
 	new_smstxbuf_entry->repeater = repeater;
 	new_smstxbuf_entry->ts = ts;
+	new_smstxbuf_entry->db_id = db_id;
 
 	console_log("smstxbuf: adding new sms:\n");
 	smstxbuf_print_entry(new_smstxbuf_entry);
@@ -138,11 +137,14 @@ void smstxbuf_first_entry_sent_successfully(void) {
 	if (smstxbuf_first_entry == NULL)
 		return;
 
-	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
-
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry sent successfully\n");
+	if (smstxbuf_first_entry->db_id)
+		remotedb_msgqueue_updateentry(smstxbuf_first_entry->db_id, 1);
+
+	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
+
 	smstxbuf_remove_first_entry();
 }
 
@@ -152,11 +154,14 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	if (smstxbuf_first_entry == NULL)
 		return;
 
-	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
-
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry send unsuccessful\n");
+	if (smstxbuf_first_entry->db_id)
+		remotedb_msgqueue_updateentry(smstxbuf_first_entry->db_id, 0);
+
+	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
+
 	smstxbuf_remove_first_entry();
 }
 
@@ -194,10 +199,10 @@ void smstxbuf_process(void) {
 
 	switch (smstxbuf_first_entry->data_type) {
 		case DMR_DATA_TYPE_MOTOROLA_TMS_SMS:
-			dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+			dmr_data_send_motorola_tms_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, DMRSHARK_DEFAULT_DMR_ID, smstxbuf_first_entry->msg);
 			break;
 		case DMR_DATA_TYPE_NORMAL_SMS:
-			dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, smstxbuf_first_entry->src_id, smstxbuf_first_entry->msg);
+			dmr_data_send_sms((smstxbuf_first_entry->repeater == NULL), smstxbuf_first_entry->repeater, smstxbuf_first_entry->ts, smstxbuf_first_entry->call_type, smstxbuf_first_entry->dst_id, DMRSHARK_DEFAULT_DMR_ID, smstxbuf_first_entry->msg);
 			break;
 		default:
 			break;

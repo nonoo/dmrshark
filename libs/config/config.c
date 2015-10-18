@@ -555,6 +555,41 @@ int config_get_remotedbuserlistdlperiodinsec(void) {
 	return value;
 }
 
+int config_get_remotedbmsgqueuepollintervalinsec(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "remotedbmsgqueuepollintervalinsec";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 1;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+char *config_get_remotedbmsgqueuetablename(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "remotedbmsgqueuetablename";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = APPNAME "-msg-queue";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 int config_get_updatestatstableenabled(void) {
 	GError *error = NULL;
 	int value = 0;

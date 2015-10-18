@@ -37,14 +37,14 @@ typedef struct smstxbuf_st {
 	dmr_timeslot_t ts;
 	dmr_call_type_t call_type;
 	dmr_id_t dst_id;
-	dmr_id_t src_id;
+	unsigned int db_id; // Used to associate remotedb msg queue entries.
 
 	struct smstxbuf_st *next;
 } smstxbuf_t;
 
 void smstxbuf_print_entry(smstxbuf_t *entry);
 void smstxbuf_print(void);
-void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid, dmr_data_type_t data_type, char *msg);
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id);
 
 void smstxbuf_first_entry_sent_successfully(void);
 smstxbuf_t *smstxbuf_get_first_entry(void);

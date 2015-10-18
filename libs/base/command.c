@@ -552,14 +552,14 @@ void command_process(char *input_buffer) {
 			return;
 		}
 
-		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_NORMAL_SMS, tok);
-		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, tok);
+		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_NORMAL_SMS, tok, 0);
+		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, tok, 0);
 		return;
 	}
 
 	if (strcmp(tok, "s") == 0) {
-//		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, "dmrshark commands: info [callsign/dmrid] * see github.com/nonoo/dmrshark for more info");
-		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMRSHARK_DEFAULT_DMR_ID, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, "BEER");
+//		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, "dmrshark commands: info [callsign/dmrid] * see github.com/nonoo/dmrshark for more info", 0);
+		smstxbuf_add(repeaters_findbycallsign("hg5ruc"), 1, DMR_CALL_TYPE_PRIVATE, 7778, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, "BEER", 0);
 		return;
 	}
 

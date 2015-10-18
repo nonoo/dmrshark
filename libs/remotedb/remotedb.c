@@ -22,6 +22,7 @@
 
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
+#include <libs/base/smstxbuf.h>
 
 #include <stdlib.h>
 #include <mysql/mysql.h>
@@ -237,17 +238,114 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 	remotedb_addquery(query);
 }
 
-void remotedb_maintain(void) {
-	char *tableprefix = NULL;
+static void remotedb_msgqueue_poll(void) {
+	char *tablename = NULL;
+	char query[150] = {0,};
+	MYSQL_RES *result = NULL;
+	MYSQL_ROW row;
+	dmr_id_t srcid;
+	dmr_id_t dstid;
+	unsigned int id;
+	char *endptr;
+	flag_t ids_ok;
+	char msg_to_send[DMRPACKET_MAX_FRAGMENTSIZE];
+
+	tablename = config_get_remotedbmsgqueuetablename();
+	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg` from `%s` where state='waiting'", tablename);
+
+	//console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
+	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
+	if (mysql_query(remotedb_conn, query))
+		console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
+	pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
+
+	result = mysql_store_result(remotedb_conn);
+	if (result == NULL) {
+		console_log(LOGLEVEL_REMOTEDB "remotedb: can't allocate space for userdb query results\n");
+		free(tablename);
+		return;
+	}
+
+	if (mysql_num_fields(result) != 4) {
+		free(tablename);
+		mysql_free_result(result);
+		return;
+	}
+
+	while ((row = mysql_fetch_row(result))) {
+		console_log(LOGLEVEL_REMOTEDB "remotedb: got sms to send from msg queue\n");
+
+		ids_ok = 1;
+		errno = 0;
+		srcid = strtol(row[1], &endptr, 10);
+		if (errno != 0 || *endptr != 0)
+			ids_ok = 0;
+
+		errno = 0;
+		dstid = strtol(row[2], &endptr, 10);
+		if (errno != 0 || *endptr != 0)
+			ids_ok = 0;
+
+		errno = 0;
+		id = strtol(row[0], &endptr, 10);
+		if (errno != 0 || *endptr != 0)
+			ids_ok = 0;
+
+		if (ids_ok) {
+			snprintf(msg_to_send, sizeof(msg_to_send), "%s: %s", userdb_get_display_str_for_id(srcid), row[3]);
+
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
+			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
+
+			snprintf(query, sizeof(query), "update `%s` set `state`='processing' where `index`='%s'", tablename, row[0]);
+		} else {
+			console_log("  invalid src, dst id or index\n");
+			snprintf(query, sizeof(query), "update `%s` set `state`='failure' where `index`='%s'", tablename, row[0]);
+		}
+
+		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
+		if (mysql_query(remotedb_conn, query))
+			console_log(LOGLEVEL_REMOTEDB "remotedb error: %s\n", mysql_error(remotedb_conn));
+		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
+	}
+	free(tablename);
+	mysql_free_result(result);
+}
+
+void remotedb_msgqueue_updateentry(unsigned int db_id, flag_t success) {
+	char *tablename = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 
-	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
+	if (!config_get_remotedbmsgqueuepollintervalinsec())
+		return;
+
+	console_log(LOGLEVEL_REMOTEDB "remotedb: updating msg queue entry id: %u success: %u\n", db_id, success);
+	tablename = config_get_remotedbmsgqueuetablename();
+	snprintf(query, sizeof(query), "update `%s` set `state`='%s' where `index`=%u and (`state`='processing' or `state`='failure')", tablename, success ? "success" : "failure", db_id);
+	free(tablename);
+
+	remotedb_addquery(query);
+}
+
+void remotedb_maintain(void) {
+	char *tableprefix = NULL;
+	char *tablename = NULL;
+	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
+
+	console_log(LOGLEVEL_REMOTEDB "remotedb: clearing log entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "delete from `%slog` where unix_timestamp(`startts`) < (UNIX_TIMESTAMP() - %u) or `startts` = NULL",
 		tableprefix, config_get_remotedbdeleteolderthansec());
 	free(tableprefix);
-
 	remotedb_addquery(query);
+
+	if (config_get_remotedbmsgqueuepollintervalinsec()) {
+		console_log(LOGLEVEL_REMOTEDB "remotedb: clearing msg entries older than %u seconds\n", config_get_remotedbdeleteolderthansec());
+		tablename = config_get_remotedbmsgqueuetablename();
+		snprintf(query, sizeof(query), "delete from `%s` where unix_timestamp(`addedat`) < (unix_timestamp() - %u)", tablename, config_get_remotedbdeleteolderthansec());
+		free(tablename);
+		remotedb_addquery(query);
+	}
 }
 
 void remotedb_maintain_repeaterlist(void) {
@@ -286,18 +384,17 @@ static void remotedb_thread_connect(void) {
 	free(dbname);
 }
 
-// Returns 1 if we have another query in the query buffer (so we should not sleep at all).
-static flag_t remotedb_thread_process(void) {
+static void remotedb_thread_process(void) {
 	int i;
 	static time_t lastconnecttriedat = 0;
 	static time_t lastmaintenanceat = 0;
 	static time_t lastrepeaterlistmaintenanceat = 0;
 	static time_t lastuserlistqueryat = 0;
+	static time_t lastremotedbmsgqueuepollat = 0;
 	static flag_t userdb_dl_ok = 0;
-	flag_t query_left_in_buffer = 0;
 
 	if (remotedb_conn == NULL)
-		return 0;
+		return;
 
 	if (time(NULL)-lastconnecttriedat > config_get_remotedbreconnecttrytimeoutinsec()) {
 		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
@@ -317,6 +414,11 @@ static flag_t remotedb_thread_process(void) {
 		lastrepeaterlistmaintenanceat = time(NULL);
 	}
 
+	if (config_get_remotedbmsgqueuepollintervalinsec() && time(NULL)-lastremotedbmsgqueuepollat > config_get_remotedbmsgqueuepollintervalinsec()) {
+		remotedb_msgqueue_poll();
+		lastremotedbmsgqueuepollat = time(NULL);
+	}
+
 	// If user list db download was unnsuccessful, we retry it every minute.
 	if (config_get_remotedbuserlistdlperiodinsec()) {
 		if (time(NULL)-lastuserlistqueryat > config_get_remotedbuserlistdlperiodinsec() || (!userdb_dl_ok && time(NULL)-lastuserlistqueryat > 60)) {
@@ -329,7 +431,7 @@ static flag_t remotedb_thread_process(void) {
 
 	// Do we have a query in the buffer?
 	pthread_mutex_lock(&remotedb_mutex_querybuf);
-	if (remotedb_querybuf[0].query[0] != 0) {
+	while (remotedb_querybuf[0].query[0] != 0) {
 		console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", remotedb_querybuf[0].query);
 		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 		if (mysql_query(remotedb_conn, remotedb_querybuf[0].query))
@@ -340,13 +442,8 @@ static flag_t remotedb_thread_process(void) {
 		for (i = 1; i < REMOTEDB_QUERYBUFSIZE; i++)
 			strncpy(remotedb_querybuf[i-1].query, remotedb_querybuf[i].query, REMOTEDB_MAXQUERYSIZE);
 		remotedb_querybuf[REMOTEDB_QUERYBUFSIZE-1].query[0] = 0;
-
-		query_left_in_buffer = (remotedb_querybuf[0].query[0] != 0);
-		console_log(LOGLEVEL_REMOTEDB LOGLEVEL_DEBUG "remotedb: query left in buffer: %u\n", query_left_in_buffer);
 	}
 	pthread_mutex_unlock(&remotedb_mutex_querybuf);
-
-	return query_left_in_buffer;
 }
 
 static void *remotedb_thread_init(void *arg) {
@@ -384,15 +481,15 @@ static void *remotedb_thread_init(void *arg) {
 			}
 			pthread_mutex_unlock(&remotedb_mutex_thread_should_stop);
 
-			if (!remotedb_thread_process()) {
-				// If we don't have other queries in the buffer, we wait for a condition for the given timeout.
-				clock_gettime(CLOCK_REALTIME, &ts);
-				ts.tv_sec += 1;
+			remotedb_thread_process();
 
-				pthread_mutex_lock(&remotedb_mutex_wakeup);
-				pthread_cond_timedwait(&remotedb_cond_wakeup, &remotedb_mutex_wakeup, &ts);
-				pthread_mutex_unlock(&remotedb_mutex_wakeup);
-			}
+			// If we don't have other queries in the buffer, we wait for a condition for the given timeout.
+			clock_gettime(CLOCK_REALTIME, &ts);
+			ts.tv_sec += 1;
+
+			pthread_mutex_lock(&remotedb_mutex_wakeup);
+			pthread_cond_timedwait(&remotedb_cond_wakeup, &remotedb_mutex_wakeup, &ts);
+			pthread_mutex_unlock(&remotedb_mutex_wakeup);
 		}
 
 		pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
