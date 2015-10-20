@@ -171,7 +171,7 @@ void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {
 		return;
 	}
 
-	if (udp_packet->check != comm_calcudpchecksum(ip_packet, udp_packet)) {
+	if (!comm_is_our_ipaddr(&ip_packet->ip_dst) && udp_packet->check != comm_calcudpchecksum(ip_packet, udp_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
 		return;
 	}
