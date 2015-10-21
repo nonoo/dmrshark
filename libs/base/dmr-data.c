@@ -204,8 +204,7 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	data_packet.header.short_data_defined.dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
 	data_packet.header.short_data_defined.resync = 1;
 	// data_packet.header.short_data_defined.full_message will be filled by repeaters_send_data_packet()
-	data_packet.header.short_data_defined.bit_padding = 0;
-
+	data_packet.header.short_data_defined.bit_padding = (dmrpacket_data_get_block_size(data_packet.data_type, confirmed)*data_packet.fragment.data_blocks_needed-data_packet.fragment.bytes_stored-4)*8;
 	data_packet.number_of_csbk_preambles_to_send = 1;
 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);

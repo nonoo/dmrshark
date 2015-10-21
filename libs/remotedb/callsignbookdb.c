@@ -53,8 +53,8 @@ char *callsignbookdb_get_display_str_for_callsign(char *callsign) {
 	if (entry == NULL)
 		return NULL;
 
-	snprintf(result, sizeof(result), "%s from %s, %s %s, %s %s %s, valid %s%s%s",
-		entry->name, entry->city, entry->address, entry->country, entry->type, entry->level, entry->morse ? "morse" : "", entry->validity, entry->chiefop[0] ? " chiefop " : "", entry->chiefop);
+	snprintf(result, sizeof(result), "%s from %s, %s %s, %s %s%s, valid %s%s%s",
+		entry->name, entry->city, entry->address, entry->country, entry->type, entry->level, entry->morse ? " morse" : "", entry->validity, entry->chiefop[0] ? " chiefop " : "", entry->chiefop);
 	return result;
 }
 

@@ -235,7 +235,7 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 			header.short_data_raw.full_message = (data_bytes[8] & 0b1) > 0;
 			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  full message: %u\n", header.short_data_raw.full_message);
 			header.short_data_raw.bit_padding = data_bytes[9];
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  bit padding: %.2x\n", header.short_data_raw.bit_padding);
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  bit padding: %u\n", header.short_data_raw.bit_padding);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
 			header.short_data_defined.appended_blocks = (data_bytes[0] & 0b00110000) | (data_bytes[1] & 0b1111);
@@ -247,7 +247,7 @@ dmrpacket_data_header_t *dmrpacket_data_header_decode(bptc_196_96_data_bits_t *d
 			header.short_data_defined.full_message = (data_bytes[8] & 0b1) > 0;
 			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  full message: %u\n", header.short_data_defined.full_message);
 			header.short_data_defined.bit_padding =	data_bytes[9];
-			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  bit padding: %.2x\n", header.short_data_defined.bit_padding);
+			console_log(LOGLEVEL_DMRDATA LOGLEVEL_DEBUG "  bit padding: %u\n", header.short_data_defined.bit_padding);
 			break;
 		case DMRPACKET_DATA_HEADER_DPF_UDT:
 			header.udt.format =	data_bytes[1] & 0b1111;
