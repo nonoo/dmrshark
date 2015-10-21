@@ -655,7 +655,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	uint16_t message_data_length = 0;
 	char *decoded_message;
 	dmrpacket_data_header_dd_format_t dd_format = DMRPACKET_DATA_HEADER_DD_FORMAT_UTF16LE;
-	uint8_t i;
+	uint16_t i;
 	uint8_t *tms_msg_payload = NULL;
 	uint16_t tms_msg_length;
 	uint32_t ipaddr;
