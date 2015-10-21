@@ -19,6 +19,7 @@
 
 #include "remotedb.h"
 #include "userdb.h"
+#include "callsignbookdb.h"
 
 #include <libs/config/config.h>
 #include <libs/comm/comm.h>
@@ -375,6 +376,9 @@ static void remotedb_thread_connect(void) {
 	else
 		console_log("remotedb: connected\n");
 
+	mysql_query(remotedb_conn, "set names 'utf8'");
+	mysql_query(remotedb_conn, "set charset 'utf8'");
+
 	free(server);
 	free(user);
 	free(pass);
@@ -387,8 +391,10 @@ static void remotedb_thread_process(void) {
 	static time_t lastmaintenanceat = 0;
 	static time_t lastrepeaterlistmaintenanceat = 0;
 	static time_t lastuserlistqueryat = 0;
+	static time_t lastcallsignbookqueryat = 0;
 	static time_t lastremotedbmsgqueuepollat = 0;
 	static flag_t userdb_dl_ok = 0;
+	static flag_t callsignbookdb_dl_ok = 0;
 
 	if (remotedb_conn == NULL)
 		return;
@@ -416,13 +422,23 @@ static void remotedb_thread_process(void) {
 		lastremotedbmsgqueuepollat = time(NULL);
 	}
 
-	// If user list db download was unnsuccessful, we retry it every minute.
+	// If user list db download was unsuccessful, we retry it every minute.
 	if (config_get_remotedbuserlistdlperiodinsec()) {
 		if (time(NULL)-lastuserlistqueryat > config_get_remotedbuserlistdlperiodinsec() || (!userdb_dl_ok && time(NULL)-lastuserlistqueryat > 60)) {
 			pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 			userdb_dl_ok = userdb_reload(remotedb_conn);
 			pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 			lastuserlistqueryat = time(NULL);
+		}
+	}
+
+	// If callsign book db download was unsuccessful, we retry it every minute.
+	if (config_get_callsignbookdbtablename()) {
+		if (time(NULL)-lastcallsignbookqueryat > 86400 || (!callsignbookdb_dl_ok && time(NULL)-lastcallsignbookqueryat > 60)) {
+			pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
+			callsignbookdb_dl_ok = callsignbookdb_reload(remotedb_conn);
+			pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
+			lastcallsignbookqueryat = time(NULL);
 		}
 	}
 
@@ -539,4 +555,5 @@ void remotedb_deinit(void) {
 	pthread_join(remotedb_thread, &status);
 
 	userdb_deinit();
+	callsignbookdb_deinit();
 }

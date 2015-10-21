@@ -32,6 +32,7 @@
 #include <libs/comm/repeaters.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/remotedb/userdb.h>
+#include <libs/remotedb/callsignbookdb.h>
 #include <libs/comm/comm.h>
 #include <libs/voicestreams/voicestreams.h>
 #include <libs/comm/httpserver.h>
@@ -83,6 +84,7 @@ void command_process(char *input_buffer) {
 		console_log("  repinfo [host]                                                 - reads repeater info from host using snmp\n");
 		console_log("  replist                                                        - list repeaters\n");
 		console_log("  userlist                                                       - list users got from remote db\n");
+		console_log("  csblist                                                        - print callsign book from remote db\n");
 		console_log("  streamlist                                                     - list voice streams\n");
 		console_log("  remotedbmaintain                                               - start db maintenance\n");
 		console_log("  remotedbreplistmaintain                                        - start repeater list db maintenance\n");
@@ -190,6 +192,11 @@ void command_process(char *input_buffer) {
 
 	if (strcmp(tok, "userlist") == 0) {
 		userdb_print();
+		return;
+	}
+
+	if (strcmp(tok, "csblist") == 0) {
+		callsignbookdb_print();
 		return;
 	}
 

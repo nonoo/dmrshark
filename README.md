@@ -93,7 +93,8 @@ The file has the following configuration variables:
 - **remotedbpass**: Remote database password.
 - **remotedbname**: Remote database name.
 - **remotedbtableprefix**: Remote database table prefix.
-- **userdbtablename**: Table to get DMR ID and callsign associations from. This is used when retransmitting messages and when the info command is used.
+- **userdbtablename**: Table to get DMR ID and callsign associations from. This is used when retransmitting messages and when the info command is used. Set to empty to disable.
+- **callsignbookdbtablename**: Table to get callsign book data from. This is used when answering the info command. Set to empty to disable.
 - **remotedbreconnecttrytimeoutinsec**: If the remote database connection gets lost, dmrshark will try to reconnect in this interval.
 - **remotedbdeleteolderthansec**: Clear remote database log entries older than this many seconds.
 - **remotedbuserlistdlperiodinsec**: Update user list in this interval. Set it to 0 to disable user list download.
@@ -177,7 +178,7 @@ For displaying the live log and repeater info tables on a webpage, you can use t
 The first word of the message sent to dmrshark's DMR ID (7777) is a command. Currently these are supported:
 
 - **help**: Sends back the list of available commands.
-- **info**: Send the DMR ID or the callsign of the user as the 2nd word, dmrshark will send you name, country and callsign info back.
+- **info**: Send the DMR ID or the callsign of the user as the 2nd word, dmrshark will send you info about the callsign.
 - **ping**: Sends back the text "pong".
 - If the first word of the message is an email address, the message will be put into the MySQL database from where it can be sent as an email.
 

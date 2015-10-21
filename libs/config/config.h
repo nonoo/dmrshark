@@ -55,6 +55,7 @@ char *config_get_remotedbpass(void);
 char *config_get_remotedbname(void);
 char *config_get_remotedbtableprefix(void);
 char *config_get_userdbtablename(void);
+char *config_get_callsignbookdbtablename(void);
 int config_get_remotedbreconnecttrytimeoutinsec(void);
 int config_get_remotedbmaintenanceperiodinsec(void);
 int config_get_remotedbdeleteolderthansec(void);

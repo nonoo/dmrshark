@@ -486,6 +486,24 @@ char *config_get_userdbtablename(void) {
 	return value;
 }
 
+char *config_get_callsignbookdbtablename(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "callsignbookdbtablename";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "dmrshark-csb";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 int config_get_remotedbreconnecttrytimeoutinsec(void) {
 	GError *error = NULL;
 	int value = 0;

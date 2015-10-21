@@ -26,6 +26,7 @@
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/remotedb/userdb.h>
+#include <libs/remotedb/callsignbookdb.h>
 #include <libs/voicestreams/voicestreams-process.h>
 #include <libs/dmrpacket/dmrpacket-lc.h>
 #include <libs/dmrpacket/dmrpacket-slot-type.h>
@@ -569,8 +570,9 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		} email;
 		struct {
 			dmr_id_t id;
-			char msg[100];
+			char msg[512];
 			userdb_t *userdb_entry;
+			char *csbline;
 		} info;
 	} u;
 	char *endptr;
@@ -631,9 +633,16 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 				return;
 			}
 		}
-		snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s from %s",
-			u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.userdb_entry->name, u.info.userdb_entry->country);
+		u.info.csbline = callsignbookdb_get_display_str_for_callsign(u.info.userdb_entry->callsign);
+		if (u.info.csbline == NULL) {
+			snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s from %s",
+				u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.userdb_entry->name, u.info.userdb_entry->country);
+		} else {
+			snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s",
+				u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.csbline);
+		}
 		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
+		return;
 	}
 
 	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0);
