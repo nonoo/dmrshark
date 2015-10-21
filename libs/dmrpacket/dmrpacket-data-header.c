@@ -333,14 +333,14 @@ bptc_196_96_data_bits_t *dmrpacket_data_header_construct(dmrpacket_data_header_t
 
 		switch (header->common.data_packet_format) {
 			case DMRPACKET_DATA_HEADER_DPF_UNCONFIRMED_DATA:
-				data_bytes[0] |=	(header->unconfirmed_data.pad_octet_count & 0b10000) << 4;
+				data_bytes[0] |=	(header->unconfirmed_data.pad_octet_count & 0b10000);
 				data_bytes[2] |=	(header->unconfirmed_data.pad_octet_count & 0b01111);
 				data_bytes[8] |=	(header->unconfirmed_data.full_message > 0) << 7 |
 									(header->unconfirmed_data.blocks_to_follow & 0b01111111);
 				data_bytes[9] |=	(header->unconfirmed_data.fragmentseqnum & 0b1111);
 				break;
 			case DMRPACKET_DATA_HEADER_DPF_CONFIRMED_DATA:
-				data_bytes[0] |=	(header->confirmed_data.pad_octet_count & 0b10000) << 4;
+				data_bytes[0] |=	(header->confirmed_data.pad_octet_count & 0b10000);
 				data_bytes[1] |=	(header->confirmed_data.pad_octet_count & 0b01111);
 				data_bytes[8] |=	(header->confirmed_data.full_message > 0) << 7 |
 									(header->confirmed_data.blocks_to_follow & 0b01111111);
@@ -357,7 +357,7 @@ bptc_196_96_data_bits_t *dmrpacket_data_header_construct(dmrpacket_data_header_t
 			case DMRPACKET_DATA_HEADER_DPF_PROPRIETARY_DATA: // This is handled at the beginning of this function.
 				break;
 			case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_RAW:
-				data_bytes[0] |=	(header->short_data_raw.appended_blocks & 0b110000) << 4;
+				data_bytes[0] |=	(header->short_data_raw.appended_blocks & 0b110000);
 				data_bytes[1] |=	(header->short_data_raw.appended_blocks & 0b001111);
 				data_bytes[8] |=	(header->short_data_raw.source_port & 0b111) << 5 |
 									(header->short_data_raw.destination_port & 0b111) << 2 |
@@ -366,7 +366,7 @@ bptc_196_96_data_bits_t *dmrpacket_data_header_construct(dmrpacket_data_header_t
 				data_bytes[9] = header->short_data_raw.bit_padding;
 				break;
 			case DMRPACKET_DATA_HEADER_DPF_SHORT_DATA_DEFINED:
-				data_bytes[0] |=	(header->short_data_defined.appended_blocks & 0b110000) << 4;
+				data_bytes[0] |=	(header->short_data_defined.appended_blocks & 0b110000);
 				data_bytes[1] |=	(header->short_data_defined.appended_blocks & 0b001111);
 				data_bytes[8] |=	(header->short_data_defined.dd_format & 0b111111) << 2 |
 									(header->short_data_defined.resync > 0) << 1 |

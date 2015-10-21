@@ -537,8 +537,8 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 		}
 		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DMRDATA "\n");
 	} else {
-		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DMRDATA "  sending full message (all blocks)\n");
 		data_blocks_needed = data_packet->fragment.data_blocks_needed;
+		console_log(LOGLEVEL_REPEATERS LOGLEVEL_DMRDATA "  sending full message (all %u blocks)\n", data_blocks_needed);
 	}
 
 	data_blocks = dmrpacket_data_construct_data_blocks(&data_packet->fragment, data_packet->data_type, data_packet->header.common.response_requested);
