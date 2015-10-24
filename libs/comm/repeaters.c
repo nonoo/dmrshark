@@ -249,6 +249,7 @@ repeater_t *repeaters_add(struct in_addr *ipaddr) {
 void repeaters_list(void) {
 	repeater_t *repeater = repeaters;
 	int i = 1;
+	flag_t master;
 
 	if (repeaters == NULL) {
 		console_log("no repeaters found yet\n");
@@ -258,13 +259,14 @@ void repeaters_list(void) {
 	console_log("repeaters:\n");
 	console_log("      nr              ip     id  callsign  act  lstinf         type        fwver    dlfreq    ulfreq snmp ts1/ts2 streams\n");
 	while (repeater) {
+		master = comm_is_masteripaddr(&repeater->ipaddr);
 		console_log("  #%4u: %15s %6u %9s %4u  %6u %12s %12s %9u %9u    %u %s / %s\n",
 			i++,
 			comm_get_ip_str(&repeater->ipaddr),
 			repeater->id,
-			repeater->callsign,
-			time(NULL)-repeater->last_active_time,
-			time(NULL)-repeater->last_repeaterinfo_request_time,
+			master ? "master" : repeater->callsign,
+			master ? 0 : time(NULL)-repeater->last_active_time,
+			master ? 0 : time(NULL)-repeater->last_repeaterinfo_request_time,
 			repeater->type,
 			repeater->fwversion,
 			repeater->dlfreq,
@@ -657,6 +659,18 @@ flag_t repeaters_is_there_a_call_not_for_us_or_by_us(repeater_t *repeater, dmr_t
 	return 0;
 }
 
+flag_t repeaters_is_call_running_on_other_repeater(repeater_t *current_repeater, dmr_timeslot_t ts, dmr_id_t srcid) {
+	repeater_t *repeater = repeaters;
+
+	while (repeater) {
+		if (repeater != current_repeater && repeater->slot[ts].state != REPEATER_SLOT_STATE_IDLE && repeater->slot[ts].src_id == srcid)
+				return 1;
+
+		repeater = repeater->next;
+	}
+	return 0;
+}
+
 static void repeaters_process_ipsc_tx_rawpacketbuf(repeater_t *repeater) {
 	struct timeval currtime = {0,};
 	struct timeval difftime = {0,};
@@ -723,7 +737,7 @@ void repeaters_process(void) {
 
 		repeaters_process_ipsc_tx_rawpacketbuf(repeater);
 
-		if (time(NULL)-repeater->last_active_time > config_get_repeaterinactivetimeoutinsec()) {
+		if (!comm_is_masteripaddr(&repeater->ipaddr) && time(NULL)-repeater->last_active_time > config_get_repeaterinactivetimeoutinsec()) {
 			console_log(LOGLEVEL_REPEATERS "repeaters [%s]: timed out\n", repeaters_get_display_string_for_ip(&repeater->ipaddr));
 			repeater_to_remove = repeater;
 			repeater = repeater->next;

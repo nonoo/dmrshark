@@ -23,6 +23,7 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
+flag_t comm_is_masteripaddr(struct in_addr *ip);
 flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr);
 char *comm_get_ip_str(struct in_addr *ipaddr);
 char *comm_get_our_ipaddr(void);

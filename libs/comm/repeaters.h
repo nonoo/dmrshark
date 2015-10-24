@@ -138,6 +138,7 @@ void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t 
 void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet);
 
 flag_t repeaters_is_there_a_call_not_for_us_or_by_us(repeater_t *repeater, dmr_timeslot_t ts);
+flag_t repeaters_is_call_running_on_other_repeater(repeater_t *current_repeater, dmr_timeslot_t ts, dmr_id_t srcid);
 
 void repeaters_process(void);
 void repeaters_deinit(void);

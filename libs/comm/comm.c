@@ -53,6 +53,17 @@ struct __attribute__((packed)) linux_sll {
 	uint16_t eth_type; // Same as ieee802_3 'lentype' field, with additional * Eth_Type_* exceptions
 };
 
+flag_t comm_is_masteripaddr(struct in_addr *ip) {
+	struct in_addr *masterip;
+	flag_t result = 0;
+
+	masterip = config_get_masteripaddr();
+	if (memcmp(masterip, ip, sizeof(struct in_addr)) == 0)
+		result = 1;
+	free(masterip);
+	return result;
+}
+
 flag_t comm_hostname_to_ip(char *hostname, struct in_addr *ipaddr) {
 	struct hostent *he;
 	struct in_addr **addr_list;
@@ -363,6 +374,7 @@ flag_t comm_init(void) {
 
 	snmp_init();
 	httpserver_init();
+	ipsc_init();
 
 	return 1;
 }

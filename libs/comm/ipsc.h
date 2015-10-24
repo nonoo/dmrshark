@@ -25,5 +25,6 @@
 #include <netinet/udp.h>
 
 void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length);
+void ipsc_init(void);
 
 #endif
