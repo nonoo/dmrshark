@@ -286,7 +286,7 @@ static void dmr_handle_data_call_end_results(repeater_t *repeater, dmr_timeslot_
 
 	if (repeater->slot[ts].decoded_data_acked) {
 		if (repeater->slot[ts].decoded_data_type != DMR_DATA_TYPE_UNKNOWN && isprint(repeater->slot[ts].decoded_data[0]))
-			remotedb_add_data_to_log(repeater, ts+1, repeater->slot[ts].decoded_data_type, repeater->slot[ts].decoded_data);
+			remotedb_add_data_to_log(repeater, ts, repeater->slot[ts].decoded_data_type, repeater->slot[ts].decoded_data);
 
 		repeater->slot[ts].decoded_data_dstid = 0;
 		repeater->slot[ts].decoded_data_srcid = 0;

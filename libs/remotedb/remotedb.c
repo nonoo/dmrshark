@@ -116,7 +116,7 @@ void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg) {
 	remotedb_addquery(query);
 }
 
-void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t timeslot, dmr_data_type_t decoded_data_type, char *decoded_data) {
+void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_type_t decoded_data_type, char *decoded_data) {
 	char *tableprefix = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	uint16_t decoded_data_length;
@@ -135,8 +135,8 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t timeslot, dmr
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
-		tableprefix, repeater->id, repeater->slot[timeslot-1].dst_id, timeslot, repeater->slot[timeslot-1].src_id,
-		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
+		tableprefix, repeater->id, repeater->slot[ts].dst_id, ts+1, repeater->slot[ts].src_id,
+		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
 		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
 	free(tableprefix);
 	free(decoded_data_escaped);
@@ -144,32 +144,32 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t timeslot, dmr
 	remotedb_addquery(query);
 }
 
-static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t timeslot) {
+static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t ts) {
 	char *tableprefix = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	int8_t rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	int8_t avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 
-	if (repeater == NULL || timeslot > 2 || timeslot < 1 || repeater->slot[timeslot-1].src_id == 0 || repeater->slot[timeslot-1].dst_id == 0)
+	if (repeater == NULL || ts > 1 || ts < 0 || repeater->slot[ts].src_id == 0 || repeater->slot[ts].dst_id == 0)
 		return;
 
 	if (remotedb_conn == NULL)
 		return;
 
-	if (repeater->slot[timeslot-1].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
+	if (repeater->slot[ts].state == REPEATER_SLOT_STATE_DATA_CALL_RUNNING)
 		return;
 
-	if (repeater->slot[timeslot-1].voicestream) {
-		rms_vol = repeater->slot[timeslot-1].voicestream->rms_vol;
-		avg_rms_vol = repeater->slot[timeslot-1].voicestream->avg_rms_vol;
+	if (repeater->slot[ts].voicestream) {
+		rms_vol = repeater->slot[ts].voicestream->rms_vol;
+		avg_rms_vol = repeater->slot[ts].voicestream->avg_rms_vol;
 	}
 
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`, `currrmsvol`, `avgrmsvol`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d)",
-		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
-		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
-		repeater->slot[timeslot-1].rssi, repeater->slot[timeslot-1].avg_rssi, rms_vol, avg_rms_vol);
+		tableprefix, repeater->id, repeater->slot[ts].src_id, ts+1, repeater->slot[ts].dst_id,
+		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
+		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol);
 	free(tableprefix);
 
 	remotedb_addquery(query);
@@ -211,21 +211,21 @@ void remotedb_update_repeater_lastactive(repeater_t *repeater) {
 }
 
 void remotedb_update(repeater_t *repeater) {
+	remotedb_update_timeslot(repeater, 0);
 	remotedb_update_timeslot(repeater, 1);
-	remotedb_update_timeslot(repeater, 2);
 	remotedb_update_repeater_lastactive(repeater);
 }
 
 // Updates the stats table with the duration of the call.
-void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot) {
+void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
 	char *tableprefix = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	int talktime;
 
-	if (repeater == NULL || !config_get_updatestatstableenabled() || timeslot > 1 || timeslot < 0)
+	if (repeater == NULL || !config_get_updatestatstableenabled() || ts > 1 || ts < 0)
 		return;
 
-	talktime = repeater->slot[timeslot].call_ended_at-repeater->slot[timeslot].call_started_at;
+	talktime = repeater->slot[ts].call_ended_at-repeater->slot[ts].call_started_at;
 
 	if (talktime <= 0)
 		return;
@@ -233,7 +233,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t timeslot
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%sstats` (`id`, `date`, `talktime`) "
 		"values (%u, now(), %u) on duplicate key update `talktime`=`talktime`+%u",
-		tableprefix, repeater->slot[timeslot].src_id, talktime, talktime);
+		tableprefix, repeater->slot[ts].src_id, talktime, talktime);
 	free(tableprefix);
 
 	remotedb_addquery(query);
