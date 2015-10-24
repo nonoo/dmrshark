@@ -69,7 +69,7 @@ void smstxbuf_print(void) {
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
-void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id) {
+void smstxbuf_add(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id) {
 	// Need to use a mutex because remotedb's thread can call the function.
 	static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	smstxbuf_t *new_smstxbuf_entry;
@@ -97,7 +97,6 @@ void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_times
 	}
 
 	strncpy(new_smstxbuf_entry->msg, msg, DMRPACKET_MAX_FRAGMENTSIZE);
-	new_smstxbuf_entry->delay_before_send_sec = delay_before_send_sec;
 	new_smstxbuf_entry->added_at = time(NULL);
 	new_smstxbuf_entry->data_type = data_type;
 	new_smstxbuf_entry->call_type = calltype;
@@ -189,9 +188,6 @@ void smstxbuf_process(void) {
 
 	// We allow some time for the TMS ack to arrive.
 	if (smstxbuf_first_entry->waiting_for_tms_ack_started_at != 0 && time(NULL)-smstxbuf_first_entry->waiting_for_tms_ack_started_at < 10)
-		return;
-
-	if (time(NULL) < smstxbuf_first_entry->added_at+smstxbuf_first_entry->delay_before_send_sec)
 		return;
 
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {

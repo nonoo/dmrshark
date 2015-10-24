@@ -238,6 +238,6 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 	else
 		return;
 
-	smstxbuf_add(2, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
-	smstxbuf_add(2, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
+	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
 }
