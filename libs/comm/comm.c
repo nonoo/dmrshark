@@ -58,6 +58,8 @@ flag_t comm_is_masteripaddr(struct in_addr *ip) {
 	flag_t result = 0;
 
 	masterip = config_get_masteripaddr();
+	if (masterip == NULL)
+		return 0;
 	if (memcmp(masterip, ip, sizeof(struct in_addr)) == 0)
 		result = 1;
 	free(masterip);

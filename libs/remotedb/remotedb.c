@@ -135,7 +135,7 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
-		tableprefix, repeater->id, repeater->slot[ts].dst_id, ts+1, repeater->slot[ts].src_id,
+		tableprefix, repeater->id, repeater->slot[ts].src_id, ts+1, repeater->slot[ts].dst_id,
 		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
 		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
 	free(tableprefix);
@@ -274,7 +274,7 @@ static void remotedb_msgqueue_poll(void) {
 	}
 
 	while ((row = mysql_fetch_row(result))) {
-		console_log(LOGLEVEL_REMOTEDB "remotedb: got sms to send from msg queue\n");
+		console_log("remotedb: got sms to send from msg queue\n");
 
 		ids_ok = 1;
 		errno = 0;

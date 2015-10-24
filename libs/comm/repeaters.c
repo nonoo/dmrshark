@@ -642,9 +642,10 @@ void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet) 
 	repeater_t *repeater = repeaters;
 
 	while (repeater) {
-		repeaters_send_data_packet(repeater, 0, NULL, 0, data_packet);
-		repeaters_send_data_packet(repeater, 1, NULL, 0, data_packet);
-
+		if (!comm_is_masteripaddr(&repeater->ipaddr)) { // We don't send broadcast packets to the master.
+			repeaters_send_data_packet(repeater, 0, NULL, 0, data_packet);
+			repeaters_send_data_packet(repeater, 1, NULL, 0, data_packet);
+		}
 		repeater = repeater->next;
 	}
 }

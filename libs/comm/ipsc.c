@@ -93,13 +93,17 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 	repeater_t *repeater = NULL;
 	loglevel_t loglevel;
 
-	// The packet is for us?
-	if (comm_is_our_ipaddr(&ip_packet->ip_dst))
+	if (comm_is_masteripaddr(&ip_packet->ip_dst))
+		repeater = repeaters_findbyip(&ip_packet->ip_src);
+	else
+		repeater = repeaters_findbyip(&ip_packet->ip_dst);
+
+	if (repeater == NULL && comm_is_our_ipaddr(&ip_packet->ip_dst))
 		repeater = repeaters_add(&ip_packet->ip_src);
 
 	// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
 	// host of the DMR master, and IP packets are just routed through.
-	if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL) {
+	if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
 		if (repeaters_is_call_running_on_other_repeater(repeater, ipscpacket->timeslot-1, ipscpacket->src_id))
 			call_already_running = 1;
 
@@ -126,14 +130,14 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 			ipscpacket->src_id);
 
 		if (duplicate_seqnum)
-			console_log(LOGLEVEL_IPSC " (duplicate, ignored)\n");
+			console_log(LOGLEVEL_IPSC " (duplicate, ignored)");
 		if (talkgroup_ignored)
-			console_log(LOGLEVEL_IPSC " (talkgroup ignored)\n");
+			console_log(LOGLEVEL_IPSC " (talkgroup ignored)");
 		if (call_already_running)
-			console_log(LOGLEVEL_IPSC " (call already running, ignored)\n");
+			console_log(LOGLEVEL_IPSC " (call already running, ignored)");
 
+		console_log(LOGLEVEL_IPSC "\n");
 		if (!duplicate_seqnum && !talkgroup_ignored && !call_already_running) {
-			console_log(LOGLEVEL_IPSC "\n");
 			ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
 		}
 	}
