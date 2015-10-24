@@ -213,6 +213,7 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t ts) {
 	char msg[100];
 	int8_t avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
+	uint8_t delay;
 
 	// No RMS volume SMS for echo service replies.
 	if (repeater->slot[ts].src_id == DMRSHARK_DEFAULT_DMR_ID || repeater->slot[ts].src_id == 9990)
@@ -238,6 +239,8 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 	else
 		return;
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
+	delay = repeater->slot[ts].call_ended_at - repeater->slot[ts].call_started_at + 1;
+
+	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
+	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
 }

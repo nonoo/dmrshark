@@ -588,25 +588,25 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		u.email.email = tok;
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing email body", 0);
+			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing email body", 0);
 			return;
 		}
 		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
 		remotedb_add_email_to_send(u.email.email, srcid, tok);
 		snprintf(u.email.msg, sizeof(u.email.msg), "email sent to %s", u.email.email);
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.email.msg, 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.email.msg, 0);
 		return;
 	}
 
 	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info", 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info", 0);
 		return;
 	}
 
 	if (strcasecmp(tok, "ping") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"ping\" command\n");
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "pong", 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "pong", 0);
 		return;
 	}
 
@@ -614,7 +614,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		console_log(LOGLEVEL_DMR "  got \"info\" command\n");
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
-			smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing callsign/dmrid", 0);
+			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing callsign/dmrid", 0);
 			return;
 		}
 
@@ -641,11 +641,11 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 			snprintf(u.info.msg, sizeof(u.info.msg), "%s (%u): %s",
 				u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.csbline);
 		}
-		smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
 		return;
 	}
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0);
+	smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0);
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {

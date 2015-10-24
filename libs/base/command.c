@@ -559,8 +559,8 @@ void command_process(char *input_buffer) {
 			return;
 		}
 
-		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_NORMAL_SMS, tok, 0);
-		smstxbuf_add(NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, tok, 0);
+		smstxbuf_add(0, NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_NORMAL_SMS, tok, 0);
+		smstxbuf_add(0, NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, tok, 0);
 		return;
 	}
 

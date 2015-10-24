@@ -295,8 +295,8 @@ static void remotedb_msgqueue_poll(void) {
 		if (ids_ok) {
 			snprintf(msg_to_send, sizeof(msg_to_send), "%s: %s", userdb_get_display_str_for_id(srcid), row[3]);
 
-			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
-			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
+			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
+			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
 
 			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='processing' where `index`='%s'", tableprefix, row[0]);
 		} else {
