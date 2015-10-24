@@ -41,7 +41,7 @@ void data_packet_txbuf_print_entry(data_packet_txbuf_t *entry) {
 	char added_at_str[20];
 
 	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
-	console_log(LOGLEVEL_DATAQ "  bcast: %u, dst id: %u src id: %u type: %s added at: %s send tries: %u bytes stored: %u crc: %.8x\n",
+	console_log("  bcast: %u, dst id: %u src id: %u type: %s added at: %s send tries: %u bytes stored: %u crc: %.8x\n",
 		entry->broadcast_to_all_repeaters, entry->data_packet.header.common.dst_llid, entry->data_packet.header.common.src_llid,
 		dmr_get_readable_call_type(entry->data_packet.header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE),
 		added_at_str, entry->send_tries, entry->data_packet.fragment.bytes_stored, entry->data_packet.fragment.crc);
@@ -128,6 +128,9 @@ void data_packet_txbuf_process(void) {
 	uint16_t timeout;
 
 	if (data_packet_txbuf_first_entry == NULL)
+		return;
+
+	if (repeaters_is_there_a_call_not_for_us_or_by_us(data_packet_txbuf_first_entry->repeater, data_packet_txbuf_first_entry->ts))
 		return;
 
 	timeout = config_get_mindatapacketsendretryintervalinsec()+ceil(dmrpacket_data_get_time_in_ms_needed_to_send(&data_packet_txbuf_first_entry->data_packet)/1000.0);

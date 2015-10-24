@@ -347,7 +347,7 @@ dmrpacket_data_block_bytes_t *dmrpacket_data_construct_block_bytes(dmrpacket_dat
 
 	memset(bytes.bytes, 0, sizeof(dmrpacket_data_block_bytes_t));
 	if (confirmed) {
-		bytes.bytes[0] = (data_block->serialnr << 1) | ((data_block->crc & 0x0100) >> 8);
+		bytes.bytes[0] = ((data_block->serialnr & 0x7f) << 1) | ((data_block->crc & 0x0100) >> 8);
 		bytes.bytes[1] = data_block->crc & 0xff;
 		memcpy(bytes.bytes+2, data_block->data, data_block->data_length);
 	} else
@@ -541,5 +541,5 @@ struct iphdr *dmrpacket_data_construct_payload_motorola_sms(char *msg, dmr_id_t 
 }
 
 uint16_t dmrpacket_data_get_time_in_ms_needed_to_send(dmrpacket_data_packet_t *data_packet) {
-	return IPSC_PACKET_SEND_INTERVAL_IN_MS*(data_packet->number_of_csbk_preambles_to_send+1+data_packet->fragment.data_blocks_needed);
+	return IPSC_PACKET_SEND_INTERVAL_IN_MS*2*(data_packet->number_of_csbk_preambles_to_send+1+data_packet->fragment.data_blocks_needed);
 }

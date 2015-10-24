@@ -1,6 +1,6 @@
 NPROCS := $(shell nproc)
 
-.PHONY: install test valgrind valgrind-memcheck instest rc kill kill9 grep
+.PHONY: install test valgrind valgrind-memcheck instest rc kill kill9 grep check
 
 all:
 	@echo running $(NPROCS) jobs...
@@ -35,6 +35,9 @@ kill9:
 
 grep:
 	@ps aux | grep dmrshark | grep -v grep
+
+check:
+	@cppcheck --enable=all ../../
 
 %:
 	@echo running $(NPROCS) jobs...

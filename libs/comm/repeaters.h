@@ -122,8 +122,9 @@ repeater_t *repeaters_add(struct in_addr *ipaddr);
 void repeaters_list(void);
 
 void repeaters_state_change(repeater_t *repeater, dmr_timeslot_t timeslot, repeater_slot_state_t new_state);
-void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw);
+void repeaters_add_to_ipsc_packet_buffer(repeater_t *repeater, dmr_timeslot_t ts, ipscpacket_raw_t *ipscpacket_raw, flag_t nowait);
 
+void repeaters_send_ipsc_sync(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_start_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
 void repeaters_end_voice_call(repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_id_t srcid);
@@ -135,6 +136,8 @@ void repeaters_store_voice_frame_to_echo_buf(repeater_t *repeater, ipscpacket_t 
 
 void repeaters_send_data_packet(repeater_t *repeater, dmr_timeslot_t ts, flag_t *selective_blocks, uint8_t selective_blocks_size, dmrpacket_data_packet_t *data_packet);
 void repeaters_send_broadcast_data_packet(dmrpacket_data_packet_t *data_packet);
+
+flag_t repeaters_is_there_a_call_not_for_us_or_by_us(repeater_t *repeater, dmr_timeslot_t ts);
 
 void repeaters_process(void);
 void repeaters_deinit(void);

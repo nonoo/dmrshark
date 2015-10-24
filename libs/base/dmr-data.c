@@ -54,7 +54,7 @@ void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr
 	data_header.response.responsetype = DMRPACKET_DATA_HEADER_RESPONSETYPE_ACK;
 
 	ipscpacket_payload = ipscpacket_construct_payload_data_header(&data_header);
-	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, DMR_CALL_TYPE_PRIVATE, dstid, srcid, ipscpacket_payload)));
+	repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_DATA_HEADER, DMR_CALL_TYPE_PRIVATE, dstid, srcid, ipscpacket_payload)), 0);
 }
 
 // Selective blocks is a flag array which has 1 set where the corresponding block is erroneous.
@@ -205,7 +205,7 @@ void dmr_data_send_sms(flag_t broadcast_to_all_repeaters, repeater_t *repeater, 
 	data_packet.header.short_data_defined.resync = 1;
 	// data_packet.header.short_data_defined.full_message will be filled by repeaters_send_data_packet()
 	data_packet.header.short_data_defined.bit_padding = (dmrpacket_data_get_block_size(data_packet.data_type, confirmed)*data_packet.fragment.data_blocks_needed-data_packet.fragment.bytes_stored-4)*8;
-	data_packet.number_of_csbk_preambles_to_send = 10;
+	data_packet.number_of_csbk_preambles_to_send = 20;
 
 	data_packet_txbuf_add(broadcast_to_all_repeaters, repeater, ts, &data_packet);
 }
@@ -238,6 +238,6 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 	else
 		return;
 
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
-	smstxbuf_add(repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
+	smstxbuf_add(2, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
+	smstxbuf_add(2, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
 }

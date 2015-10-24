@@ -102,7 +102,8 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 		if (ipscpacket->call_type == DMR_CALL_TYPE_GROUP && ipsc_isignoredtalkgroup(ipscpacket->dst_id))
 			talkgroup_ignored = 1;
 
-		if (ipscpacket->seq == repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum)
+		// IPSC syncs have seqnum 0 so we don't check their duplicateness.
+		if (ipscpacket->seq == repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum && ipscpacket->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC)
 			duplicate_seqnum = 1;
 		else
 			repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
@@ -171,7 +172,7 @@ void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {
 		return;
 	}
 
-	if (!comm_is_our_ipaddr(&ip_packet->ip_dst) && udp_packet->check != comm_calcudpchecksum(ip_packet, udp_packet)) {
+	if (!comm_is_our_ipaddr(&ip_packet->ip_src) && udp_packet->check != comm_calcudpchecksum(ip_packet, udp_packet)) {
 		console_log(LOGLEVEL_COMM_IP "  udp checksum mismatch, dropping\n");
 		return;
 	}

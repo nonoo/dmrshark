@@ -110,5 +110,6 @@ ipscpacket_payload_t *ipscpacket_construct_payload_csbk(dmrpacket_csbk_t *csbk);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_header(dmrpacket_data_header_t *data_header);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_34(dmrpacket_data_block_t *data_block);
 ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_12(dmrpacket_data_block_t *data_block);
+ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid);
 
 #endif

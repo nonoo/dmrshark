@@ -264,12 +264,17 @@ ipscpacket_payload_raw_t *ipscpacket_construct_raw_payload(uint8_t seqnum, dmr_t
 		memcpy(&ipscpacket_raw.payload.bytes, payload, sizeof(ipscpacket_payload_t));
 		ipscpacket_swap_payload_bytes(&ipscpacket_raw.payload);
 	}
-	ipscpacket_raw.udp_source_port = htons(62006);
-	ipscpacket_raw.reserved1[1] = 0x50;
-	ipscpacket_raw.seq = seqnum;
-	ipscpacket_raw.reserved2[0] = 0xe0;
-	ipscpacket_raw.packet_type = 0x01;
-	ipscpacket_raw.frame_type = 0xbbbb;
+	if (slot_type == IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
+		ipscpacket_raw.packet_type = 0x02;
+		ipscpacket_raw.frame_type = 0x6666;
+	} else {
+		ipscpacket_raw.udp_source_port = htons(62006);
+		ipscpacket_raw.seq = seqnum;
+		ipscpacket_raw.reserved1[1] = 0x50;
+		ipscpacket_raw.reserved2[0] = 0xe0;
+		ipscpacket_raw.packet_type = 0x01;
+		ipscpacket_raw.frame_type = 0xbbbb;
+	}
 	ipscpacket_raw.reserved4[1] = 0x5c;
 
 	return &ipscpacket_raw;
@@ -421,6 +426,20 @@ ipscpacket_payload_t *ipscpacket_construct_payload_data_block_rate_12(dmrpacket_
 	dmrpacket_sync_insert_bits(&payload_bits, dmrpacket_sync_construct_bits(DMRPACKET_SYNC_PATTERN_TYPE_BS_SOURCED_DATA));
 	memset(ipscpacket_payload.bytes, 0, sizeof(ipscpacket_payload_t));
 	base_bitstobytes(payload_bits.bits, sizeof(dmrpacket_payload_bits_t), ipscpacket_payload.bytes, sizeof(ipscpacket_payload_t));
+
+	return &ipscpacket_payload;
+}
+
+ipscpacket_payload_t *ipscpacket_construct_payload_ipsc_sync(dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid) {
+	static ipscpacket_payload_t ipscpacket_payload = { .bytes = { 0x00, 0x43, 0x00, 0x48, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x61, 0x00, 0x20, 0x00, 0xf9, 0x00, 0x6d, 0x00,
+		0x91, 0x00, 0x58, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f } };
+
+	ipscpacket_payload.bytes[7] = (srcid >> 16) & 0xff;
+	ipscpacket_payload.bytes[9] = (srcid >> 8) & 0xff;
+	ipscpacket_payload.bytes[11] = srcid & 0xff;
+	ipscpacket_payload.bytes[13] = (dstid >> 16) & 0xff;
+	ipscpacket_payload.bytes[15] = (dstid >> 8) & 0xff;
+	ipscpacket_payload.bytes[17] = dstid & 0xff;
 
 	return &ipscpacket_payload;
 }

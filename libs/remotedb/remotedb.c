@@ -135,7 +135,7 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t timeslot, dmr
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
-		tableprefix, repeater->id, repeater->slot[timeslot-1].src_id, timeslot, repeater->slot[timeslot-1].dst_id,
+		tableprefix, repeater->id, repeater->slot[timeslot-1].dst_id, timeslot, repeater->slot[timeslot-1].src_id,
 		repeater->slot[timeslot-1].call_type, (long long)repeater->slot[timeslot-1].call_started_at, (long long)repeater->slot[timeslot-1].call_ended_at,
 		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
 	free(tableprefix);
@@ -295,8 +295,8 @@ static void remotedb_msgqueue_poll(void) {
 		if (ids_ok) {
 			snprintf(msg_to_send, sizeof(msg_to_send), "%s: %s", userdb_get_display_str_for_id(srcid), row[3]);
 
-			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
-			smstxbuf_add(NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
+			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
+			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
 
 			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='processing' where `index`='%s'", tableprefix, row[0]);
 		} else {
@@ -395,6 +395,7 @@ static void remotedb_thread_process(void) {
 	static time_t lastremotedbmsgqueuepollat = 0;
 	static flag_t userdb_dl_ok = 0;
 	static flag_t callsignbookdb_dl_ok = 0;
+	char *callsignbookdbtablename;
 
 	if (remotedb_conn == NULL)
 		return;
@@ -433,13 +434,15 @@ static void remotedb_thread_process(void) {
 	}
 
 	// If callsign book db download was unsuccessful, we retry it every minute.
-	if (config_get_callsignbookdbtablename()) {
-		if (time(NULL)-lastcallsignbookqueryat > 86400 || (!callsignbookdb_dl_ok && time(NULL)-lastcallsignbookqueryat > 60)) {
+	if (time(NULL)-lastcallsignbookqueryat > 86400 || (!callsignbookdb_dl_ok && time(NULL)-lastcallsignbookqueryat > 60)) {
+		callsignbookdbtablename = config_get_callsignbookdbtablename();
+		if (callsignbookdbtablename) {
 			pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
 			callsignbookdb_dl_ok = callsignbookdb_reload(remotedb_conn);
 			pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 			lastcallsignbookqueryat = time(NULL);
 		}
+		free(callsignbookdbtablename);
 	}
 
 	// Do we have a query in the buffer?
