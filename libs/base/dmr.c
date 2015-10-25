@@ -31,6 +31,7 @@ char *dmr_get_readable_data_type(dmr_data_type_t data_type) {
 	switch (data_type) {
 		case DMR_DATA_TYPE_NORMAL_SMS: return "normal sms";
 		case DMR_DATA_TYPE_MOTOROLA_TMS_SMS: return "motorola tms sms";
+		case DMR_DATA_TYPE_GPS_POSITION: return "gps position";
 		default: return "unknown";
 	}
 }

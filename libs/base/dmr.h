@@ -27,6 +27,7 @@ typedef uint8_t dmr_call_type_t;
 #define DMR_DATA_TYPE_UNKNOWN					0x00
 #define DMR_DATA_TYPE_NORMAL_SMS				0x01
 #define DMR_DATA_TYPE_MOTOROLA_TMS_SMS			0x02
+#define DMR_DATA_TYPE_GPS_POSITION				0x03
 typedef uint8_t dmr_data_type_t;
 
 typedef uint8_t dmr_timeslot_t; // Note that the value for TS1 is 0, and for TS2 is 1.

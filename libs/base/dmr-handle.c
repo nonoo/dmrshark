@@ -631,6 +631,9 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
+	static uint8_t hytera_gps_triggered[] = { 0x08, 0xD0, 0x03, 0x00 };
+	static uint8_t hytera_gps_button[] = { 0x08, 0xA0, 0x02, 0x00 };
+	static uint8_t hytera_gps_compressed[] = { 0x01, 0xD0, 0x03, 0x00 };
 	struct ip *ip_packet;
 	struct udphdr *udp_packet;
 	uint8_t *message_data = NULL;
@@ -790,8 +793,21 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			break;
 		case DMRPACKET_DATA_HEADER_SAP_SHORT_DATA:
 			console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  received short data\n");
+
 			message_data = data_fragment->bytes+2; // Hytera has a 2 byte pre-padding.
 			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
+
+			if (message_data_length >= 4) { // -4 - leaving out the fragment CRC.
+				if (memcmp(message_data, hytera_gps_triggered, sizeof(hytera_gps_triggered)) == 0 ||
+					memcmp(message_data, hytera_gps_button, sizeof(hytera_gps_triggered)) == 0 ||
+					memcmp(message_data, hytera_gps_compressed, sizeof(hytera_gps_triggered)) == 0) {
+						console_log(LOGLEVEL_DMR "  found hytera gps data\n");
+						smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, "hytera gps data");
+						smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION); // We virtually ack it for ourselves.
+						return;
+				}
+			}
+
 			dd_format = repeater->slot[ipscpacket->timeslot-1].data_packet_header.short_data_defined.dd_format;
 			received_data_type = DMR_DATA_TYPE_NORMAL_SMS;
 			break;
