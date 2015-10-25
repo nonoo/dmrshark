@@ -167,10 +167,11 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t ts) {
 
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`, `currrmsvol`, `avgrmsvol`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d) on duplicate key update `endts`=from_unixtime(%lld)",
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d) on duplicate key update `endts`=from_unixtime(%lld), `currrssi`=%d, `avgrssi`=%d, `currrmsvol`=%d, `avgrmsvol`=%d",
 		tableprefix, repeater->id, repeater->slot[ts].src_id, ts+1, repeater->slot[ts].dst_id,
 		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
-		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol, (long long)repeater->slot[ts].call_ended_at);
+		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol, (long long)repeater->slot[ts].call_ended_at,
+		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol);
 	free(tableprefix);
 
 	remotedb_addquery(query);
