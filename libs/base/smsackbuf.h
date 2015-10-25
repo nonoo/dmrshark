@@ -26,7 +26,7 @@
 void smsackbuf_print(void);
 void smsackbuf_add(dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, dmr_data_type_t datatype, char *msg);
 void smsackbuf_ack_received(dmr_id_t ack_dstid, dmr_id_t ack_srcid, dmr_call_type_t ack_calltype, dmr_data_type_t acked_datatype);
-void smsackbuf_call_ended(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype);
+void smsackbuf_call_ended(repeater_t *repeater, dmr_timeslot_t ts);
 
 void smsackbuf_deinit(void);
 

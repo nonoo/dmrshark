@@ -119,22 +119,23 @@ void smsackbuf_ack_received(dmr_id_t ack_dstid, dmr_id_t ack_srcid, dmr_call_typ
 	}
 }
 
-void smsackbuf_call_ended(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype) {
+void smsackbuf_call_ended(repeater_t *repeater, dmr_timeslot_t ts) {
 	smsackbuf_t *entry = smsackbuf_first_entry;
 	loglevel_t loglevel = console_get_loglevel();
 
 	while (entry) {
-		if (((entry->dstid == srcid && entry->srcid == dstid) || (entry->dstid == dstid && entry->srcid == srcid)) && entry->calltype == calltype) {
+		if (((entry->dstid == repeater->slot[ts].src_id && entry->srcid == repeater->slot[ts].dst_id) || (entry->dstid == repeater->slot[ts].dst_id && entry->srcid == repeater->slot[ts].src_id)) && entry->calltype == repeater->slot[ts].call_type) {
 			if (loglevel.flags.dataq) {
 				console_log(LOGLEVEL_DATAQ "smsackbuf: call end for entry:\n");
 				smsackbuf_print_entry(entry);
 			}
 
-			if (entry->acked)
+			if (entry->acked && entry->datatype != DMR_DATA_TYPE_UNKNOWN)
 				remotedb_add_data_to_log(repeater, ts, entry->dstid, entry->srcid, entry->calltype, entry->datatype, entry->msg);
 			else {
-				if (entry->dstid != DMRSHARK_DEFAULT_DMR_ID && entry->srcid != DMRSHARK_DEFAULT_DMR_ID)
-					smsrtbuf_add_decoded_message(repeater, ts, entry->datatype, entry->dstid, entry->srcid, entry->calltype, entry->msg);
+				if (entry->dstid != DMRSHARK_DEFAULT_DMR_ID && entry->srcid != DMRSHARK_DEFAULT_DMR_ID &&
+					(entry->datatype == DMR_DATA_TYPE_NORMAL_SMS || entry->datatype == DMR_DATA_TYPE_MOTOROLA_TMS_SMS))
+						smsrtbuf_add_decoded_message(repeater, ts, entry->datatype, entry->dstid, entry->srcid, entry->calltype, entry->msg);
 			}
 
 			if (entry->prev)

@@ -285,7 +285,7 @@ static void dmr_handle_data_call_end_results(repeater_t *repeater, dmr_timeslot_
 	repeater->slot[ts].call_ended_at = time(NULL);
 	repeater->slot[ts].data_packet_header_valid = 0;
 
-	smsackbuf_call_ended(repeater, ts, repeater->slot[ts].dst_id, repeater->slot[ts].src_id, repeater->slot[ts].call_type);
+	smsackbuf_call_ended(repeater, ts);
 
 	remotedb_update_repeater(repeater);
 }

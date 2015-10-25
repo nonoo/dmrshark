@@ -251,9 +251,11 @@ static void remotedb_msgqueue_poll(void) {
 	char *endptr;
 	flag_t ids_ok;
 	char msg_to_send[DMRPACKET_MAX_FRAGMENTSIZE];
+	flag_t send_motorola;
+	flag_t send_normal;
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg` from `%smsg-queue` where state='waiting'", tableprefix);
+	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg`, `type` from `%smsg-queue` where state='waiting'", tableprefix);
 
 	//console_log(LOGLEVEL_REMOTEDB "remotedb: sending query: %s\n", query);
 	pthread_mutex_lock(&remotedb_mutex_remotedb_conn);
@@ -268,7 +270,7 @@ static void remotedb_msgqueue_poll(void) {
 		return;
 	}
 
-	if (mysql_num_fields(result) != 4) {
+	if (mysql_num_fields(result) != 5) {
 		free(tableprefix);
 		mysql_free_result(result);
 		return;
@@ -296,8 +298,18 @@ static void remotedb_msgqueue_poll(void) {
 		if (ids_ok) {
 			snprintf(msg_to_send, sizeof(msg_to_send), "%s: %s", userdb_get_display_str_for_id(srcid), row[3]);
 
-			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
-			smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
+			send_motorola = send_normal = 0;
+			if (strcmp(row[4], "all") == 0)
+				send_motorola = send_normal = 0;
+			else if (strcmp(row[4], "motorola") == 0)
+				send_motorola = 1;
+			else if (strcmp(row[4], "normal") == 0)
+				send_normal = 1;
+
+			if (send_normal)
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
+			if (send_motorola)
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
 
 			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='processing' where `index`='%s'", tableprefix, row[0]);
 		} else {
