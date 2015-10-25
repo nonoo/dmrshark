@@ -22,6 +22,7 @@
 #include "smsrtbuf.h"
 #include "data-packet-txbuf.h"
 #include "dmr-handle.h"
+#include "smsackbuf.h"
 
 #include <libs/daemon/console.h>
 
@@ -116,4 +117,5 @@ void base_deinit(void) {
 	smsrtbuf_deinit();
 	smstxbuf_deinit();
 	data_packet_txbuf_deinit();
+	smsackbuf_deinit();
 }

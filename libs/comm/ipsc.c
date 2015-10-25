@@ -93,54 +93,45 @@ static void ipsc_examinepacket(struct ip *ip_packet, ipscpacket_t *ipscpacket, f
 	repeater_t *repeater = NULL;
 	loglevel_t loglevel;
 
-	if (comm_is_masteripaddr(&ip_packet->ip_dst))
-		repeater = repeaters_findbyip(&ip_packet->ip_src);
+	repeater = repeaters_add(&ip_packet->ip_src);
+	if (repeater == NULL)
+		return;
+
+	if (repeaters_is_call_running_on_other_repeater(repeater, ipscpacket->timeslot-1, ipscpacket->src_id))
+		call_already_running = 1;
+
+	if (ipscpacket->call_type == DMR_CALL_TYPE_GROUP && ipsc_isignoredtalkgroup(ipscpacket->dst_id))
+		talkgroup_ignored = 1;
+
+	// IPSC syncs have seqnum 0 so we don't check their duplicateness.
+	if (ipscpacket->seq == repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum && ipscpacket->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC)
+		duplicate_seqnum = 1;
 	else
-		repeater = repeaters_findbyip(&ip_packet->ip_dst);
+		repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
 
-	if (repeater == NULL && comm_is_our_ipaddr(&ip_packet->ip_dst))
-		repeater = repeaters_add(&ip_packet->ip_src);
+	loglevel = console_get_loglevel();
+	if (!loglevel.flags.comm_ip && !loglevel.flags.debug && !loglevel.flags.dmrlc && loglevel.flags.ipsc)
+		log_print_separator();
 
-	// The packet is for us, or from a listed repeater? This is needed if dmrshark is not running on the
-	// host of the DMR master, and IP packets are just routed through.
-	if (repeater != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_dst)) != NULL || (repeater = repeaters_findbyip(&ip_packet->ip_src)) != NULL) {
-		if (repeaters_is_call_running_on_other_repeater(repeater, ipscpacket->timeslot-1, ipscpacket->src_id))
-			call_already_running = 1;
+	console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
+	console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u ipsc slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
+		repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
+		ipscpacket->timeslot,
+		ipscpacket_get_readable_slot_type(ipscpacket->slot_type), ipscpacket->slot_type,
+		dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->call_type,
+		ipscpacket->dst_id,
+		ipscpacket->src_id);
 
-		if (ipscpacket->call_type == DMR_CALL_TYPE_GROUP && ipsc_isignoredtalkgroup(ipscpacket->dst_id))
-			talkgroup_ignored = 1;
+	if (duplicate_seqnum)
+		console_log(LOGLEVEL_IPSC " (duplicate, ignored)");
+	if (talkgroup_ignored)
+		console_log(LOGLEVEL_IPSC " (talkgroup ignored)");
+	if (call_already_running)
+		console_log(LOGLEVEL_IPSC " (call already running, ignored)");
 
-		// IPSC syncs have seqnum 0 so we don't check their duplicateness.
-		if (ipscpacket->seq == repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum && ipscpacket->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC)
-			duplicate_seqnum = 1;
-		else
-			repeater->slot[ipscpacket->timeslot-1].ipsc_last_received_seqnum = ipscpacket->seq;
-
-		loglevel = console_get_loglevel();
-		if (!loglevel.flags.comm_ip && !loglevel.flags.debug && !loglevel.flags.dmrlc && loglevel.flags.ipsc)
-			log_print_separator();
-
-		console_log(LOGLEVEL_IPSC "ipsc [%s", repeaters_get_display_string_for_ip(&ip_packet->ip_src));
-		console_log(LOGLEVEL_IPSC "->%s]: dmr packet ts %u ipsc slot type: %s (0x%.4x) call type: %s (0x%.2x) dstid %u srcid %u",
-			repeaters_get_display_string_for_ip(&ip_packet->ip_dst),
-			ipscpacket->timeslot,
-			ipscpacket_get_readable_slot_type(ipscpacket->slot_type), ipscpacket->slot_type,
-			dmr_get_readable_call_type(ipscpacket->call_type), ipscpacket->call_type,
-			ipscpacket->dst_id,
-			ipscpacket->src_id);
-
-		if (duplicate_seqnum)
-			console_log(LOGLEVEL_IPSC " (duplicate, ignored)");
-		if (talkgroup_ignored)
-			console_log(LOGLEVEL_IPSC " (talkgroup ignored)");
-		if (call_already_running)
-			console_log(LOGLEVEL_IPSC " (call already running, ignored)");
-
-		console_log(LOGLEVEL_IPSC "\n");
-		if (!duplicate_seqnum && !talkgroup_ignored && !call_already_running) {
-			ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
-		}
-	}
+	console_log(LOGLEVEL_IPSC "\n");
+	if (!duplicate_seqnum && !talkgroup_ignored && !call_already_running)
+		ipsc_handle_by_slot_type(ip_packet, ipscpacket, repeater);
 }
 
 void ipsc_processpacket(ipscpacket_raw_t *ipscpacket_raw, uint16_t length) {

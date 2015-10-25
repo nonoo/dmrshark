@@ -23,6 +23,7 @@
 #include "base.h"
 #include "smstxbuf.h"
 #include "smsrtbuf.h"
+#include "smsackbuf.h"
 #include "dmr-data.h"
 #include "data-packet-txbuf.h"
 
@@ -99,8 +100,9 @@ void command_process(char *input_buffer) {
 		console_log("  streammp3recstart [name]                                       - enable saving mp3 data to file\n");
 		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
 		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
-		console_log("  smslist                                                        - print the contents of the sms tx buffer\n");
+		console_log("  smstxlist                                                      - print the contents of the sms tx buffer\n");
 		console_log("  smsrtlist                                                      - print the contents of the sms retransmit buffer\n");
+		console_log("  smsacklist                                                     - print the contents of the sms ack buffer\n");
 		console_log("  dptlist                                                        - print the contents of the data packet tx buffer\n");
 		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
 		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
@@ -412,13 +414,18 @@ void command_process(char *input_buffer) {
 		return;
 	}
 
-	if (strcmp(tok, "smslist") == 0) {
+	if (strcmp(tok, "smstxlist") == 0) {
 		smstxbuf_print();
 		return;
 	}
 
 	if (strcmp(tok, "smsrtlist") == 0) {
 		smsrtbuf_print();
+		return;
+	}
+
+	if (strcmp(tok, "smsacklist") == 0) {
+		smsackbuf_print();
 		return;
 	}
 

@@ -159,19 +159,22 @@ void smstxbuf_first_entry_sent_successfully(void) {
 
 static void smstxbuf_first_entry_send_unsuccessful(void) {
 	smsrtbuf_t *smsrtbuf_entry;
+	int db_id;
 
 	if (smstxbuf_first_entry == NULL)
 		return;
 
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry send unsuccessful\n");
-	if (smstxbuf_first_entry->db_id)
-		remotedb_msgqueue_updateentry(smstxbuf_first_entry->db_id, 0);
+	db_id = smstxbuf_first_entry->db_id;
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
 
 	smstxbuf_remove_first_entry();
+
+	if (db_id && (smstxbuf_first_entry == NULL || (smstxbuf_first_entry != NULL && smstxbuf_first_entry->db_id != db_id)))
+		remotedb_msgqueue_updateentry(db_id, 0);
 }
 
 smstxbuf_t *smstxbuf_get_first_entry(void) {

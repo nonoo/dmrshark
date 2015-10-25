@@ -24,7 +24,7 @@
 
 void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg);
 
-void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_type_t decoded_data_type, char *decoded_data);
+void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, dmr_data_type_t decoded_data_type, char *decoded_data);
 
 void remotedb_update_repeater(repeater_t *repeater);
 void remotedb_update_repeater_lastactive(repeater_t *repeater);

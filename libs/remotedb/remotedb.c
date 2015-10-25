@@ -116,7 +116,7 @@ void remotedb_add_email_to_send(char *dstemail, dmr_id_t srcid, char *msg) {
 	remotedb_addquery(query);
 }
 
-void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_type_t decoded_data_type, char *decoded_data) {
+void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t dstid, dmr_id_t srcid, dmr_call_type_t calltype, dmr_data_type_t decoded_data_type, char *decoded_data) {
 	char *tableprefix = NULL;
 	char query[REMOTEDB_MAXQUERYSIZE] = {0,};
 	uint16_t decoded_data_length;
@@ -133,10 +133,10 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_data_
 	pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
+	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
 		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
-		tableprefix, repeater->id, repeater->slot[ts].src_id, ts+1, repeater->slot[ts].dst_id,
-		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
+		tableprefix, repeater->id, srcid, ts+1, dstid,
+		calltype, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
 		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
 	free(tableprefix);
 	free(decoded_data_escaped);

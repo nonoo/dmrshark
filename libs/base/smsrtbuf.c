@@ -15,6 +15,8 @@
  * along with dmrshark.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
+// This SMS retransmit buffer takes care of retransmitting unacked SMSes.
+
 #include DEFAULTCONFIG
 
 #include "smsrtbuf.h"
@@ -64,7 +66,7 @@ smsrtbuf_t *smsrtbuf_find_entry(dmr_id_t dstid, char *msg) {
 		return NULL;
 
 	while (entry) {
-		if (entry->dstid == dstid && (strncmp(entry->sent_msg, msg, DMRPACKET_DATA_MAX_DECODED_DATA_SIZE) == 0 || strncmp(entry->orig_msg, msg, DMRPACKET_DATA_MAX_DECODED_DATA_SIZE) == 0))
+		if (entry->dstid == dstid && (strncmp(entry->sent_msg, msg, sizeof(entry->sent_msg)) == 0 || strncmp(entry->orig_msg, msg, sizeof(entry->orig_msg)) == 0))
 			return entry;
 
 		entry = entry->next;
@@ -112,7 +114,7 @@ void smsrtbuf_add_decoded_message(repeater_t *repeater, dmr_timeslot_t ts, dmr_d
 	new_entry->calltype = calltype;
 	new_entry->ts = ts;
 	new_entry->repeater = repeater;
-	strncpy(new_entry->orig_msg, msg, DMRPACKET_DATA_MAX_DECODED_DATA_SIZE-1);
+	strncpy(new_entry->orig_msg, msg, sizeof(new_entry->orig_msg)-1);
 	new_entry->last_added_at = time(NULL);
 
 	if (loglevel.flags.dataq) {
@@ -182,7 +184,7 @@ void smsrtbuf_got_tms_ack(dmr_id_t dstid, dmr_call_type_t calltype) {
 }
 
 void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
-	char msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE+50] = {0,};
+	char msg[DMRPACKET_MAX_FRAGMENTSIZE+50] = {0,};
 	loglevel_t loglevel;
 
 	if (entry == NULL)
@@ -200,7 +202,7 @@ void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
 }
 
 void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry) {
-	char msg[DMRPACKET_DATA_MAX_DECODED_DATA_SIZE+50] = {0,};
+	char msg[DMRPACKET_MAX_FRAGMENTSIZE+50] = {0,};
 	loglevel_t loglevel;
 
 	if (entry == NULL)

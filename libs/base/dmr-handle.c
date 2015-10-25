@@ -22,6 +22,7 @@
 #include "smsrtbuf.h"
 #include "data-packet-txbuf.h"
 #include "dmr-data.h"
+#include "smsackbuf.h"
 
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
@@ -284,19 +285,7 @@ static void dmr_handle_data_call_end_results(repeater_t *repeater, dmr_timeslot_
 	repeater->slot[ts].call_ended_at = time(NULL);
 	repeater->slot[ts].data_packet_header_valid = 0;
 
-	if (repeater->slot[ts].decoded_data_acked) {
-		if (repeater->slot[ts].decoded_data_type != DMR_DATA_TYPE_UNKNOWN && isprint(repeater->slot[ts].decoded_data[0]))
-			remotedb_add_data_to_log(repeater, ts, repeater->slot[ts].decoded_data_type, repeater->slot[ts].decoded_data);
-
-		repeater->slot[ts].decoded_data_dstid = 0;
-		repeater->slot[ts].decoded_data_srcid = 0;
-		repeater->slot[ts].decoded_data_acked = 0;
-		repeater->slot[ts].decoded_data_type = DMR_DATA_TYPE_UNKNOWN;
-		memset(repeater->slot[ts].decoded_data, 0, sizeof(repeater->slot[ts].decoded_data));
-	}
-
-	repeater->slot[ts].dst_id = 0;
-	repeater->slot[ts].src_id = 0;
+	smsackbuf_call_ended(repeater, ts, repeater->slot[ts].dst_id, repeater->slot[ts].src_id, repeater->slot[ts].call_type);
 
 	remotedb_update_repeater(repeater);
 }
@@ -421,14 +410,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 						data_packet_header->common.dst_llid == DMRSHARK_DEFAULT_DMR_ID)
 							smsrtbuf_got_ack(data_packet_header->common.src_llid, data_packet_header->common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE);
 
-					// Ack is for the previously decoded SMS?
-					if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_NORMAL_SMS &&
-						data_packet_header->common.dst_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
-						data_packet_header->common.src_llid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
-							console_log(LOGLEVEL_DMR "  slot sms ack\n");
-							repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
-					}
-
+					smsackbuf_ack_received(data_packet_header->common.dst_llid, data_packet_header->common.src_llid, data_packet_header->common.dst_is_a_group, DMR_DATA_TYPE_NORMAL_SMS);
 					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_ILLEGAL_FORMAT:
@@ -752,13 +734,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 							if (tms_msg_payload[0] == 0x00 && tms_msg_payload[1] == 0x03 && tms_msg_payload[2] == 0xbf) {
 								console_log(LOGLEVEL_DMR "      motorola tms ack\n");
-
-								if (repeater->slot[ipscpacket->timeslot-1].decoded_data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS &&
-									dstid == repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid &&
-									srcid == repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid) {
-										console_log(LOGLEVEL_DMR "  slot sms motorola tms ack\n");
-										repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 1;
-								}
+								smsackbuf_ack_received(dstid, srcid, calltype, DMR_DATA_TYPE_MOTOROLA_TMS_SMS);
 
 								// If the Motorola TMS ACK is for us, we reply with a standard ACK.
 								if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested &&
@@ -832,14 +808,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			console_log(LOGLEVEL_DMR "  message is not printable\n");
 		else {
 			console_log(LOGLEVEL_DMR "  decoded %s: %s\n", dmr_get_readable_data_type(received_data_type), decoded_message);
-			strncpy(repeater->slot[ipscpacket->timeslot-1].decoded_data, decoded_message, sizeof(repeater->slot[ipscpacket->timeslot-1].decoded_data));
-			repeater->slot[ipscpacket->timeslot-1].decoded_data_dstid = dstid;
-			repeater->slot[ipscpacket->timeslot-1].decoded_data_srcid = srcid;
-			repeater->slot[ipscpacket->timeslot-1].decoded_data_acked = 0;
-			repeater->slot[ipscpacket->timeslot-1].decoded_data_type = received_data_type;
 
-			if (srcid != DMRSHARK_DEFAULT_DMR_ID && dstid != DMRSHARK_DEFAULT_DMR_ID)
-				smsrtbuf_add_decoded_message(repeater, ipscpacket->timeslot-1, received_data_type, dstid, srcid, calltype, decoded_message);
+			smsackbuf_add(dstid, srcid, calltype, received_data_type, decoded_message);
 		}
 
 		// Message is OK, and for us?
