@@ -40,7 +40,7 @@ static time_t data_packet_txbuf_last_send_try_at = 0;
 void data_packet_txbuf_print_entry(data_packet_txbuf_t *entry) {
 	char added_at_str[20];
 
-	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
+	strftime(added_at_str, sizeof(added_at_str), "%F %T", gmtime(&entry->added_at));
 	console_log("  bcast: %u, dst id: %u src id: %u type: %s added at: %s send tries: %u bytes stored: %u crc: %.8x\n",
 		entry->broadcast_to_all_repeaters, entry->data_packet.header.common.dst_llid, entry->data_packet.header.common.src_llid,
 		dmr_get_readable_call_type(entry->data_packet.header.common.dst_is_a_group ? DMR_CALL_TYPE_GROUP : DMR_CALL_TYPE_PRIVATE),

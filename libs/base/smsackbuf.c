@@ -51,7 +51,7 @@ static smsackbuf_t *smsackbuf_first_entry = NULL;
 static void smsackbuf_print_entry(smsackbuf_t *entry) {
 	char added_at_str[20];
 
-	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
+	strftime(added_at_str, sizeof(added_at_str), "%F %T", gmtime(&entry->added_at));
 	console_log("  dst id: %u src id: %u calltype: %s datatype: %s added at: %s acked: %u data: %s\n",
 		entry->dstid, entry->srcid, dmr_get_readable_call_type(entry->calltype), dmr_get_readable_data_type(entry->datatype),
 		added_at_str, entry->acked, isprint(entry->msg[0]) ? entry->msg : "(not printable)");

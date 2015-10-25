@@ -42,7 +42,7 @@ static smstxbuf_t *smstxbuf_last_entry = NULL;
 void smstxbuf_print_entry(smstxbuf_t *entry) {
 	char added_at_str[20];
 
-	strftime(added_at_str, sizeof(added_at_str), "%F %T", localtime(&entry->added_at));
+	strftime(added_at_str, sizeof(added_at_str), "%F %T", gmtime(&entry->added_at));
 	if (entry->repeater == NULL)
 		console_log("  repeater: all ");
 	else {
