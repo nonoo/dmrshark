@@ -133,11 +133,12 @@ void remotedb_add_data_to_log(repeater_t *repeater, dmr_timeslot_t ts, dmr_id_t 
 	pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s')",
+	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `datatype`, `datadecoded`) "
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), '%s', '%s') on duplicate key update `endts`=from_unixtime(%lld), `datatype`='%s', `datadecoded`='%s'",
 		tableprefix, repeater->id, srcid, ts+1, dstid,
 		calltype, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
-		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
+		dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped,
+		(long long)repeater->slot[ts].call_ended_at, dmr_get_readable_data_type(decoded_data_type), decoded_data_escaped);
 	free(tableprefix);
 	free(decoded_data_escaped);
 
@@ -165,11 +166,11 @@ static void remotedb_update_timeslot(repeater_t *repeater, dmr_timeslot_t ts) {
 	}
 
 	tableprefix = config_get_remotedbtableprefix();
-	snprintf(query, sizeof(query), "replace into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`, `currrmsvol`, `avgrmsvol`) "
-		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d)",
+	snprintf(query, sizeof(query), "insert into `%slog` (`repeaterid`, `srcid`, `timeslot`, `dstid`, `calltype`, `startts`, `endts`, `currrssi`, `avgrssi`, `currrmsvol`, `avgrmsvol`) "
+		"values (%u, %u, %u, %u, %u, from_unixtime(%lld), from_unixtime(%lld), %d, %d, %d, %d) on duplicate key update `endts`=from_unixtime(%lld)",
 		tableprefix, repeater->id, repeater->slot[ts].src_id, ts+1, repeater->slot[ts].dst_id,
 		repeater->slot[ts].call_type, (long long)repeater->slot[ts].call_started_at, (long long)repeater->slot[ts].call_ended_at,
-		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol);
+		repeater->slot[ts].rssi, repeater->slot[ts].avg_rssi, rms_vol, avg_rms_vol, (long long)repeater->slot[ts].call_ended_at);
 	free(tableprefix);
 
 	remotedb_addquery(query);
