@@ -634,6 +634,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	static uint8_t hytera_gps_triggered[] = { 0x08, 0xD0, 0x03, 0x00 };
 	static uint8_t hytera_gps_button[] = { 0x08, 0xA0, 0x02, 0x00 };
 	static uint8_t hytera_gps_compressed[] = { 0x01, 0xD0, 0x03, 0x00 };
+	flag_t gps_data_found;
+	dmr_data_gpspos_t *gpspos;
 	struct ip *ip_packet;
 	struct udphdr *udp_packet;
 	uint8_t *message_data = NULL;
@@ -798,13 +800,35 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
 
 			if (message_data_length >= 4) { // -4 - leaving out the fragment CRC.
-				if (memcmp(message_data, hytera_gps_triggered, sizeof(hytera_gps_triggered)) == 0 ||
-					memcmp(message_data, hytera_gps_button, sizeof(hytera_gps_triggered)) == 0 ||
-					memcmp(message_data, hytera_gps_compressed, sizeof(hytera_gps_triggered)) == 0) {
-						console_log(LOGLEVEL_DMR "  found hytera gps data\n");
-						smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, "hytera gps data");
-						smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION); // We virtually ack it for ourselves.
-						return;
+				gps_data_found = 0;
+				decoded_message = "can't decode data";
+				if (memcmp(message_data, hytera_gps_triggered, sizeof(hytera_gps_triggered)) == 0) {
+					gpspos = dmr_data_decode_hytera_gps_triggered(data_fragment->bytes, data_fragment->bytes_stored-4);
+					if (gpspos != NULL)
+						decoded_message = dmr_data_get_gps_string(gpspos);
+					else
+						decoded_message = "can't decode triggered hytera gps data";
+					gps_data_found = 1;
+				}
+				if (memcmp(message_data, hytera_gps_button, sizeof(hytera_gps_button)) == 0) {
+					gpspos = dmr_data_decode_hytera_gps_button(data_fragment->bytes, data_fragment->bytes_stored-4);
+					if (gpspos != NULL)
+						decoded_message = dmr_data_get_gps_string(gpspos);
+					else
+						decoded_message = "can't decode button hytera gps data";
+					gps_data_found = 1;
+				}
+				if (memcmp(message_data, hytera_gps_compressed, sizeof(hytera_gps_compressed)) == 0) {
+					decoded_message = "can't decode compressed hytera gps data";
+					gps_data_found = 1;
+				}
+
+				if (gps_data_found) {
+					console_log(LOGLEVEL_DMR "  found hytera gps data (%u bytes)\n", message_data_length);
+					smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, decoded_message);
+					// We virtually ack it for ourselves to have it displayed in the log.
+					smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION);
+					return;
 				}
 			}
 
