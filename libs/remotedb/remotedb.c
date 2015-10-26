@@ -528,6 +528,7 @@ static void *remotedb_thread_init(void *arg) {
 		pthread_mutex_unlock(&remotedb_mutex_remotedb_conn);
 	}
 
+	pthread_mutex_destroy(&remotedb_mutex_remotedb_conn);
 	pthread_mutex_destroy(&remotedb_mutex_thread_should_stop);
 	pthread_mutex_destroy(&remotedb_mutex_querybuf);
 	pthread_mutex_destroy(&remotedb_mutex_wakeup);
