@@ -241,7 +241,7 @@ void remotedb_update_stats_callend(repeater_t *repeater, dmr_timeslot_t ts) {
 	remotedb_addquery(query);
 }
 
-static void remotedb_msgqueue_poll(void) {
+static void remotedb_thread_msgqueue_poll(void) {
 	char *tableprefix = NULL;
 	char query[150] = {0,};
 	MYSQL_RES *result = NULL;
@@ -433,7 +433,7 @@ static void remotedb_thread_process(void) {
 	}
 
 	if (config_get_remotedbmsgqueuepollintervalinsec() && time(NULL)-lastremotedbmsgqueuepollat > config_get_remotedbmsgqueuepollintervalinsec()) {
-		remotedb_msgqueue_poll();
+		remotedb_thread_msgqueue_poll();
 		lastremotedbmsgqueuepollat = time(NULL);
 	}
 
