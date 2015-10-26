@@ -301,7 +301,7 @@ static void remotedb_thread_msgqueue_poll(void) {
 
 			send_motorola = send_normal = 0;
 			if (strcmp(row[4], "all") == 0)
-				send_motorola = send_normal = 0;
+				send_motorola = send_normal = 1;
 			else if (strcmp(row[4], "motorola") == 0)
 				send_motorola = 1;
 			else if (strcmp(row[4], "normal") == 0)
