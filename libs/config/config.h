@@ -70,6 +70,10 @@ int config_get_smssendmaxretrycount(void);
 int config_get_mindatapacketsendretryintervalinsec(void);
 int config_get_datapacketsendmaxretrycount(void);
 int config_get_smsretransmittimeoutinsec(void);
+char *config_get_aprsserverhost(void);
+int config_get_aprsserverport(void);
+char *config_get_aprsservercallsign(void);
+int config_get_aprsserverpasscode(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

@@ -110,6 +110,12 @@ void log_loglevel(loglevel_t *loglevel) {
 		console_log("on\n");
 	else
 		console_log("off\n");
+
+	console_log("  aprs ");
+	if (loglevel->flags.aprs)
+		console_log("on\n");
+	else
+		console_log("off\n");
 }
 
 void log_cmdmissingparam(void) {

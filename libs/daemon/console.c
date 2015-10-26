@@ -196,6 +196,7 @@ static flag_t console_isallowedtodisplay(char loglevel_char) {
 		case LOGLEVEL_CODING_VAL: return loglevel.flags.coding;
 		case LOGLEVEL_HTTPSERVER_VAL: return loglevel.flags.httpserver;
 		case LOGLEVEL_DATAQ_VAL: return loglevel.flags.dataq;
+		case LOGLEVEL_APRS_VAL: return loglevel.flags.aprs;
 		default: return 1;
 	}
 }
@@ -216,6 +217,7 @@ static flag_t console_isloglevelchar(char loglevel_char) {
 		case LOGLEVEL_CODING_VAL:
 		case LOGLEVEL_HTTPSERVER_VAL:
 		case LOGLEVEL_DATAQ_VAL:
+		case LOGLEVEL_APRS_VAL:
 			return 1;
 		default: return 0;
 	}

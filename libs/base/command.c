@@ -37,6 +37,7 @@
 #include <libs/comm/comm.h>
 #include <libs/voicestreams/voicestreams.h>
 #include <libs/comm/httpserver.h>
+#include <libs/aprs/aprs.h>
 
 #include <string.h>
 #include <errno.h>
@@ -70,6 +71,10 @@ void command_process(char *input_buffer) {
 			dmr_call_type_t calltype;
 			dmr_id_t dstid;
 		} sms;
+		struct {
+			char *callsign;
+			dmr_data_gpspos_t gpspos;
+		} aprspos;
 	} d;
 	char *endptr = NULL;
 	char *tok = strtok(input_buffer, " ");
@@ -107,6 +112,7 @@ void command_process(char *input_buffer) {
 		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
 		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
 		console_log("  sms [calltype (p/g)] [dstid] [msg]                             - send sms\n");
+		console_log("  aprspos [callsign] [lat] [latch] [lon] [lonch] [speed] [head]  - send GPS position to APRS-IS\n");
 		return;
 	}
 
@@ -152,6 +158,8 @@ void command_process(char *input_buffer) {
 				loglevel.flags.httpserver = !loglevel.flags.httpserver;
 			else if (strcmp(tok, "dataq") == 0)
 				loglevel.flags.dataq = !loglevel.flags.dataq;
+			else if (strcmp(tok, "aprs") == 0)
+				loglevel.flags.aprs = !loglevel.flags.aprs;
 
 			config_set_loglevel(&loglevel);
 			console_set_loglevel(&loglevel);
@@ -568,6 +576,81 @@ void command_process(char *input_buffer) {
 
 		smstxbuf_add(0, NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_NORMAL_SMS, tok, 0);
 		smstxbuf_add(0, NULL, 0, d.sms.calltype, d.sms.dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, tok, 0);
+		return;
+	}
+
+	if (strcmp(tok, "aprspos") == 0) {
+		d.aprspos.callsign = strtok(NULL, " ");
+		if (d.aprspos.callsign == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.aprspos.gpspos.latitude = strtod(tok, &endptr);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.aprspos.gpspos.latitude_ch = *tok;
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.aprspos.gpspos.longitude = strtod(tok, &endptr);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		d.aprspos.gpspos.longitude_ch = *tok;
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.aprspos.gpspos.speed = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+		d.aprspos.gpspos.speed_valid = 1;
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.aprspos.gpspos.heading = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+		d.aprspos.gpspos.heading_valid = 1;
+
+		aprs_add_to_gpspos_queue(&d.aprspos.gpspos, d.aprspos.callsign);
 		return;
 	}
 

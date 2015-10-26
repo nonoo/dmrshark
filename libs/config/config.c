@@ -735,6 +735,76 @@ int config_get_smsretransmittimeoutinsec(void) {
 	return value;
 }
 
+char *config_get_aprsserverhost(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "aprsserverhost";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_aprsserverport(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "aprsserverport";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 14580;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+char *config_get_aprsservercallsign(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "aprsservercallsign";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
+int config_get_aprsserverpasscode(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "aprsserverpasscode";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 0;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 	char *tmp_str;
@@ -821,6 +891,12 @@ void config_init(char *configfilename) {
 	config_get_mindatapacketsendretryintervalinsec();
 	config_get_datapacketsendmaxretrycount();
 	config_get_smsretransmittimeoutinsec();
+	tmp_str = config_get_aprsserverhost();
+	free(tmp_str);
+	config_get_aprsserverport();
+	tmp_str = config_get_aprsservercallsign();
+	free(tmp_str);
+	config_get_aprsserverpasscode();
 
 	config_writeconfigfile();
 }
