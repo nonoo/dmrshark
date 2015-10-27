@@ -60,8 +60,11 @@ static aprs_queue_t *aprs_queue_last_entry = NULL;
 void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign) {
 	aprs_queue_t *new_entry;
 
-	if (!aprs_enabled)
+	if (!aprs_enabled || gpspos == NULL || callsign == NULL || repeater_callsign == NULL)
 		return;
+
+	if (ssid > 9)
+		ssid = 9;
 
 	new_entry = (aprs_queue_t *)calloc(1, sizeof(aprs_queue_t));
 	if (new_entry == NULL) {
@@ -240,6 +243,7 @@ static void aprs_thread_process(void) {
 	char timestamp[7];
 	char latitude[8];
 	char longitude[9];
+	char speedcourse[8];
 
 	if (aprs_sockfd < 0 || !aprs_loggedin)
 		return;
@@ -248,12 +252,17 @@ static void aprs_thread_process(void) {
 	while (aprs_queue_first_entry) {
 		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
 
+		strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->added_at));
 		snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(&aprs_queue_first_entry->gpspos));
 		snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(&aprs_queue_first_entry->gpspos));
-		strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->added_at));
-		aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c/%s%c%c%03u/%03udmrshark / ham-dmr.hu\n", aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->callsign, timestamp,
+		if (aprs_queue_first_entry->gpspos.heading_valid || aprs_queue_first_entry->gpspos.speed_valid) {
+			snprintf(speedcourse, sizeof(speedcourse), "%03u/%03u", aprs_queue_first_entry->gpspos.heading_valid ? aprs_queue_first_entry->gpspos.heading : 0,
+				aprs_queue_first_entry->gpspos.speed_valid ? aprs_queue_first_entry->gpspos.speed : 0);
+		} else
+			speedcourse[0] = 0;
+		aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c/%s%c%c%sdmrshark / ham-dmr.hu\n", aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->callsign, timestamp,
 			latitude, aprs_queue_first_entry->gpspos.latitude_ch, longitude, aprs_queue_first_entry->gpspos.longitude_ch,
-			aprs_queue_first_entry->icon_char, aprs_queue_first_entry->gpspos.heading, aprs_queue_first_entry->gpspos.speed);
+			aprs_queue_first_entry->icon_char, speedcourse);
 		next_entry = aprs_queue_first_entry->next;
 		free(aprs_queue_first_entry);
 		aprs_queue_first_entry = next_entry;

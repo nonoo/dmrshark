@@ -4,5 +4,6 @@ Makefile.config.inc
 *.a
 *.dep
 *.log
+*.log.*
 *.cfg
 *.pid
