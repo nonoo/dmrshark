@@ -60,7 +60,7 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign) {
 	if (!aprs_enabled)
 		return;
 
-	new_entry = (aprs_queue_t *)malloc(sizeof(aprs_queue_t));
+	new_entry = (aprs_queue_t *)calloc(1, sizeof(aprs_queue_t));
 	if (new_entry == NULL) {
 		console_log("aprs error: can't allocate memory for new gps position entry in the queue\n");
 		return;
@@ -78,6 +78,11 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign) {
 
 	console_log(LOGLEVEL_APRS "aprs queue: added entry: callsign %s %s\n", callsign, dmr_data_get_gps_string(gpspos));
 	pthread_mutex_unlock(&aprs_mutex_queue);
+
+	// Waking up the thread if it's sleeping.
+	pthread_mutex_lock(&aprs_mutex_wakeup);
+	pthread_cond_signal(&aprs_cond_wakeup);
+	pthread_mutex_unlock(&aprs_mutex_wakeup);
 }
 
 static flag_t aprs_thread_sendmsg(const char *format, ...) {
@@ -157,8 +162,6 @@ static void aprs_thread_connect(void) {
 	}
 
 	flag = 1;
-	setsockopt(aprs_sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
-	flag = 1;
 	setsockopt(aprs_sockfd, IPPROTO_TCP, SO_KEEPALIVE, &flag, sizeof(int));
 
 	console_log(LOGLEVEL_APRS "aprs: logging in\n");
@@ -224,12 +227,10 @@ static void aprs_thread_process(void) {
 	while (aprs_queue_first_entry) {
 		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
 
-		if (aprs_thread_sendmsg("\n")) {
-			next_entry = aprs_queue_first_entry->next;
-			free(aprs_queue_first_entry);
-			aprs_queue_first_entry = next_entry;
-		} else
-			break;
+		aprs_thread_sendmsg("\n");
+		next_entry = aprs_queue_first_entry->next;
+		free(aprs_queue_first_entry);
+		aprs_queue_first_entry = next_entry;
 	}
 	if (aprs_queue_first_entry == NULL)
 		aprs_queue_last_entry = NULL;
