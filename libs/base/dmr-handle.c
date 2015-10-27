@@ -38,6 +38,7 @@
 #include <libs/coding/trellis.h>
 #include <libs/base/base.h>
 #include <libs/comm/comm.h>
+#include <libs/aprs/aprs.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -423,7 +424,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 					dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
 					return;
 				case DMRPACKET_DATA_HEADER_RESPONSETYPE_SELECTIVE_ACK:
-					if (data_packet_header->common.src_llid == DMRSHARK_DEFAULT_DMR_ID) {
+					if (data_packet_header->common.src_llid == DMRSHARK_DEFAULT_DMR_ID || (data_packet_header->common.src_llid >= 5050 && data_packet_header->common.src_llid <= 5059)) {
 						console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "  selective ack is sent by us, ignoring\n");
 						dmr_handle_data_call_start(ip_packet, repeater, ipscpacket);
 						return;
@@ -635,7 +636,8 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 	static uint8_t hytera_gps_button[] = { 0x08, 0xA0, 0x02, 0x00 };
 	static uint8_t hytera_gps_compressed[] = { 0x01, 0xD0, 0x03, 0x00 };
 	flag_t gps_data_found;
-	dmr_data_gpspos_t *gpspos;
+	dmr_data_gpspos_t *gpspos = NULL;
+	userdb_t *userdb_entry;
 	struct ip *ip_packet;
 	struct udphdr *udp_packet;
 	uint8_t *message_data = NULL;
@@ -799,7 +801,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 			message_data = data_fragment->bytes+2; // Hytera has a 2 byte pre-padding.
 			message_data_length = data_fragment->bytes_stored-2-4; // -4 - leaving out the fragment CRC.
 
-			if (message_data_length >= 4) { // -4 - leaving out the fragment CRC.
+			if (message_data_length >= 4 && dstid >= 5050 && dstid <= 5059) {
 				gps_data_found = 0;
 				decoded_message = "can't decode data";
 				if (memcmp(message_data, hytera_gps_triggered, sizeof(hytera_gps_triggered)) == 0) {
@@ -825,9 +827,19 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 
 				if (gps_data_found) {
 					console_log(LOGLEVEL_DMR "  found hytera gps data (%u bytes)\n", message_data_length);
-					smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, decoded_message);
-					// We virtually ack it for ourselves to have it displayed in the log.
-					smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION);
+					if (gpspos != NULL) {
+						userdb_entry = userdb_get_entry_for_id(srcid);
+						if (userdb_entry) {
+							aprs_add_to_gpspos_queue(gpspos, userdb_entry->callsign, dstid-5050, repeater->callsign);
+
+							smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, decoded_message);
+							// We virtually ack it for ourselves to have it displayed in the log.
+							smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION);
+
+							if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
+								dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+						}
+					}
 					return;
 				}
 			}
@@ -884,7 +896,7 @@ static void dmr_handle_data_fragment_assembly(ipscpacket_t *ipscpacket, repeater
 		}
 	}
 	if (erroneous_block_found) {
-		if (ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID) {
+		if (ipscpacket->dst_id == DMRSHARK_DEFAULT_DMR_ID || (ipscpacket->dst_id >= 5050 && ipscpacket->dst_id <= 5059)) {
 			if (repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.data_packet_format == DMRPACKET_DATA_HEADER_DPF_RESPONSE) {
 				console_log(LOGLEVEL_DMR "  found erroneous blocks, but won't send selective ack for a response\n");
 				dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);

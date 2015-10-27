@@ -27,7 +27,7 @@ typedef struct  {
 	char latitude_ch;
 	double longitude;
 	char longitude_ch;
-	uint16_t speed;
+	uint16_t speed; // In knots/h
 	uint16_t heading;
 	flag_t speed_valid		: 1;
 	flag_t heading_valid	: 1;
@@ -44,6 +44,9 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 
 dmr_data_gpspos_t *dmr_data_decode_hytera_gps_triggered(uint8_t *message_data, uint16_t message_data_length);
 dmr_data_gpspos_t *dmr_data_decode_hytera_gps_button(uint8_t *message_data, uint16_t message_data_length);
+
+char *dmr_data_get_gps_string_latitude(dmr_data_gpspos_t *gpspos);
+char *dmr_data_get_gps_string_longitude(dmr_data_gpspos_t *gpspos);
 char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos);
 
 #endif

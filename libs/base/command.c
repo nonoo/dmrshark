@@ -73,6 +73,8 @@ void command_process(char *input_buffer) {
 		} sms;
 		struct {
 			char *callsign;
+			uint8_t ssid;
+			char *repeater_callsign;
 			dmr_data_gpspos_t gpspos;
 		} aprspos;
 	} d;
@@ -83,36 +85,36 @@ void command_process(char *input_buffer) {
 		return;
 
 	if (strcmp(tok, "help") == 0 || strcmp(tok, "h") == 0) {
-		console_log("  ver                                                            - version\n");
-		console_log("  log (loglevel)                                                 - get/set loglevel\n");
-		console_log("  exit                                                           - exits the application\n");
-		console_log("  repstat [host]                                                 - reads repeater status from host using snmp\n");
-		console_log("  repinfo [host]                                                 - reads repeater info from host using snmp\n");
-		console_log("  replist                                                        - list repeaters\n");
-		console_log("  userlist                                                       - list users got from remote db\n");
-		console_log("  csblist                                                        - print callsign book from remote db\n");
-		console_log("  streamlist                                                     - list voice streams\n");
-		console_log("  remotedbmaintain                                               - start db maintenance\n");
-		console_log("  remotedbreplistmaintain                                        - start repeater list db maintenance\n");
-		console_log("  loadpcap [pcapfile]                                            - reads and processes packets from pcap file\n");
-		console_log("  httplist                                                       - list http clients\n");
-		console_log("  streamenable [name]                                            - enable stream\n");
-		console_log("  streamdisable [name]                                           - disable stream\n");
-		console_log("  streamrecstart [name]                                          - enable saving raw AMBE data to file\n");
-		console_log("  streamrecstop [name]                                           - disable saving raw AMBE data to file\n");
-		console_log("  streamdecrecstart [name]                                       - enable saving raw decoded data to file\n");
-		console_log("  streamdecrecstop [name]                                        - disable saving raw decoded data to file\n");
-		console_log("  streammp3recstart [name]                                       - enable saving mp3 data to file\n");
-		console_log("  streammp3recstop [name]                                        - disable saving mp3 data to file\n");
-		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid] - play raw AMBE file to given repeater host\n");
-		console_log("  smstxlist                                                      - print the contents of the sms tx buffer\n");
-		console_log("  smsrtlist                                                      - print the contents of the sms retransmit buffer\n");
-		console_log("  smsacklist                                                     - print the contents of the sms ack buffer\n");
-		console_log("  dptlist                                                        - print the contents of the data packet tx buffer\n");
-		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send sms to given repeater host\n");
-		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]  - send motorola format sms to given repeater host\n");
-		console_log("  sms [calltype (p/g)] [dstid] [msg]                             - send sms\n");
-		console_log("  aprspos [callsign] [lat] [latch] [lon] [lonch] [speed] [head]  - send GPS position to APRS-IS\n");
+		console_log("  ver                                                              - version\n");
+		console_log("  log (loglevel)                                                   - get/set loglevel\n");
+		console_log("  exit                                                             - exits the application\n");
+		console_log("  repstat [host]                                                   - reads repeater status from host using snmp\n");
+		console_log("  repinfo [host]                                                   - reads repeater info from host using snmp\n");
+		console_log("  replist                                                          - list repeaters\n");
+		console_log("  userlist                                                         - list users got from remote db\n");
+		console_log("  csblist                                                          - print callsign book from remote db\n");
+		console_log("  streamlist                                                       - list voice streams\n");
+		console_log("  remotedbmaintain                                                 - start db maintenance\n");
+		console_log("  remotedbreplistmaintain                                          - start repeater list db maintenance\n");
+		console_log("  loadpcap [pcapfile]                                              - reads and processes packets from pcap file\n");
+		console_log("  httplist                                                         - list http clients\n");
+		console_log("  streamenable [name]                                              - enable stream\n");
+		console_log("  streamdisable [name]                                             - disable stream\n");
+		console_log("  streamrecstart [name]                                            - enable saving raw AMBE data to file\n");
+		console_log("  streamrecstop [name]                                             - disable saving raw AMBE data to file\n");
+		console_log("  streamdecrecstart [name]                                         - enable saving raw decoded data to file\n");
+		console_log("  streamdecrecstop [name]                                          - disable saving raw decoded data to file\n");
+		console_log("  streammp3recstart [name]                                         - enable saving mp3 data to file\n");
+		console_log("  streammp3recstop [name]                                          - disable saving mp3 data to file\n");
+		console_log("  play [file] [host/rptr callsign] [ts] [calltype (p/g)] [dstid]   - play raw AMBE file to given repeater host\n");
+		console_log("  smstxlist                                                        - print the contents of the sms tx buffer\n");
+		console_log("  smsrtlist                                                        - print the contents of the sms retransmit buffer\n");
+		console_log("  smsacklist                                                       - print the contents of the sms ack buffer\n");
+		console_log("  dptlist                                                          - print the contents of the data packet tx buffer\n");
+		console_log("  smsr [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]    - send sms to given repeater host\n");
+		console_log("  smsm [host/rptr callsign] [ts] [calltype (p/g)] [dstid] [msg]    - send motorola format sms to given repeater host\n");
+		console_log("  sms [calltype (p/g)] [dstid] [msg]                               - send sms\n");
+		console_log("  aprspos [call] [sid] [rptr call] [lt] [ltc] [ln] [lnc] [spd] [h] - send GPS position to APRS-IS\n");
 		return;
 	}
 
@@ -592,7 +594,25 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		errno = 0;
-		d.aprspos.gpspos.latitude = strtod(tok, &endptr);
+		d.aprspos.gpspos.latitude = strtol(tok, &endptr, 10);
+		if (*endptr != 0 || errno != 0) {
+			log_cmdinvalidparam();
+			return;
+		}
+
+		d.aprspos.repeater_callsign = strtok(NULL, " ");
+		if (d.aprspos.repeater_callsign == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+
+		tok = strtok(NULL, " ");
+		if (tok == NULL) {
+			log_cmdmissingparam();
+			return;
+		}
+		errno = 0;
+		d.aprspos.ssid = strtod(tok, &endptr);
 		if (*endptr != 0 || errno != 0) {
 			log_cmdinvalidparam();
 			return;
@@ -650,7 +670,7 @@ void command_process(char *input_buffer) {
 		}
 		d.aprspos.gpspos.heading_valid = 1;
 
-		aprs_add_to_gpspos_queue(&d.aprspos.gpspos, d.aprspos.callsign);
+		aprs_add_to_gpspos_queue(&d.aprspos.gpspos, d.aprspos.callsign, d.aprspos.ssid, d.aprspos.repeater_callsign);
 		return;
 	}
 

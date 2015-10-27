@@ -77,7 +77,7 @@ char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 		return NULL;
 
 	snprintf(latitude, sizeof(latitude), "%04.0f.%03.0f", floor(gpspos->latitude), (gpspos->latitude-floor(gpspos->latitude))*1000);
-	snprintf(longitude, sizeof(longitude), "%04.0f.%04.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*10000);
+	snprintf(longitude, sizeof(longitude), "%05.0f.%03.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*1000);
 	if (gpspos->speed_valid)
 		snprintf(speed, sizeof(speed), "%3u", gpspos->speed);
 	else
@@ -87,9 +87,9 @@ char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 	else
 		snprintf(heading, sizeof(heading), "???");
 
-	snprintf(result, sizeof(result), "%c%c°%c%c.%c%c%c' %c %c%c°%c%c.%c%c%c%c' %c speed: %skm/h heading: %s",
+	snprintf(result, sizeof(result), "%c%c°%c%c.%c%c%c' %c %c%c%c°%c%c.%c%c%c' %c speed: %skm/h heading: %s",
 		latitude[0], latitude[1], latitude[2], latitude[3], latitude[5], latitude[6], latitude[7], gpspos->latitude_ch,
-		longitude[0], longitude[1], longitude[2], longitude[3], longitude[5], longitude[6], longitude[7], longitude[8], gpspos->longitude_ch,
+		longitude[0], longitude[1], longitude[2], longitude[3], longitude[4], longitude[6], longitude[7], longitude[8], gpspos->longitude_ch,
 		speed, heading);
 
 	return result;

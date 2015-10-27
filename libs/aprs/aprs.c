@@ -44,8 +44,11 @@ static flag_t aprs_loggedin = 0;
 static int aprs_sockfd = -1;
 
 typedef struct aprs_queue_st {
-	char callsign[12];
+	char callsign[10];
+	char repeater_callsign[10];
+	char icon_char;
 	dmr_data_gpspos_t gpspos;
+	time_t added_at;
 
 	struct aprs_queue_st *next;
 } aprs_queue_t;
@@ -54,7 +57,7 @@ static pthread_mutex_t aprs_mutex_queue = PTHREAD_MUTEX_INITIALIZER;
 static aprs_queue_t *aprs_queue_first_entry = NULL;
 static aprs_queue_t *aprs_queue_last_entry = NULL;
 
-void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign) {
+void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign) {
 	aprs_queue_t *new_entry;
 
 	if (!aprs_enabled)
@@ -66,7 +69,22 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign) {
 		return;
 	}
 	memcpy(&new_entry->gpspos, gpspos, sizeof(dmr_data_gpspos_t));
-	strncpy(new_entry->callsign, callsign, sizeof(new_entry->callsign));
+	snprintf(new_entry->callsign, sizeof(new_entry->callsign), "%s-%u", callsign, ssid);
+	strncpy(new_entry->repeater_callsign, repeater_callsign, sizeof(new_entry->repeater_callsign));
+	new_entry->added_at = time(NULL);
+	switch (ssid) {
+		case 0:	new_entry->icon_char = '-'; break;
+		case 1:	new_entry->icon_char = '='; break;
+		case 2:	new_entry->icon_char = 'F'; break;
+		case 3:	new_entry->icon_char = 'k'; break;
+		case 4:	new_entry->icon_char = 'v'; break;
+		case 5:	new_entry->icon_char = '$'; break;
+		case 6:	new_entry->icon_char = ';'; break;
+		default:
+		case 7:	new_entry->icon_char = '['; break;
+		case 8:	new_entry->icon_char = '<'; break;
+		case 9:	new_entry->icon_char = '>'; break;
+	}
 
 	pthread_mutex_lock(&aprs_mutex_queue);
 	if (aprs_queue_first_entry == NULL)
@@ -75,9 +93,9 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign) {
 		aprs_queue_last_entry->next = new_entry;
 		aprs_queue_last_entry = new_entry;
 	}
+	pthread_mutex_unlock(&aprs_mutex_queue);
 
 	console_log(LOGLEVEL_APRS "aprs queue: added entry: callsign %s %s\n", callsign, dmr_data_get_gps_string(gpspos));
-	pthread_mutex_unlock(&aprs_mutex_queue);
 
 	// Waking up the thread if it's sleeping.
 	pthread_mutex_lock(&aprs_mutex_wakeup);
@@ -219,6 +237,9 @@ aprs_thread_connect_end:
 
 static void aprs_thread_process(void) {
 	aprs_queue_t *next_entry;
+	char timestamp[7];
+	char latitude[8];
+	char longitude[9];
 
 	if (aprs_sockfd < 0 || !aprs_loggedin)
 		return;
@@ -227,7 +248,12 @@ static void aprs_thread_process(void) {
 	while (aprs_queue_first_entry) {
 		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
 
-		aprs_thread_sendmsg("\n");
+		snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(&aprs_queue_first_entry->gpspos));
+		snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(&aprs_queue_first_entry->gpspos));
+		strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->added_at));
+		aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c/%s%c%c%03u/%03udmrshark / ham-dmr.hu\n", aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->callsign, timestamp,
+			latitude, aprs_queue_first_entry->gpspos.latitude_ch, longitude, aprs_queue_first_entry->gpspos.longitude_ch,
+			aprs_queue_first_entry->icon_char, aprs_queue_first_entry->gpspos.heading, aprs_queue_first_entry->gpspos.speed);
 		next_entry = aprs_queue_first_entry->next;
 		free(aprs_queue_first_entry);
 		aprs_queue_first_entry = next_entry;
@@ -270,8 +296,8 @@ static void *aprs_thread_init(void *arg) {
 			pthread_mutex_lock(&aprs_mutex_wakeup);
 			pthread_cond_timedwait(&aprs_cond_wakeup, &aprs_mutex_wakeup, &ts);
 			pthread_mutex_unlock(&aprs_mutex_wakeup);
-		}
-		pthread_mutex_unlock(&aprs_mutex_queue);
+		} else
+			pthread_mutex_unlock(&aprs_mutex_queue);
 	}
 
 	pthread_mutex_lock(&aprs_mutex_queue);

@@ -38,7 +38,7 @@ void dmr_data_send_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t srcid, dmr
 	if (repeater == NULL)
 		return;
 
-	console_log(LOGLEVEL_DMRDATA "dmr data: sending ack to %u on repeater %s ts%u, status %u\n", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1, repeater->slot[ts].rx_seqnum);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending ack to %u from %u on repeater %s ts%u, status %u\n", dstid, srcid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1, repeater->slot[ts].rx_seqnum);
 
 	memset(&data_header, 0, sizeof(dmrpacket_data_header_t));
 	data_header.common.dst_is_a_group = 0;
@@ -342,20 +342,42 @@ dmr_data_gpspos_t *dmr_data_decode_hytera_gps_button(uint8_t *message_data, uint
 	return &result;
 }
 
+// Returns zero padded latitude string.
+char *dmr_data_get_gps_string_latitude(dmr_data_gpspos_t *gpspos) {
+	static char latitude[9];
+
+	if (gpspos == NULL)
+		return "0000.000";
+
+	snprintf(latitude, sizeof(latitude), "%04.0f.%03.0f", floor(gpspos->latitude), (gpspos->latitude-floor(gpspos->latitude))*1000);
+	return latitude;
+}
+
+// Returns zero padded longitude tring.
+char *dmr_data_get_gps_string_longitude(dmr_data_gpspos_t *gpspos) {
+	static char longitude[10];
+
+	if (gpspos == NULL)
+		return "0000.0000";
+
+	snprintf(longitude, sizeof(longitude), "%05.0f.%03.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*1000);
+	return longitude;
+}
+
 char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 	static char result[100];
-	char latitude[9];
-	char longitude[10];
+	char *latitude;
+	char *longitude;
 	char speed[4];
 	char heading[4];
 
 	if (gpspos == NULL)
 		return NULL;
 
-	snprintf(latitude, sizeof(latitude), "%04.0f.%03.0f", floor(gpspos->latitude), (gpspos->latitude-floor(gpspos->latitude))*1000);
-	snprintf(longitude, sizeof(longitude), "%04.0f.%04.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*10000);
+	latitude = dmr_data_get_gps_string_latitude(gpspos);
+	longitude = dmr_data_get_gps_string_longitude(gpspos);
 	if (gpspos->speed_valid)
-		snprintf(speed, sizeof(speed), "%3u", gpspos->speed);
+		snprintf(speed, sizeof(speed), "%3u", (uint16_t)(gpspos->speed*1.852));
 	else
 		snprintf(speed, sizeof(speed), "???");
 	if (gpspos->heading_valid)
@@ -363,9 +385,9 @@ char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 	else
 		snprintf(heading, sizeof(heading), "???");
 
-	snprintf(result, sizeof(result), "%c%c°%c%c.%c%c%c' %c %c%c°%c%c.%c%c%c%c' %c speed: %skm/h heading: %s",
+	snprintf(result, sizeof(result), "%c%c°%c%c.%c%c%c' %c %c%c%c°%c%c.%c%c%c' %c speed: %skm/h heading: %s",
 		latitude[0], latitude[1], latitude[2], latitude[3], latitude[5], latitude[6], latitude[7], gpspos->latitude_ch,
-		longitude[0], longitude[1], longitude[2], longitude[3], longitude[5], longitude[6], longitude[7], longitude[8], gpspos->longitude_ch,
+		longitude[0], longitude[1], longitude[2], longitude[3], longitude[4], longitude[6], longitude[7], longitude[8], gpspos->longitude_ch,
 		speed, heading);
 
 	return result;

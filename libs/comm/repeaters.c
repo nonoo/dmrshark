@@ -655,7 +655,8 @@ flag_t repeaters_is_there_a_call_not_for_us_or_by_us(repeater_t *repeater, dmr_t
 		return 0;
 
 	if (repeater->slot[ts].state != REPEATER_SLOT_STATE_IDLE && repeater->slot[ts].dst_id != DMRSHARK_DEFAULT_DMR_ID &&
-		repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID)
+		repeater->slot[ts].src_id != DMRSHARK_DEFAULT_DMR_ID && repeater->slot[ts].dst_id < 5050 && repeater->slot[ts].dst_id > 5059 &&
+		repeater->slot[ts].src_id < 5050 && repeater->slot[ts].src_id > 5059)
 			return 1;
 	return 0;
 }
