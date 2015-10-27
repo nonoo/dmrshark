@@ -352,9 +352,8 @@ char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 	if (gpspos == NULL)
 		return NULL;
 
-	// TODO: ha a string itt rovidebb, mint 7/8 char, akkor segfaultol a lenti snprintf
-	snprintf(latitude, sizeof(latitude), "%4.3f", gpspos->latitude);
-	snprintf(longitude, sizeof(longitude), "%4.4f", gpspos->longitude);
+	snprintf(latitude, sizeof(latitude), "%04.0f.%03.0f", floor(gpspos->latitude), (gpspos->latitude-floor(gpspos->latitude))*1000);
+	snprintf(longitude, sizeof(longitude), "%04.0f.%04.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*10000);
 	if (gpspos->speed_valid)
 		snprintf(speed, sizeof(speed), "%3u", gpspos->speed);
 	else
