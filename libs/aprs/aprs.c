@@ -104,8 +104,9 @@ static flag_t aprs_thread_sendmsg(const char *format, ...) {
 }
 
 static void aprs_thread_connect(void) {
-	struct hostent *server;
-	struct sockaddr_in serveraddr;
+	struct addrinfo hints, *servinfo, *p;
+	int res;
+	char port_s[6];
 	char *host = config_get_aprsserverhost();
 	uint16_t port = config_get_aprsserverport();
 	char *callsign = config_get_aprsservercallsign();
@@ -127,44 +128,38 @@ static void aprs_thread_connect(void) {
 
 	console_log(LOGLEVEL_APRS "aprs: trying to connect to aprs-is server %s:%u...\n", host, port);
 
-	aprs_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (aprs_sockfd < 0) {
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	snprintf(port_s, sizeof(port_s), "%u", port);
+	if ((res = getaddrinfo(host, port_s, &hints, &servinfo)) != 0) {
+		console_log("aprs error: failed to resolve hostname (%s)\n", gai_strerror(res));
+		goto aprs_thread_connect_end;
+	}
+
+	for (p = servinfo; p != NULL; p = p->ai_next) {
+		aprs_sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol);
+		if (aprs_sockfd < 0)
+			continue;
+
+		if (connect(aprs_sockfd, p->ai_addr, p->ai_addrlen) < 0) {
+			close(aprs_sockfd);
+			aprs_sockfd = -1;
+			continue;
+		}
+		break;
+	}
+	freeaddrinfo(servinfo);
+	if (p == NULL) {
 		console_log("aprs error: failed to init socket\n");
-		free(host);
-		free(callsign);
-		return;
+		goto aprs_thread_connect_end;
 	}
 
 	flag = 1;
 	setsockopt(aprs_sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 	flag = 1;
-	setsockopt(aprs_sockfd, IPPROTO_TCP, SO_REUSEADDR, &flag, sizeof(int));
-	flag = 1;
 	setsockopt(aprs_sockfd, IPPROTO_TCP, SO_KEEPALIVE, &flag, sizeof(int));
-
-	server = gethostbyname(host);
-	if (server == NULL) {
-		console_log("aprs error: failed to resolve hostname %s\n", host);
-		close(aprs_sockfd);
-		aprs_sockfd = -1;
-		free(host);
-		free(callsign);
-		return;
-	}
-
-	memset(&serveraddr, 0, sizeof(serveraddr));
-	serveraddr.sin_family = AF_INET;
-	memcpy(&serveraddr.sin_addr.s_addr, server->h_addr, server->h_length);
-	serveraddr.sin_port = htons(port);
-
-	if (connect(aprs_sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0) {
-		console_log(LOGLEVEL_APRS "aprs error: failed to connect\n");
-		close(aprs_sockfd);
-		aprs_sockfd = -1;
-		free(host);
-		free(callsign);
-		return;
-	}
 
 	console_log(LOGLEVEL_APRS "aprs: logging in\n");
 	if (aprs_thread_sendmsg("user %s pass %u\n", callsign, passcode)) {
@@ -214,6 +209,7 @@ static void aprs_thread_connect(void) {
 		}
 	}
 
+aprs_thread_connect_end:
 	free(host);
 	free(callsign);
 }
