@@ -15,6 +15,8 @@ It can be used for:
 - Updating a remote database table with currently active repeaters and their info (ul/dl freqs, type, fw version etc.).
 - Receiving and sending DMR SMS messages (both in standard DMR and Motorola TMS format) from/to SQL database tables.
 - SMS command interface (see the explanation below).
+- Decoding Hytera GPS position (including speed and course) messages with error correction and acking.
+- Uploading received GPS position information to APRS.
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's traffic passing by.
@@ -111,6 +113,10 @@ The file has the following configuration variables:
 - **mindatapacketsendretryintervalinsec**: Retry sending data (including SMS) packets in this interval. SMSes are added to the SMS TX buffer for the first time, then the buffer adds them to the data packet TX buffer for transmitting.
 - **datapacketsendmaxretrycount**: Retry sending data packets (including SMS) this many times.
 - **smsretransmittimeoutinsec**: Retransmit Motorola TMS as normal SMS and vica versa after this many seconds of the last successful receive. Set to 0 to disable retransmitting.
+- **aprsserverhost**: APRS server host. Set it to empty to disable APRS GPS position upload.
+- **aprsserverport**: APRS server port.
+- **aprsservercallsign**: dmrshark sysop callsign.
+- **aprsserverpasscode**: APRS passcode for the dmrshark sysop callsign.
 
 The needed remote database table structures can be found [here](https://github.com/nonoo/dmrshark-wordpress-plugin/blob/master/example.sql) and [here](https://github.com/nonoo/ha5kdr-dmr-db/blob/master/example.sql).
 
