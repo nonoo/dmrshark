@@ -360,6 +360,24 @@ char *config_get_ignoredhosts(void) {
 	return value;
 }
 
+char *config_get_allowedtalkgroups(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "allowedtalkgroups";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "9,9990,7777,4770";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 char *config_get_ignoredtalkgroups(void) {
 	GError *error = NULL;
 	char *value = NULL;
@@ -367,7 +385,7 @@ char *config_get_ignoredtalkgroups(void) {
 	char *defaultvalue = NULL;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = "1,2,20";
+	defaultvalue = "*";
 	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
@@ -863,6 +881,8 @@ void config_init(char *configfilename) {
 	tmp_str = config_get_ignoredsnmprepeaterhosts();
 	free(tmp_str);
 	tmp_str = config_get_ignoredhosts();
+	free(tmp_str);
+	tmp_str = config_get_allowedtalkgroups();
 	free(tmp_str);
 	tmp_str = config_get_ignoredtalkgroups();
 	free(tmp_str);

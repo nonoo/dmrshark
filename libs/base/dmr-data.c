@@ -71,7 +71,7 @@ void dmr_data_send_selective_ack(repeater_t *repeater, dmr_id_t dstid, dmr_id_t 
 	if (repeater == NULL || selective_blocks == NULL || selective_blocks_size == 0)
 		return;
 
-	console_log(LOGLEVEL_DMRDATA "dmr data: sending selective ack to %u on repeater %s ts%u, blocks: ", dstid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
+	console_log(LOGLEVEL_DMRDATA "dmr data: sending selective ack to %u from %u on repeater %s ts%u, blocks: ", dstid, srcid, repeaters_get_display_string_for_ip(&repeater->ipaddr), ts+1);
 
 	payload_size = ceil(selective_blocks_size/8.0);
 	dmrpacket_data_get_needed_blocks_count(payload_size, DMRPACKET_DATA_TYPE_RATE_12_DATA, 0, &data_blocks_needed);

@@ -58,21 +58,46 @@ static flag_t ipsc_isignoredip(struct in_addr *ipaddr) {
 }
 
 static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
+	char *allowedtgs = config_get_allowedtalkgroups();
 	char *ignoredtgs = config_get_ignoredtalkgroups();
 	char *tok = NULL;
-	int ignoredtg;
+	int tg;
 	char *endptr;
 
 	if (ignoredtgs == NULL)
 		return 0;
 
+	tok = strtok(allowedtgs, ",");
+	if (tok) {
+		do {
+			if (*tok == '*')
+				return 0;
+
+			errno = 0;
+			tg = strtol(tok, &endptr, 10);
+			if (*endptr == 0 && errno == 0) {
+				if (tg == id) {
+					free(allowedtgs);
+					return 0;
+				}
+			} else
+				console_log(LOGLEVEL_DEBUG "ipsc: invalid allowed talk group %s\n", tok);
+
+			tok = strtok(NULL, ",");
+		} while (tok != NULL);
+	}
+	free(allowedtgs);
+
 	tok = strtok(ignoredtgs, ",");
 	if (tok) {
 		do {
+			if (*tok == '*')
+				return 1;
+
 			errno = 0;
-			ignoredtg = strtol(tok, &endptr, 10);
+			tg = strtol(tok, &endptr, 10);
 			if (*endptr == 0 && errno == 0) {
-				if (ignoredtg == id) {
+				if (tg == id) {
 					free(ignoredtgs);
 					return 1;
 				}

@@ -830,14 +830,14 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 					if (gpspos != NULL) {
 						userdb_entry = userdb_get_entry_for_id(srcid);
 						if (userdb_entry) {
+							if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
+								dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
+
 							aprs_add_to_gpspos_queue(gpspos, userdb_entry->callsign, dstid-5050, repeater->callsign);
 
 							smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, decoded_message);
 							// We virtually ack it for ourselves to have it displayed in the log.
 							smsackbuf_ack_received(srcid, dstid, calltype, DMR_DATA_TYPE_GPS_POSITION);
-
-							if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
-								dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 						}
 					}
 					return;
