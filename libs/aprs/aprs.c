@@ -202,7 +202,7 @@ static void aprs_thread_connect(void) {
 	setsockopt(aprs_sockfd, IPPROTO_TCP, SO_KEEPALIVE, &flag, sizeof(int));
 
 	console_log(LOGLEVEL_APRS "aprs: logging in\n");
-	if (aprs_thread_sendmsg("user %s pass %u\n", callsign, passcode)) {
+	if (aprs_thread_sendmsg("user %s pass %u vers %s %u.%u.%u\n", callsign, passcode, APPNAME, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH)) {
 		snprintf(expected_login_reply, sizeof(expected_login_reply), "# logresp %s verified", callsign);
 		connectstartedat = time(NULL);
 		while (1) {
