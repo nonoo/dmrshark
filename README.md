@@ -17,6 +17,7 @@ It can be used for:
 - SMS command interface (see the explanation below).
 - Decoding Hytera GPS position (including speed and course) messages with error correction and acking.
 - Uploading received GPS position information to APRS.
+- Uploading predefined APRS objects (for repeaters or other fixed locations).
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's traffic passing by.
@@ -170,6 +171,45 @@ Voice stream configure variables:
 - **playrawfileatcallend**: Plays this raw wave file at the end of a call. Sample format is 8kHz IEEE 32bit float.
 - **rawfileatcallendgain**: This gain (0.0-1.0) will be applied for the file to play at call end.
 - **rmsminsamplevalue**: Minimum float value of the decoded voice stream to calculate RMS for. This is used for ignoring silence during RMS calculation.
+
+## APRS objects
+
+You can define APRS objects to send to APRS-IS and so place them on the APRS map. They have to be .ini format groups defined in the config file. The group name contains the callsign. Example:
+
+```
+[aprsobj-hg5ruc]
+enabled=1
+latitude=4730.06
+latitude-ch=N
+longitude=01858.39
+longitude-ch=E
+description=Hytera RD985 438.5MHz / dmrshark / ham-dmr.hu
+table-ch=/
+symbol-ch=r
+
+[aprsobj-ha5kdr]
+enabled=1
+latitude=4730.08
+latitude-ch=N
+longitude=01858.38
+longitude-ch=E
+description=Budapest Fovarosi Radioamator Klub QTH - ha5kdr.hu
+table-ch=/
+symbol-ch=-
+...
+```
+
+You can define as many APRS objects as you want.
+APRS object configure variables:
+
+- **enabled**: 1 if entry is enabled, 0 if disabled.
+- **latitude**: Latitude in degrees.
+- **latitude-ch**: Latitude North or South.
+- **longitude**: Longitude in degrees.
+- **longitude-ch**: Longitude East or West.
+- **description**: Object description.
+- **table-ch**: APRS symbol table selector. See [this](http://wa8lmf.net/aprs/APRS_symbols.htm) page ([this](http://wa8lmf.net/miscinfo/APRS_Symbol_Chart_Rev-H.pdf) PDF).
+- **symbol-ch**: APRS symbol character.
 
 ## Running
 

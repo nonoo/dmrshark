@@ -343,25 +343,19 @@ dmr_data_gpspos_t *dmr_data_decode_hytera_gps_button(uint8_t *message_data, uint
 }
 
 // Returns zero padded latitude string.
-char *dmr_data_get_gps_string_latitude(dmr_data_gpspos_t *gpspos) {
-	static char latitude[9];
+char *dmr_data_get_gps_string_latitude(double latitude) {
+	static char res[9];
 
-	if (gpspos == NULL)
-		return "0000.000";
-
-	snprintf(latitude, sizeof(latitude), "%04.0f.%03.0f", floor(gpspos->latitude), (gpspos->latitude-floor(gpspos->latitude))*1000);
-	return latitude;
+	snprintf(res, sizeof(res), "%04.0f.%03.0f", floor(latitude), (latitude-floor(latitude))*1000);
+	return res;
 }
 
 // Returns zero padded longitude tring.
-char *dmr_data_get_gps_string_longitude(dmr_data_gpspos_t *gpspos) {
-	static char longitude[10];
+char *dmr_data_get_gps_string_longitude(double longitude) {
+	static char res[10];
 
-	if (gpspos == NULL)
-		return "0000.0000";
-
-	snprintf(longitude, sizeof(longitude), "%05.0f.%03.0f", floor(gpspos->longitude), (gpspos->longitude-floor(gpspos->longitude))*1000);
-	return longitude;
+	snprintf(res, sizeof(res), "%05.0f.%03.0f", floor(longitude), (longitude-floor(longitude))*1000);
+	return res;
 }
 
 char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
@@ -374,8 +368,8 @@ char *dmr_data_get_gps_string(dmr_data_gpspos_t *gpspos) {
 	if (gpspos == NULL)
 		return NULL;
 
-	latitude = dmr_data_get_gps_string_latitude(gpspos);
-	longitude = dmr_data_get_gps_string_longitude(gpspos);
+	latitude = dmr_data_get_gps_string_latitude(gpspos->latitude);
+	longitude = dmr_data_get_gps_string_longitude(gpspos->longitude);
 	if (gpspos->speed_valid)
 		snprintf(speed, sizeof(speed), "%3u", (uint16_t)(gpspos->speed*1.852));
 	else

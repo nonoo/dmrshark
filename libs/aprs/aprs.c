@@ -20,6 +20,7 @@
 #include "aprs.h"
 
 #include <libs/config/config.h>
+#include <libs/config/config-aprsobjs.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +43,21 @@ static pthread_cond_t aprs_cond_wakeup;
 static flag_t aprs_enabled = 0;
 static flag_t aprs_loggedin = 0;
 static int aprs_sockfd = -1;
+
+typedef struct aprs_obj_st {
+	char *callsign;
+	double latitude;
+	char latitude_ch;
+	double longitude;
+	char longitude_ch;
+	char *description;
+	char table_ch;
+	char symbol_ch;
+
+	struct aprs_obj_st *next;
+} aprs_obj_t;
+
+static aprs_obj_t *aprs_objs_first_entry = NULL;
 
 typedef struct aprs_queue_st {
 	char callsign[10];
@@ -108,7 +124,7 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t
 
 static flag_t aprs_thread_sendmsg(const char *format, ...) {
 	va_list argptr;
-	char buf[512];
+	char buf[1024];
 	flag_t result = 1;
 
     va_start(argptr, format);
@@ -239,11 +255,15 @@ aprs_thread_connect_end:
 }
 
 static void aprs_thread_process(void) {
+	static time_t last_obj_send_at = 0;
+	aprs_obj_t *obj;
 	aprs_queue_t *next_entry;
 	char timestamp[7];
 	char latitude[8];
 	char longitude[9];
 	char speedcourse[8];
+	time_t now;
+	char *aprs_callsign;
 
 	if (aprs_sockfd < 0 || !aprs_loggedin)
 		return;
@@ -253,8 +273,8 @@ static void aprs_thread_process(void) {
 		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
 
 		strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->added_at));
-		snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(&aprs_queue_first_entry->gpspos));
-		snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(&aprs_queue_first_entry->gpspos));
+		snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(aprs_queue_first_entry->gpspos.latitude));
+		snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(aprs_queue_first_entry->gpspos.longitude));
 		if (aprs_queue_first_entry->gpspos.heading_valid || aprs_queue_first_entry->gpspos.speed_valid) {
 			snprintf(speedcourse, sizeof(speedcourse), "%03u/%03u", aprs_queue_first_entry->gpspos.heading_valid ? aprs_queue_first_entry->gpspos.heading : 0,
 				aprs_queue_first_entry->gpspos.speed_valid ? aprs_queue_first_entry->gpspos.speed : 0);
@@ -270,6 +290,23 @@ static void aprs_thread_process(void) {
 	if (aprs_queue_first_entry == NULL)
 		aprs_queue_last_entry = NULL;
 	pthread_mutex_unlock(&aprs_mutex_queue);
+
+	if (time(NULL)-last_obj_send_at > 1800) {
+		obj = aprs_objs_first_entry;
+		now = time(NULL);
+		aprs_callsign = config_get_aprsservercallsign();
+		while (obj) {
+			strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&now));
+			snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(obj->latitude));
+			snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(obj->longitude));
+			aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c%c%s%c%c%s\n", aprs_callsign, obj->callsign, timestamp,
+				latitude, obj->latitude_ch, obj->table_ch, longitude, obj->longitude_ch, obj->symbol_ch, obj->description);
+
+			obj = obj->next;
+		}
+		free(aprs_callsign);
+		last_obj_send_at = time(NULL);
+	}
 }
 
 static void *aprs_thread_init(void *arg) {
@@ -327,14 +364,50 @@ static void *aprs_thread_init(void *arg) {
 }
 
 void aprs_init(void) {
+	char **objnames = config_aprsobjs_get_objnames();
+	char **objnames_i = objnames;
 	pthread_attr_t attr;
 	char *host = NULL;
+	aprs_obj_t *newobj;
+	uint8_t i;
+	uint8_t length;
 
 	console_log("aprs: init\n");
 
 	host = config_get_aprsserverhost();
 	if (strlen(host) != 0) {
 		aprs_enabled = 1;
+
+		while (*objnames_i != NULL) {
+			if (config_aprsobjs_get_enabled(*objnames_i)) {
+				console_log("  initializing %s...\n", *objnames_i);
+
+				newobj = (aprs_obj_t *)calloc(1, sizeof(aprs_obj_t));
+
+				newobj->callsign = strdup(*(objnames_i)+8); // +8 - cutting out string "aprsobj-"
+				length = strlen(newobj->callsign);
+				for (i = 0; i < length; i++)
+					newobj->callsign[i] = toupper(newobj->callsign[i]);
+				newobj->latitude = config_aprsobjs_get_latitude(*objnames_i);
+				newobj->latitude_ch = config_aprsobjs_get_latitude_ch(*objnames_i);
+				newobj->longitude = config_aprsobjs_get_longitude(*objnames_i);
+				newobj->longitude_ch = config_aprsobjs_get_longitude_ch(*objnames_i);
+				newobj->description = config_aprsobjs_get_description(*objnames_i);
+				newobj->table_ch = config_aprsobjs_get_table_ch(*objnames_i);
+				newobj->symbol_ch = config_aprsobjs_get_symbol_ch(*objnames_i);
+
+				if (aprs_objs_first_entry == NULL)
+					aprs_objs_first_entry = newobj;
+				else {
+					newobj->next = aprs_objs_first_entry;
+					aprs_objs_first_entry = newobj;
+				}
+			}
+
+			objnames_i++;
+		}
+		config_aprsobjs_free_objnames(objnames);
+
 		console_log("aprs: starting thread for aprs\n");
 
 		// Explicitly creating the thread as joinable to be compatible with other systems.
@@ -348,6 +421,7 @@ void aprs_init(void) {
 
 void aprs_deinit(void) {
 	void *status = NULL;
+	aprs_obj_t *next_obj;
 
 	console_log("aprs: deinit\n");
 	aprs_enabled = 0;
@@ -362,4 +436,12 @@ void aprs_deinit(void) {
 	pthread_mutex_unlock(&aprs_mutex_thread_should_stop);
 	console_log("aprs: waiting for aprs thread to exit\n");
 	pthread_join(aprs_thread, &status);
+
+	while (aprs_objs_first_entry) {
+		next_obj = aprs_objs_first_entry->next;
+		free(aprs_objs_first_entry->callsign);
+		free(aprs_objs_first_entry->description);
+		free(aprs_objs_first_entry);
+		aprs_objs_first_entry = next_obj;
+	}
 }

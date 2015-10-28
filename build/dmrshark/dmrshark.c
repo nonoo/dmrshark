@@ -23,6 +23,7 @@
 #include <libs/daemon/daemon.h>
 #include <libs/config/config.h>
 #include <libs/config/config-voicestreams.h>
+#include <libs/config/config-aprsobjs.h>
 #include <libs/comm/comm.h>
 #include <libs/remotedb/remotedb.h>
 #include <libs/coding/coding.h>
@@ -101,6 +102,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (!daemon_is_consoleclient()) {
 		config_voicestreams_init();
+		config_aprsobjs_init();
 		base_init();
 		remotedb_init();
 		aprs_init();
