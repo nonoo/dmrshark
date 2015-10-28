@@ -367,7 +367,7 @@ char *config_get_allowedtalkgroups(void) {
 	char *defaultvalue = NULL;
 
 	pthread_mutex_lock(&config_mutex);
-	defaultvalue = "9,9990,7777,4770";
+	defaultvalue = "9,9990,7777,216,4770";
 	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
 	if (error || value == NULL) {
 		value = strdup(defaultvalue);
