@@ -267,9 +267,12 @@ static void aprs_thread_process(void) {
 	char speedcourse[8];
 	time_t now;
 	char *aprs_callsign;
+	char *aprs_posdescription;
 
 	if (aprs_sockfd < 0 || !aprs_loggedin)
 		return;
+
+	aprs_posdescription = config_get_aprsposdescription();
 
 	pthread_mutex_lock(&aprs_mutex_queue);
 	while (aprs_queue_first_entry) {
@@ -283,10 +286,10 @@ static void aprs_thread_process(void) {
 				aprs_queue_first_entry->gpspos.speed_valid ? aprs_queue_first_entry->gpspos.speed : 0);
 		} else
 			speedcourse[0] = 0;
-		aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s:@%sz%s%c/%s%c%c%sdmrshark / ham-dmr.hu\n",
+		aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s:@%sz%s%c/%s%c%c%s%s\n",
 			aprs_queue_first_entry->callsign, aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->repeater_callsign, timestamp,
 			latitude, aprs_queue_first_entry->gpspos.latitude_ch, longitude, aprs_queue_first_entry->gpspos.longitude_ch,
-			aprs_queue_first_entry->icon_char, speedcourse);
+			aprs_queue_first_entry->icon_char, speedcourse, aprs_posdescription);
 		next_entry = aprs_queue_first_entry->next;
 		free(aprs_queue_first_entry);
 		aprs_queue_first_entry = next_entry;
@@ -294,6 +297,7 @@ static void aprs_thread_process(void) {
 	if (aprs_queue_first_entry == NULL)
 		aprs_queue_last_entry = NULL;
 	pthread_mutex_unlock(&aprs_mutex_queue);
+	free(aprs_posdescription);
 
 	if (time(NULL)-last_obj_send_at > 1800) {
 		obj = aprs_objs_first_entry;

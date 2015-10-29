@@ -823,6 +823,24 @@ int config_get_aprsserverpasscode(void) {
 	return value;
 }
 
+char *config_get_aprsposdescription(void) {
+	GError *error = NULL;
+	char *value = NULL;
+	char *key = "aprsposdescription";
+	char *defaultvalue = NULL;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = "dmrshark";
+	value = g_key_file_get_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error || value == NULL) {
+		value = strdup(defaultvalue);
+		if (value)
+			g_key_file_set_string(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return value;
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 	char *tmp_str;
@@ -917,6 +935,8 @@ void config_init(char *configfilename) {
 	tmp_str = config_get_aprsservercallsign();
 	free(tmp_str);
 	config_get_aprsserverpasscode();
+	tmp_str = config_get_aprsposdescription();
+	free(tmp_str);
 
 	config_writeconfigfile();
 }
