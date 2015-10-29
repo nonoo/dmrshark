@@ -76,11 +76,13 @@ static aprs_queue_t *aprs_queue_last_entry = NULL;
 void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign) {
 	aprs_queue_t *new_entry;
 
-	if (!aprs_enabled || gpspos == NULL || callsign == NULL || repeater_callsign == NULL)
+	if (!aprs_enabled || gpspos == NULL || callsign == NULL)
 		return;
 
-	if (repeater_callsign[0] == 0)
+	if (repeater_callsign == NULL || repeater_callsign[0] == 0) {
+		console_log(LOGLEVEL_APRS LOGLEVEL_DEBUG "aprs error: not adding gps position to queue as repeater callsign is empty\n");
 		return;
+	}
 
 	if (ssid > 9)
 		ssid = 9;
@@ -301,18 +303,21 @@ static void aprs_thread_process(void) {
 
 	if (time(NULL)-last_obj_send_at > 1800) {
 		obj = aprs_objs_first_entry;
-		now = time(NULL);
-		aprs_callsign = config_get_aprsservercallsign();
-		while (obj) {
-			strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&now));
-			snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(obj->latitude));
-			snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(obj->longitude));
-			aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c%c%s%c%c%s\n", aprs_callsign, obj->callsign, timestamp,
-				latitude, obj->latitude_ch, obj->table_ch, longitude, obj->longitude_ch, obj->symbol_ch, obj->description);
+		if (obj != NULL) {
+			console_log(LOGLEVEL_APRS "aprs: sending objects\n");
+			now = time(NULL);
+			aprs_callsign = config_get_aprsservercallsign();
+			while (obj) {
+				strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&now));
+				snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(obj->latitude));
+				snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(obj->longitude));
+				aprs_thread_sendmsg("%s>APRS,TCPIP*,DMRSHARK:;%-9s*%sz%s%c%c%s%c%c%s\n", aprs_callsign, obj->callsign, timestamp,
+					latitude, obj->latitude_ch, obj->table_ch, longitude, obj->longitude_ch, obj->symbol_ch, obj->description);
 
-			obj = obj->next;
+				obj = obj->next;
+			}
+			free(aprs_callsign);
 		}
-		free(aprs_callsign);
 		last_obj_send_at = time(NULL);
 	}
 }
