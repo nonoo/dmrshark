@@ -594,7 +594,7 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		errno = 0;
-		d.aprspos.gpspos.latitude = strtol(tok, &endptr, 10);
+		d.aprspos.ssid = strtol(tok, &endptr, 10);
 		if (*endptr != 0 || errno != 0) {
 			log_cmdinvalidparam();
 			return;
@@ -612,7 +612,7 @@ void command_process(char *input_buffer) {
 			return;
 		}
 		errno = 0;
-		d.aprspos.ssid = strtod(tok, &endptr);
+		d.aprspos.gpspos.latitude = strtod(tok, &endptr);
 		if (*endptr != 0 || errno != 0) {
 			log_cmdinvalidparam();
 			return;
