@@ -79,6 +79,9 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t
 	if (!aprs_enabled || gpspos == NULL || callsign == NULL || repeater_callsign == NULL)
 		return;
 
+	if (repeater_callsign[0] == 0)
+		return;
+
 	if (ssid > 9)
 		ssid = 9;
 
@@ -280,7 +283,8 @@ static void aprs_thread_process(void) {
 				aprs_queue_first_entry->gpspos.speed_valid ? aprs_queue_first_entry->gpspos.speed : 0);
 		} else
 			speedcourse[0] = 0;
-		aprs_thread_sendmsg("%s>APRS,%s*:@%sz%s%c/%s%c%c%sdmrshark / ham-dmr.hu\n", aprs_queue_first_entry->callsign, aprs_queue_first_entry->repeater_callsign, timestamp,
+		aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s:@%sz%s%c/%s%c%c%sdmrshark / ham-dmr.hu\n",
+			aprs_queue_first_entry->callsign, aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->repeater_callsign, timestamp,
 			latitude, aprs_queue_first_entry->gpspos.latitude_ch, longitude, aprs_queue_first_entry->gpspos.longitude_ch,
 			aprs_queue_first_entry->icon_char, speedcourse);
 		next_entry = aprs_queue_first_entry->next;
