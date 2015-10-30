@@ -18,6 +18,7 @@ It can be used for:
 - Decoding Hytera GPS position (including speed and course) messages with error correction and acking.
 - Uploading received GPS position information to APRS.
 - Uploading predefined APRS objects (for repeaters or other fixed locations).
+- Sending messages as DMR SMSs to the APRS network, and receiving APRS messages as DMR SMSs.
 
 For optimal network traffic analysis, it should run on the server machine which is running the master software (DMRplus, lindmrmaster etc.),
 however, it can be run on a machine which only has a few (or one) repeater's traffic passing by.
@@ -224,10 +225,11 @@ For displaying the live log and repeater info tables on a webpage, you can use t
 
 The first word of the message sent to dmrshark's DMR ID (7777) is a command. Currently these are supported:
 
+- If the first word of the message is an email address, the message will be put into the MySQL database from where it can be sent as an email.
 - **help**: Sends back the list of available commands.
 - **info**: Send the DMR ID or the callsign of the user as the 2nd word, dmrshark will send you info about the callsign.
 - **ping**: Sends back the text "pong".
-- If the first word of the message is an email address, the message will be put into the MySQL database from where it can be sent as an email.
+- If the first word of the message is none of the others, then it is interpreted as a destination callsign for an APRS message. The other words are the message to send.
 
 ## Echo service
 

@@ -20,7 +20,8 @@
 
 #include <libs/base/dmr-data.h>
 
-void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign);
+void aprs_add_to_queue_msg(char *dst_callsign, char *src_callsign, char *msg, char *repeater_callsign);
+void aprs_add_to_queue_gpspos(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign);
 
 void aprs_init(void);
 void aprs_deinit(void);

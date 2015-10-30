@@ -563,6 +563,10 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 			userdb_t *userdb_entry;
 			char *csbline;
 		} info;
+		struct {
+			char *dst;
+			userdb_t *userdb_entry;
+		} aprs;
 	} u;
 	char *endptr;
 
@@ -632,6 +636,18 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		}
 		free(u.info.userdb_entry);
 		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
+		return;
+	}
+
+	u.aprs.dst = tok;
+	tok = strtok(NULL, "\n");
+	if (u.aprs.dst != NULL && u.aprs.dst[0] != 0 && tok != NULL && tok[0] != 0) {
+		u.aprs.userdb_entry = userdb_get_entry_for_id(srcid);
+		if (u.aprs.userdb_entry != NULL) {
+			aprs_add_to_queue_msg(u.aprs.dst, u.aprs.userdb_entry->callsign, tok, repeater->callsign);
+			free(u.aprs.userdb_entry);
+		} else
+			console_log(LOGLEVEL_DMR "  src id not found in user db, can't get callsign to send aprs msg\n");
 		return;
 	}
 
@@ -843,7 +859,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 							if (calltype == DMR_CALL_TYPE_PRIVATE && repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.response_requested)
 								dmr_data_send_ack(repeater, srcid, dstid, ipscpacket->timeslot-1, repeater->slot[ipscpacket->timeslot-1].data_packet_header.common.service_access_point);
 
-							aprs_add_to_gpspos_queue(gpspos, userdb_entry->callsign, dstid-5050, repeater->callsign);
+							aprs_add_to_queue_gpspos(gpspos, userdb_entry->callsign, dstid-5050, repeater->callsign);
 							free(userdb_entry);
 
 							smsackbuf_add(dstid, srcid, calltype, DMR_DATA_TYPE_GPS_POSITION, decoded_message);

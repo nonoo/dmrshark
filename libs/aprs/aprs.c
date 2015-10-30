@@ -62,12 +62,27 @@ typedef struct aprs_obj_st {
 
 static aprs_obj_t *aprs_objs_first_entry = NULL;
 
+#define APRS_QUEUE_ENTRY_TYPE_UNKNOWN	0
+#define APRS_QUEUE_ENTRY_TYPE_GPSPOS	1
+#define APRS_QUEUE_ENTRY_TYPE_MSG		2
+typedef uint8_t aprs_queue_entry_type_t;
+
 typedef struct aprs_queue_st {
-	char callsign[10];
+	aprs_queue_entry_type_t type;
 	char repeater_callsign[10];
-	char icon_char;
-	dmr_data_gpspos_t gpspos;
-	time_t added_at;
+	union {
+		struct {
+			char callsign[10];
+			char icon_char;
+			dmr_data_gpspos_t gpspos;
+			time_t added_at;
+		} gpspos;
+		struct {
+			char dst_callsign[10];
+			char src_callsign[10];
+			char msg[67]; // See http://www.aprs.org/txt/messages.txt
+		} msg;
+	} u;
 
 	struct aprs_queue_st *next;
 } aprs_queue_t;
@@ -76,7 +91,52 @@ static pthread_mutex_t aprs_mutex_queue = PTHREAD_MUTEX_INITIALIZER;
 static aprs_queue_t *aprs_queue_first_entry = NULL;
 static aprs_queue_t *aprs_queue_last_entry = NULL;
 
-void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign) {
+static void aprs_add_entry_to_queue(aprs_queue_t *new_entry) {
+	pthread_mutex_lock(&aprs_mutex_queue);
+	if (aprs_queue_first_entry == NULL)
+		aprs_queue_first_entry = aprs_queue_last_entry = new_entry;
+	else {
+		aprs_queue_last_entry->next = new_entry;
+		aprs_queue_last_entry = new_entry;
+	}
+	pthread_mutex_unlock(&aprs_mutex_queue);
+
+	// Waking up the thread if it's sleeping.
+	pthread_mutex_lock(&aprs_mutex_wakeup);
+	pthread_cond_signal(&aprs_cond_wakeup);
+	pthread_mutex_unlock(&aprs_mutex_wakeup);
+}
+
+void aprs_add_to_queue_msg(char *dst_callsign, char *src_callsign, char *msg, char *repeater_callsign) {
+	aprs_queue_t *new_entry;
+	uint8_t i;
+	uint8_t len;
+
+	if (dst_callsign == NULL || src_callsign == NULL || msg == NULL || repeater_callsign == NULL || repeater_callsign[0] == 0)
+		return;
+
+	new_entry = (aprs_queue_t *)calloc(1, sizeof(aprs_queue_t));
+	if (new_entry == NULL) {
+		console_log("aprs error: can't allocate memory for new msg entry in the queue\n");
+		return;
+	}
+	new_entry->type = APRS_QUEUE_ENTRY_TYPE_MSG;
+	strncpy(new_entry->repeater_callsign, repeater_callsign, sizeof(new_entry->repeater_callsign));
+	len = min(strlen(dst_callsign), sizeof(new_entry->u.msg.dst_callsign)-1);
+	for (i = 0; i < len; i++)
+		new_entry->u.msg.dst_callsign[i] = toupper(dst_callsign[i]);
+	len = min(strlen(src_callsign), sizeof(new_entry->u.msg.src_callsign)-1);
+	for (i = 0; i < len; i++)
+		new_entry->u.msg.src_callsign[i] = toupper(src_callsign[i]);
+	strncpy(new_entry->u.msg.msg, msg, sizeof(new_entry->u.msg.msg));
+
+	aprs_add_entry_to_queue(new_entry);
+
+	console_log(LOGLEVEL_APRS "aprs queue: added entry: repeater: %s dst: %s src: %s msg: %s\n", new_entry->repeater_callsign,
+		new_entry->u.msg.dst_callsign, new_entry->u.msg.src_callsign, new_entry->u.msg.msg);
+}
+
+void aprs_add_to_queue_gpspos(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign) {
 	aprs_queue_t *new_entry;
 
 	if (!aprs_enabled || gpspos == NULL || callsign == NULL)
@@ -95,39 +155,29 @@ void aprs_add_to_gpspos_queue(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t
 		console_log("aprs error: can't allocate memory for new gps position entry in the queue\n");
 		return;
 	}
-	memcpy(&new_entry->gpspos, gpspos, sizeof(dmr_data_gpspos_t));
-	snprintf(new_entry->callsign, sizeof(new_entry->callsign), "%s-%u", callsign, ssid);
+	new_entry->type = APRS_QUEUE_ENTRY_TYPE_GPSPOS;
+	memcpy(&new_entry->u.gpspos.gpspos, gpspos, sizeof(dmr_data_gpspos_t));
+	snprintf(new_entry->u.gpspos.callsign, sizeof(new_entry->u.gpspos.callsign), "%s-%u", callsign, ssid);
 	strncpy(new_entry->repeater_callsign, repeater_callsign, sizeof(new_entry->repeater_callsign));
-	new_entry->added_at = time(NULL);
+	new_entry->u.gpspos.added_at = time(NULL);
 	switch (ssid) {
-		case 0:	new_entry->icon_char = '-'; break;
-		case 1:	new_entry->icon_char = '='; break;
-		case 2:	new_entry->icon_char = 'F'; break;
-		case 3:	new_entry->icon_char = 'k'; break;
-		case 4:	new_entry->icon_char = 'v'; break;
-		case 5:	new_entry->icon_char = '$'; break;
-		case 6:	new_entry->icon_char = ';'; break;
+		case 0:	new_entry->u.gpspos.icon_char = '-'; break;
+		case 1:	new_entry->u.gpspos.icon_char = '='; break;
+		case 2:	new_entry->u.gpspos.icon_char = 'F'; break;
+		case 3:	new_entry->u.gpspos.icon_char = 'k'; break;
+		case 4:	new_entry->u.gpspos.icon_char = 'v'; break;
+		case 5:	new_entry->u.gpspos.icon_char = '$'; break;
+		case 6:	new_entry->u.gpspos.icon_char = ';'; break;
 		default:
-		case 7:	new_entry->icon_char = '['; break;
-		case 8:	new_entry->icon_char = '<'; break;
-		case 9:	new_entry->icon_char = '>'; break;
+		case 7:	new_entry->u.gpspos.icon_char = '['; break;
+		case 8:	new_entry->u.gpspos.icon_char = '<'; break;
+		case 9:	new_entry->u.gpspos.icon_char = '>'; break;
 	}
 
-	pthread_mutex_lock(&aprs_mutex_queue);
-	if (aprs_queue_first_entry == NULL)
-		aprs_queue_first_entry = aprs_queue_last_entry = new_entry;
-	else {
-		aprs_queue_last_entry->next = new_entry;
-		aprs_queue_last_entry = new_entry;
-	}
-	pthread_mutex_unlock(&aprs_mutex_queue);
+	aprs_add_entry_to_queue(new_entry);
 
-	console_log(LOGLEVEL_APRS "aprs queue: added entry: callsign %s %s\n", callsign, dmr_data_get_gps_string(gpspos));
-
-	// Waking up the thread if it's sleeping.
-	pthread_mutex_lock(&aprs_mutex_wakeup);
-	pthread_cond_signal(&aprs_cond_wakeup);
-	pthread_mutex_unlock(&aprs_mutex_wakeup);
+	console_log(LOGLEVEL_APRS "aprs queue: added entry: repeater: %s callsign: %s %s\n", new_entry->repeater_callsign,
+		new_entry->u.gpspos.callsign, dmr_data_get_gps_string(gpspos));
 }
 
 static flag_t aprs_thread_sendmsg(const char *format, ...) {
@@ -331,20 +381,35 @@ static void aprs_thread_process(void) {
 	// Processing the position queue.
 	pthread_mutex_lock(&aprs_mutex_queue);
 	while (aprs_queue_first_entry) {
-		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
+		switch (aprs_queue_first_entry->type) {
+			case APRS_QUEUE_ENTRY_TYPE_GPSPOS:
+				console_log(LOGLEVEL_APRS "aprs queue: sending entry: repeater: %s callsign: %s %s\n", aprs_queue_first_entry->repeater_callsign,
+					aprs_queue_first_entry->u.gpspos.callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->u.gpspos.gpspos));
 
-		strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->added_at));
-		snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(aprs_queue_first_entry->gpspos.latitude));
-		snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(aprs_queue_first_entry->gpspos.longitude));
-		if (aprs_queue_first_entry->gpspos.heading_valid || aprs_queue_first_entry->gpspos.speed_valid) {
-			snprintf(speedcourse, sizeof(speedcourse), "%03u/%03u", aprs_queue_first_entry->gpspos.heading_valid ? aprs_queue_first_entry->gpspos.heading : 0,
-				aprs_queue_first_entry->gpspos.speed_valid ? aprs_queue_first_entry->gpspos.speed : 0);
-		} else
-			speedcourse[0] = 0;
-		aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s:@%sz%s%c/%s%c%c%s%s\n",
-			aprs_queue_first_entry->callsign, aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->repeater_callsign, timestamp,
-			latitude, aprs_queue_first_entry->gpspos.latitude_ch, longitude, aprs_queue_first_entry->gpspos.longitude_ch,
-			aprs_queue_first_entry->icon_char, speedcourse, aprs_posdescription);
+				strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&aprs_queue_first_entry->u.gpspos.added_at));
+				snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(aprs_queue_first_entry->u.gpspos.gpspos.latitude));
+				snprintf(longitude, sizeof(longitude), "%s", dmr_data_get_gps_string_longitude(aprs_queue_first_entry->u.gpspos.gpspos.longitude));
+				if (aprs_queue_first_entry->u.gpspos.gpspos.heading_valid || aprs_queue_first_entry->u.gpspos.gpspos.speed_valid) {
+					snprintf(speedcourse, sizeof(speedcourse), "%03u/%03u", aprs_queue_first_entry->u.gpspos.gpspos.heading_valid ? aprs_queue_first_entry->u.gpspos.gpspos.heading : 0,
+						aprs_queue_first_entry->u.gpspos.gpspos.speed_valid ? aprs_queue_first_entry->u.gpspos.gpspos.speed : 0);
+				} else
+					speedcourse[0] = 0;
+				aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s:@%sz%s%c/%s%c%c%s%s\n",
+					aprs_queue_first_entry->u.gpspos.callsign, aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->repeater_callsign, timestamp,
+					latitude, aprs_queue_first_entry->u.gpspos.gpspos.latitude_ch, longitude, aprs_queue_first_entry->u.gpspos.gpspos.longitude_ch,
+					aprs_queue_first_entry->u.gpspos.icon_char, speedcourse, aprs_posdescription);
+				break;
+			case APRS_QUEUE_ENTRY_TYPE_MSG:
+				console_log(LOGLEVEL_APRS "aprs queue: sending entry: repeater: %s dst: %s src: %s msg: %s\n", aprs_queue_first_entry->repeater_callsign,
+					aprs_queue_first_entry->u.msg.dst_callsign, aprs_queue_first_entry->u.msg.src_callsign, aprs_queue_first_entry->u.msg.msg);
+
+				aprs_thread_sendmsg("%s>APRS,%s*,qAR,%s::%-9s:%s\n", aprs_queue_first_entry->u.msg.src_callsign, aprs_queue_first_entry->repeater_callsign,
+					aprs_queue_first_entry->repeater_callsign, aprs_queue_first_entry->u.msg.dst_callsign, aprs_queue_first_entry->u.msg.msg);
+				break;
+			default:
+				console_log(LOGLEVEL_APRS "aprs queue: ignoring invalid entry\n");
+				break;
+		}
 		next_entry = aprs_queue_first_entry->next;
 		free(aprs_queue_first_entry);
 		aprs_queue_first_entry = next_entry;

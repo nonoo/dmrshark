@@ -670,7 +670,7 @@ void command_process(char *input_buffer) {
 		}
 		d.aprspos.gpspos.heading_valid = 1;
 
-		aprs_add_to_gpspos_queue(&d.aprspos.gpspos, d.aprspos.callsign, d.aprspos.ssid, d.aprspos.repeater_callsign);
+		aprs_add_to_queue_gpspos(&d.aprspos.gpspos, d.aprspos.callsign, d.aprspos.ssid, d.aprspos.repeater_callsign);
 		return;
 	}
 
