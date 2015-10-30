@@ -36,6 +36,8 @@
 #include <string.h>
 #include <pthread.h>
 
+static pthread_mutex_t smstxbuf_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static smstxbuf_t *smstxbuf_first_entry = NULL;
 static smstxbuf_t *smstxbuf_last_entry = NULL;
 
@@ -55,29 +57,31 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 }
 
 void smstxbuf_print(void) {
-	smstxbuf_t *entry = smstxbuf_first_entry;
+	smstxbuf_t *entry;
 
-	if (entry == NULL) {
+	pthread_mutex_lock(&smstxbuf_mutex);
+	entry = smstxbuf_first_entry;
+
+	if (entry == NULL)
 		console_log("smstxbuf: empty\n");
-		return;
+	else {
+		console_log("smstxbuf:\n");
+		while (entry) {
+			smstxbuf_print_entry(entry);
+			entry = entry->next;
+		}
 	}
-	console_log("smstxbuf:\n");
-	while (entry) {
-		smstxbuf_print_entry(entry);
-		entry = entry->next;
-	}
+	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
 void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id) {
-	// Need to use a mutex because remotedb's thread can call the function.
-	static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	smstxbuf_t *new_smstxbuf_entry;
 
 	if (msg == NULL)
 		return;
 
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&smstxbuf_mutex);
 	if (smstxbuf_last_entry != NULL &&
 		smstxbuf_last_entry->dst_id == dstid &&
 		smstxbuf_last_entry->data_type == data_type &&
@@ -85,14 +89,14 @@ void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_times
 		smstxbuf_last_entry->ts == ts &&
 		smstxbuf_last_entry->call_type == calltype &&
 		strncmp(smstxbuf_last_entry->msg, msg, sizeof(smstxbuf_last_entry->msg)) == 0) {
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&smstxbuf_mutex);
 			return; // We won't add duplicate entries.
 	}
 
 	new_smstxbuf_entry = (smstxbuf_t *)calloc(1, sizeof(smstxbuf_t));
 	if (new_smstxbuf_entry == NULL) {
 		console_log("  error: can't allocate memory for new sms buffer entry\n");
-		pthread_mutex_unlock(&mutex);
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
 	}
 
@@ -117,15 +121,18 @@ void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_times
 		smstxbuf_last_entry = new_smstxbuf_entry;
 	}
 	daemon_poll_setmaxtimeout(0);
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
 static void smstxbuf_remove_first_entry(void) {
 	smstxbuf_t *nextentry;
 	loglevel_t loglevel;
 
-	if (smstxbuf_first_entry == NULL)
+	pthread_mutex_lock(&smstxbuf_mutex);
+	if (smstxbuf_first_entry == NULL) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
 	loglevel = console_get_loglevel();
 	if (loglevel.flags.dataq && loglevel.flags.debug) {
@@ -138,13 +145,18 @@ static void smstxbuf_remove_first_entry(void) {
 	smstxbuf_first_entry = nextentry;
 	if (smstxbuf_first_entry == NULL)
 		smstxbuf_last_entry = NULL;
+
+	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
 void smstxbuf_first_entry_sent_successfully(void) {
 	smsrtbuf_t *smsrtbuf_entry;
 
-	if (smstxbuf_first_entry == NULL)
+	pthread_mutex_lock(&smstxbuf_mutex);
+	if (smstxbuf_first_entry == NULL) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry sent successfully\n");
 	if (smstxbuf_first_entry->db_id)
@@ -154,6 +166,8 @@ void smstxbuf_first_entry_sent_successfully(void) {
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
 
+	pthread_mutex_unlock(&smstxbuf_mutex);
+
 	smstxbuf_remove_first_entry();
 }
 
@@ -161,11 +175,16 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	smsrtbuf_t *smsrtbuf_entry;
 	int db_id;
 
-	if (smstxbuf_first_entry == NULL)
+	pthread_mutex_lock(&smstxbuf_mutex);
+	if (smstxbuf_first_entry == NULL) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry send unsuccessful\n");
 	db_id = smstxbuf_first_entry->db_id;
+
+	pthread_mutex_unlock(&smstxbuf_mutex);
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 	if (smsrtbuf_entry != NULL)
@@ -173,36 +192,62 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 
 	smstxbuf_remove_first_entry();
 
+	pthread_mutex_lock(&smstxbuf_mutex);
 	if (db_id && (smstxbuf_first_entry == NULL || (smstxbuf_first_entry != NULL && smstxbuf_first_entry->db_id != db_id)))
 		remotedb_msgqueue_updateentry(db_id, 0);
+	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
 smstxbuf_t *smstxbuf_get_first_entry(void) {
-	return smstxbuf_first_entry;
+	smstxbuf_t *result = NULL;
+
+	pthread_mutex_lock(&smstxbuf_mutex);
+	if (smstxbuf_first_entry) {
+		result = (smstxbuf_t *)malloc(sizeof(smstxbuf_t));
+		if (result == NULL)
+			console_log("smstxbuf error: can't get first entry, not enough memory\n");
+		else
+			memcpy(result, smstxbuf_first_entry, sizeof(smstxbuf_t));
+	}
+	pthread_mutex_unlock(&smstxbuf_mutex);
+	return result;
 }
 
 void smstxbuf_process(void) {
 	loglevel_t loglevel;
 
-	if (smstxbuf_first_entry == NULL)
+	pthread_mutex_lock(&smstxbuf_mutex);
+	if (smstxbuf_first_entry == NULL) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
-	if (data_packet_txbuf_get_first_entry() != NULL) // Only sending an SMS if data packet TX buffer is empty.
+	if (data_packet_txbuf_get_first_entry() != NULL) { // Only sending an SMS if data packet TX buffer is empty.
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
 	// We allow some time for the TMS ack to arrive.
-	if (smstxbuf_first_entry->waiting_for_tms_ack_started_at != 0 && time(NULL)-smstxbuf_first_entry->waiting_for_tms_ack_started_at < 10)
+	if (smstxbuf_first_entry->waiting_for_tms_ack_started_at != 0 && time(NULL)-smstxbuf_first_entry->waiting_for_tms_ack_started_at < 10) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
-	if (time(NULL) < smstxbuf_first_entry->added_at+smstxbuf_first_entry->delay_before_send_sec)
+	if (time(NULL) < smstxbuf_first_entry->added_at+smstxbuf_first_entry->delay_before_send_sec) {
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		return;
+	}
 
 	if (smstxbuf_first_entry->send_tries >= config_get_smssendmaxretrycount()) {
 		console_log(LOGLEVEL_DATAQ "smstxbuf: all tries of sending the first entry has failed\n");
 		smstxbuf_print_entry(smstxbuf_first_entry);
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		smstxbuf_first_entry_send_unsuccessful();
-		if (smstxbuf_first_entry == NULL)
+		pthread_mutex_lock(&smstxbuf_mutex);
+		if (smstxbuf_first_entry == NULL) {
+			pthread_mutex_unlock(&smstxbuf_mutex);
 			return;
+		}
 	}
 
 	smstxbuf_first_entry->selective_ack_tries = 0;
@@ -223,20 +268,25 @@ void smstxbuf_process(void) {
 			break;
 	}
 
-	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) // Group messages are unconfirmed, so we send them only once.
+	if (smstxbuf_first_entry->call_type == DMR_CALL_TYPE_GROUP) { // Group messages are unconfirmed, so we send them only once.
+		pthread_mutex_unlock(&smstxbuf_mutex);
 		smstxbuf_remove_first_entry();
-	else
+	} else {
 		smstxbuf_first_entry->send_tries++;
+		pthread_mutex_unlock(&smstxbuf_mutex);
+	}
 	daemon_poll_setmaxtimeout(0);
 }
 
 void smstxbuf_deinit(void) {
 	smstxbuf_t *next_entry;
 
+	pthread_mutex_lock(&smstxbuf_mutex);
 	while (smstxbuf_first_entry != NULL) {
 		next_entry = smstxbuf_first_entry->next;
 		free(smstxbuf_first_entry);
 		smstxbuf_first_entry = next_entry;
 	}
 	smstxbuf_last_entry = NULL;
+	pthread_mutex_unlock(&smstxbuf_mutex);
 }

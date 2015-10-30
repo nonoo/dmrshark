@@ -32,36 +32,40 @@ static pthread_mutex_t userdb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 userdb_t *userdb_get_entry_for_id(dmr_id_t id) {
 	userdb_t *entry;
+	userdb_t *result = NULL;
 
 	pthread_mutex_lock(&userdb_mutex);
 	entry = userdb_first_entry;
 
 	while (entry) {
 		if (entry->id == id) {
-			pthread_mutex_unlock(&userdb_mutex);
-			return entry;
+			result = (userdb_t *)malloc(sizeof(userdb_t));
+			memcpy(result, entry, sizeof(userdb_t));
+			break;
 		}
 		entry = entry->next;
 	}
 	pthread_mutex_unlock(&userdb_mutex);
-	return NULL;
+	return result;
 }
 
 userdb_t *userdb_get_entry_for_callsign(char *callsign) {
 	userdb_t *entry;
+	userdb_t *result = NULL;
 
 	pthread_mutex_lock(&userdb_mutex);
 	entry = userdb_first_entry;
 
 	while (entry) {
 		if (strcasecmp(entry->callsign, callsign) == 0) {
-			pthread_mutex_unlock(&userdb_mutex);
-			return entry;
+			result = (userdb_t *)malloc(sizeof(userdb_t));
+			memcpy(result, entry, sizeof(userdb_t));
+			break;
 		}
 		entry = entry->next;
 	}
 	pthread_mutex_unlock(&userdb_mutex);
-	return NULL;
+	return result;
 }
 
 char *userdb_get_display_str_for_id(dmr_id_t id) {
@@ -72,6 +76,7 @@ char *userdb_get_display_str_for_id(dmr_id_t id) {
 		snprintf(result, sizeof(result), "%u", id);
 	else
 		snprintf(result, sizeof(result), "%s (%u)", entry->callsign, id);
+	free(entry);
 	return result;
 }
 

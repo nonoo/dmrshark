@@ -21,6 +21,8 @@
 
 #include <libs/config/config.h>
 #include <libs/config/config-aprsobjs.h>
+#include <libs/remotedb/userdb.h>
+#include <libs/base/smstxbuf.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +33,7 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <ctype.h>
+#include <sys/poll.h>
 
 static pthread_t aprs_thread;
 
@@ -131,14 +134,15 @@ static flag_t aprs_thread_sendmsg(const char *format, ...) {
 	va_list argptr;
 	char buf[1024];
 	flag_t result = 1;
+	int bytes_sent;
 
     va_start(argptr, format);
 
 	vsnprintf(buf, sizeof(buf), format, argptr);
-	console_log(LOGLEVEL_APRS LOGLEVEL_DEBUG "aprs sending message: %s", buf);
+	console_log(LOGLEVEL_APRS LOGLEVEL_DEBUG "aprs: sending message: %s", buf);
 	errno = 0;
-	write(aprs_sockfd, buf, strlen(buf));
-	if (errno != 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+	bytes_sent = write(aprs_sockfd, buf, strlen(buf));
+	if (bytes_sent < 0 || (errno != 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
 		console_log(LOGLEVEL_APRS "aprs error: disconnected\n");
 		aprs_loggedin = 0;
 		close(aprs_sockfd);
@@ -160,7 +164,7 @@ static void aprs_thread_connect(void) {
 	uint16_t passcode = config_get_aprsserverpasscode();
 	int flag;
 	time_t connectstartedat;
-	char buf[50];
+	char buf[50] = {0,};
 	int bytes_read;
 	char expected_login_reply[50];
 	struct timespec ts;
@@ -259,6 +263,49 @@ aprs_thread_connect_end:
 	free(callsign);
 }
 
+static void aprs_processreceivedline(char *line, uint16_t line_length) {
+	char msg_from_callsign[10] = {0,};
+	char msg_to_callsign[10] = {0,};
+	char msg[DMRPACKET_MAX_FRAGMENTSIZE];
+	userdb_t *userdb_entry;
+	uint16_t i, j;
+
+	i = 0;
+	while (line[i] != '>' && i < line_length)
+		i++;
+	strncpy(msg_from_callsign, line, min(sizeof(msg_from_callsign), i));
+
+	// Searching for the first ":" from "::"
+	while (line[i] != ':' && i < line_length)
+		i++;
+	if (i+1 < line_length && line[i+1] == ':') { // If the second ":" found from "::"
+		i += 2;
+
+		// Searching for the next ":"
+		j = 0;
+		while (line[i+j] != ':' && line[i+j] != ' ' && line[i+j] != '-' && i+j < line_length) // Halt on " " and "-".
+			j++;
+		strncpy(msg_to_callsign, line+i, min(sizeof(msg_to_callsign), j));
+
+		// Searching for the next ":" (this is needed because we may have halted before ":").
+		while (line[i] != ':' && i < line_length)
+			i++;
+		i++;
+
+		if (msg_from_callsign[0] != 0 && msg_to_callsign[0] != 0 && i < line_length) {
+			console_log("aprs: message from %s to %s: %s\n", msg_from_callsign, msg_to_callsign, line+i);
+			userdb_entry = userdb_get_entry_for_callsign(msg_to_callsign);
+			if (userdb_entry != NULL) {
+				snprintf(msg, sizeof(msg), "APRS/%s: %s", msg_from_callsign, line+i);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, userdb_entry->id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, userdb_entry->id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
+				free(userdb_entry);
+			} else
+				console_log("  ignoring, can't get dmr id for callsign %s from user db\n");
+		}
+	}
+}
+
 static void aprs_thread_process(void) {
 	static time_t last_obj_send_at = 0;
 	aprs_obj_t *obj;
@@ -270,12 +317,18 @@ static void aprs_thread_process(void) {
 	time_t now;
 	char *aprs_callsign;
 	char *aprs_posdescription;
+	int bytes_read;
+	char buf[1024] = {0,};
+	struct pollfd pollfd;
+	char *tok;
 
 	if (aprs_sockfd < 0 || !aprs_loggedin)
 		return;
 
 	aprs_posdescription = config_get_aprsposdescription();
+	aprs_callsign = config_get_aprsservercallsign();
 
+	// Processing the position queue.
 	pthread_mutex_lock(&aprs_mutex_queue);
 	while (aprs_queue_first_entry) {
 		console_log(LOGLEVEL_APRS "aprs queue: sending entry: callsign %s %s\n", aprs_queue_first_entry->callsign, dmr_data_get_gps_string(&aprs_queue_first_entry->gpspos));
@@ -299,14 +352,13 @@ static void aprs_thread_process(void) {
 	if (aprs_queue_first_entry == NULL)
 		aprs_queue_last_entry = NULL;
 	pthread_mutex_unlock(&aprs_mutex_queue);
-	free(aprs_posdescription);
 
+	// Sending objects if needed.
 	if (time(NULL)-last_obj_send_at > 1800) {
 		obj = aprs_objs_first_entry;
 		if (obj != NULL) {
 			console_log(LOGLEVEL_APRS "aprs: sending objects\n");
 			now = time(NULL);
-			aprs_callsign = config_get_aprsservercallsign();
 			while (obj) {
 				strftime(timestamp, sizeof(timestamp), "%d%H%M", gmtime(&now));
 				snprintf(latitude, sizeof(latitude), "%s", dmr_data_get_gps_string_latitude(obj->latitude));
@@ -316,10 +368,40 @@ static void aprs_thread_process(void) {
 
 				obj = obj->next;
 			}
-			free(aprs_callsign);
 		}
 		last_obj_send_at = time(NULL);
 	}
+
+	// Receiving messages.
+	pollfd.fd = aprs_sockfd;
+	pollfd.events = POLLIN;
+	do {
+		pollfd.revents = 0;
+		poll(&pollfd, 1, 0);
+		if (pollfd.revents & POLLIN) { // Socket readable?
+			errno = 0;
+			bytes_read = read(aprs_sockfd, buf, sizeof(buf)-1);
+			if (bytes_read < 0 || (errno != 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+				console_log(LOGLEVEL_APRS "aprs: disconnected\n");
+				aprs_loggedin = 0;
+				close(aprs_sockfd);
+				aprs_sockfd = -1;
+			}
+			if (bytes_read > 0) {
+				console_log(LOGLEVEL_APRS "aprs: read %u bytes: %s", bytes_read, buf);
+
+				buf[bytes_read] = 0;
+				tok = strtok(buf, "\n");
+				while (tok != NULL) {
+					aprs_processreceivedline(tok, strlen(tok));
+					tok = strtok(NULL, "\n");
+				}
+			}
+		}
+	} while (pollfd.revents & POLLIN);
+
+	free(aprs_posdescription);
+	free(aprs_callsign);
 }
 
 static void *aprs_thread_init(void *arg) {
