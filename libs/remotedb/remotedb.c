@@ -254,6 +254,13 @@ static void remotedb_thread_msgqueue_poll(void) {
 	char msg_to_send[DMRPACKET_MAX_FRAGMENTSIZE];
 	flag_t send_motorola;
 	flag_t send_normal;
+	smstxbuf_t *entry;
+
+	entry = smstxbuf_get_first_entry();
+	if (entry != NULL) { // Not getting new messages from the queue if smstxbuf is not empty.
+		free(entry);
+		return;
+	}
 
 	tableprefix = config_get_remotedbtableprefix();
 	snprintf(query, sizeof(query), "select `index`, `srcid`, `dstid`, `msg`, `type` from `%smsg-queue` where state='waiting'", tableprefix);

@@ -198,6 +198,7 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
+// The returned buffer entry must be freed after use.
 smstxbuf_t *smstxbuf_get_first_entry(void) {
 	smstxbuf_t *result = NULL;
 
