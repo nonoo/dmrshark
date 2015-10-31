@@ -144,10 +144,8 @@ void console_addtologfile(char *msg, int msglen) {
 				linebufpos--;
 			continue;
 		}
-		if (msg[i] == '\r') {
-			linebufpos = 0;
+		if (msg[i] == '\r')
 			continue;
-		}
 		if (msg[i] == '\n' || linebufpos == sizeof(linebuf)) {
 			time(&rawtime);
 			currtm = gmtime(&rawtime);
@@ -242,7 +240,6 @@ static void console_log_display(const char *text, va_list argptr) {
 	char buffer[CONSOLELOGBUFFERSIZE];
 	size_t buffer_length = 0;
 
-	pthread_mutex_lock(&console_mutex);
 	vsnprintf(buffer, sizeof(buffer), text, argptr);
 	buffer_length = strlen(buffer);
 
@@ -251,31 +248,32 @@ static void console_log_display(const char *text, va_list argptr) {
 		daemon_consoleserver_sendbroadcast(buffer, buffer_length);
 		ttyconsole_send(buffer, buffer_length);
 	}
-	pthread_mutex_unlock(&console_mutex);
 }
 
 void console_log(const char *format, ...) {
 	va_list argptr;
 	int8_t first_non_format_char_pos;
 
+	pthread_mutex_lock(&console_mutex);
     va_start(argptr, format);
 
 	first_non_format_char_pos = console_loglevel_match(format);
-	if (first_non_format_char_pos < 0)
-		return;
-
-	console_log_display(format+first_non_format_char_pos, argptr);
+	if (first_non_format_char_pos >= 0)
+		console_log_display(format+first_non_format_char_pos, argptr);
 
     va_end(argptr);
+	pthread_mutex_unlock(&console_mutex);
 }
 
 void console_log_va_list(const char *loglevel, const char *format, va_list argptr) {
-	int8_t first_non_format_char_pos = console_loglevel_match(loglevel);
+	int8_t first_non_format_char_pos;
 
-	if (first_non_format_char_pos < 0)
-		return;
+	pthread_mutex_lock(&console_mutex);
+	first_non_format_char_pos = console_loglevel_match(loglevel);
 
-	console_log_display(format, argptr);
+	if (first_non_format_char_pos >= 0)
+		console_log_display(format, argptr);
+	pthread_mutex_unlock(&console_mutex);
 }
 
 void console_process(void) {

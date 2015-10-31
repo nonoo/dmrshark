@@ -162,4 +162,5 @@ flag_t callsignbookdb_reload(MYSQL *remotedb_conn) {
 
 void callsignbookdb_deinit(void) {
 	callsignbookdb_clear();
+	pthread_mutex_destroy(&callsignbookdb_mutex);
 }

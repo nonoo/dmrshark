@@ -182,4 +182,5 @@ flag_t userdb_reload(MYSQL *remotedb_conn) {
 
 void userdb_deinit(void) {
 	userdb_clear();
+	pthread_mutex_destroy(&userdb_mutex);
 }

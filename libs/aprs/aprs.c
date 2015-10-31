@@ -604,4 +604,8 @@ void aprs_deinit(void) {
 		free(aprs_objs_first_entry);
 		aprs_objs_first_entry = next_obj;
 	}
+
+	pthread_mutex_destroy(&aprs_mutex_thread_should_stop);
+	pthread_mutex_destroy(&aprs_mutex_wakeup);
+	pthread_mutex_destroy(&aprs_mutex_queue);
 }
