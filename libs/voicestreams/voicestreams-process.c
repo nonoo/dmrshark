@@ -92,6 +92,7 @@ static void voicestreams_process_rms_vol_calc(voicestream_t *voicestream) {
 	console_log(LOGLEVEL_VOICESTREAMS "voicestreams [%s]: calculated rms volume is %ddB, avg: %ddB\n", voicestream->name, voicestream->rms_vol, voicestream->avg_rms_vol);
 }
 
+#ifdef AMBEDECODEVOICE
 static void voicestreams_process_rms_vol_calc_addtobuf(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	uint16_t rms_vol_buf_remaining_space;
 	uint16_t samples_to_copy;
@@ -121,6 +122,7 @@ static void voicestreams_process_apply_gain(voicestreams_decoded_frame_t *decode
 			decoded_frame->samples[i] = -1.0f;
 	}
 }
+#endif
 
 #ifdef MP3ENCODEVOICE
 static void voicestreams_savetomp3(voicestream_t *voicestream, voicestreams_mp3_frame_t *mp3frame) {
@@ -191,6 +193,7 @@ static void voicestreams_play_raw_file(voicestream_t *voicestream, char *filepat
 	fclose(f);
 }
 
+#ifdef AMBEDECODEVOICE
 static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voicestreams_decoded_frame_t *decoded_frame) {
 	FILE *f;
 	char *fn;
@@ -216,6 +219,7 @@ static void voicestreams_process_decoded_frame(voicestream_t *voicestream, voice
 
 	voicestreams_process_mp3(voicestream, decoded_frame);
 }
+#endif
 
 void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *repeater) {
 	if (!voicestream || !voicestream->enabled)
@@ -226,9 +230,13 @@ void voicestreams_process_call_start(voicestream_t *voicestream, repeater_t *rep
 	voicestream->currently_streaming_repeater = (struct repeater_t *)repeater;
 	voicestream->rms_vol = voicestream->avg_rms_vol = VOICESTREAMS_INVALID_RMS_VALUE;
 	voicestream->rms_vol_buf_pos = 0;
+#ifdef MP3ENCODEVOICE
 	voicestreams_mp3_resetbuf(voicestream);
+#endif
 	voicestream->streaming_active_call = 1;
+#ifdef AMBEDECODEVOICE
 	voicestreams_decode_ambe_init(voicestream);
+#endif
 
 	voicestreams_play_raw_file(voicestream, voicestream->playrawfileatcallstart, voicestream->rawfileatcallstartgain);
 }

@@ -21,6 +21,8 @@
 
 #include <libs/daemon/console.h>
 
+#include <stdlib.h>
+
 #ifdef AMBEDECODEVOICE
 
 static uint8_t voicestreams_decode_deinterleave_matrix_w[36] = {

@@ -28,6 +28,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static smsrtbuf_t *smsrtbuf_first_entry = NULL;
 

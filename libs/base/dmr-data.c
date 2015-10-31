@@ -28,6 +28,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
 
 static uint8_t dmr_data_motorola_tms_tx_seqnum = 0;
 

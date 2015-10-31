@@ -34,6 +34,7 @@
 #include <netinet/tcp.h>
 #include <ctype.h>
 #include <sys/poll.h>
+#include <stdio.h>
 
 static pthread_t aprs_thread;
 

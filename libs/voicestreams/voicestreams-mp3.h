@@ -18,6 +18,8 @@
 #ifndef VOICESTREAMS_MP3_H_
 #define VOICESTREAMS_MP3_H_
 
+#ifdef MP3ENCODEVOICE
+
 #include "voicestreams.h"
 #include "voicestreams-decode.h"
 
@@ -27,5 +29,7 @@ void voicestreams_mp3_resetbuf(voicestream_t *voicestream);
 
 void voicestreams_mp3_init(voicestream_t *voicestream);
 void voicestreams_mp3_deinit(voicestream_t *voicestream);
+
+#endif /* ifdef MP3ENCODEVOICE */
 
 #endif

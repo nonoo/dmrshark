@@ -442,9 +442,11 @@ void httpserver_print_client_list(void) {
 }
 
 void httpserver_process(void) {
+#ifdef MP3ENCODEVOICE
 	httpserver_client_t *client = httpserver_clients;
 	struct timeval currtime = {0,};
 	struct timeval difftime = {0,};
+#endif
 	int i;
 	int pfdcount;
 	struct pollfd *pfd;
@@ -452,6 +454,7 @@ void httpserver_process(void) {
 	if (!config_get_httpserverenabled() || httpserver_lws_context == NULL)
 		return;
 
+#ifdef MP3ENCODEVOICE
 	// Sending silent MP3 frames to idle HTTP clients.
 	while (client) {
 		if (!client->is_on_websockets && client->voicestream != NULL && client->voicestream->silent_mp3_frame.bytes_size > 0 && !client->voicestream->streaming_active_call) {
@@ -465,6 +468,7 @@ void httpserver_process(void) {
 		}
 		client = client->next;
 	}
+#endif
 
 	pfdcount = daemon_poll_getpfdcount();
 	pfd = daemon_poll_getpfd();
