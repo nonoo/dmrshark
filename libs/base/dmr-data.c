@@ -243,8 +243,8 @@ void dmr_data_send_sms_rms_volume_if_needed(repeater_t *repeater, dmr_timeslot_t
 
 	delay = repeater->slot[ts].call_ended_at - repeater->slot[ts].call_started_at + 1;
 
-	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
-	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
+	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0, NULL);
+	smstxbuf_add(delay, repeater, ts, DMR_CALL_TYPE_PRIVATE, repeater->slot[ts].src_id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0, NULL);
 }
 
 dmr_data_gpspos_t *dmr_data_decode_hytera_gps_triggered(uint8_t *message_data, uint16_t message_data_length) {

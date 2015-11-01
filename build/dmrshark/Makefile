@@ -12,7 +12,7 @@ install: all
 	@dstdir=/opt/dmrshark && sudo rm -f $$dstdir/*build* && sudo mkdir -p $$dstdir && sudo cp `ls -1 -t | grep build | head -n1` $$dstdir
 
 test: all kill
-	@sudo sh -c "ulimit 200000000 && exec ./`ls -1 -t | grep build | head -n1`"
+	@sudo sh -c "ulimit -c 200000000 && exec ./`ls -1 -t | grep build | head -n1`"
 	@sudo ./`ls -1 -t | grep build | head -n1` -r
 
 valgrind: all kill

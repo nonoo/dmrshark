@@ -20,6 +20,16 @@
 
 #include <libs/base/dmr-data.h>
 
+// See http://www.aprs.org/txt/messages.txt
+#define APRS_MAX_MESSAGE_LENGTH 67
+
+typedef struct {
+	char dst_callsign[10];
+	char src_callsign[10];
+	char msg[APRS_MAX_MESSAGE_LENGTH];
+	char ackpart[6];
+} aprs_msg_t;
+
 void aprs_add_to_queue_msg(char *dst_callsign, char *src_callsign, char *msg, char *repeater_callsign);
 void aprs_add_to_queue_gpspos(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t ssid, char *repeater_callsign);
 

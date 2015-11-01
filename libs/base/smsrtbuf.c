@@ -197,7 +197,7 @@ void smsrtbuf_entry_sent_successfully(smsrtbuf_t *entry) {
 		smsrtbuf_print_entry(entry);
 	}
 	snprintf(msg, sizeof(msg), "Retransmitted SMS to %s: %s", userdb_get_display_str_for_id(entry->dstid), entry->orig_msg);
-	smstxbuf_add(0, entry->repeater, entry->ts, DMR_CALL_TYPE_PRIVATE, entry->srcid, entry->orig_data_type, msg, 0);
+	smstxbuf_add(0, entry->repeater, entry->ts, DMR_CALL_TYPE_PRIVATE, entry->srcid, entry->orig_data_type, msg, 0, NULL);
 
 	smsrtbuf_remove_entry(entry);
 }
@@ -216,7 +216,7 @@ void smsrtbuf_entry_send_unsuccessful(smsrtbuf_t *entry) {
 	}
 	snprintf(msg, sizeof(msg), "Failed retransmitting SMS to %s: %s", userdb_get_display_str_for_id(entry->dstid), entry->orig_msg);
 
-	smstxbuf_add(0, entry->repeater, entry->ts, DMR_CALL_TYPE_PRIVATE, entry->srcid, entry->orig_data_type, msg, 0);
+	smstxbuf_add(0, entry->repeater, entry->ts, DMR_CALL_TYPE_PRIVATE, entry->srcid, entry->orig_data_type, msg, 0, NULL);
 	smsrtbuf_remove_entry(entry);
 }
 
@@ -235,7 +235,7 @@ void smsrtbuf_process(void) {
 						console_log(LOGLEVEL_DATAQ "smsrtbuf: retransmitting as motorola tms sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
-					smstxbuf_add(0, NULL, 0, entry->calltype, entry->dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, entry->sent_msg, 0);
+					smstxbuf_add(0, NULL, 0, entry->calltype, entry->dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, entry->sent_msg, 0, NULL);
 					entry->currently_sending = 1;
 					break;
 				case DMR_DATA_TYPE_MOTOROLA_TMS_SMS:
@@ -243,7 +243,7 @@ void smsrtbuf_process(void) {
 						console_log(LOGLEVEL_DATAQ "smsrtbuf: retransmitting as normal sms:\n");
 						smsrtbuf_print_entry(entry);
 					}
-					smstxbuf_add(0, NULL, 0, entry->calltype, entry->dstid, DMR_DATA_TYPE_NORMAL_SMS, entry->sent_msg, 0);
+					smstxbuf_add(0, NULL, 0, entry->calltype, entry->dstid, DMR_DATA_TYPE_NORMAL_SMS, entry->sent_msg, 0, NULL);
 					entry->currently_sending = 1;
 					break;
 				default:

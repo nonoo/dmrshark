@@ -370,7 +370,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 										// From now on, we don't have to broadcast data packets as we know where the station is.
 										data_packet_txbuf_found_station_for_first_entry(repeater, ipscpacket->timeslot-1);
 										dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
-										free(smstxbuf_first_entry);
+										smstxbuf_free_entry(smstxbuf_first_entry);
 										return;
 									}
 
@@ -389,21 +389,21 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 
 										 	console_log(LOGLEVEL_DMR "    this ack is for sms tx buffer entry:\n");
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
-										 	smstxbuf_first_entry_sent_successfully();
+										 	smstxbuf_first_entry_sent_successfully(repeater);
 
-											free(smstxbuf_first_entry);
+											smstxbuf_free_entry(smstxbuf_first_entry);
 											smstxbuf_first_entry = smstxbuf_get_first_entry();
 											if (smstxbuf_first_entry != NULL) {
 												if (smstxbuf_first_two_entries_are_the_same) {
 												 	console_log(LOGLEVEL_DMR "    this ack is also for the second sms tx buffer entry:\n");
 												 	smstxbuf_print_entry(smstxbuf_first_entry);
-												 	smstxbuf_first_entry_sent_successfully();
+												 	smstxbuf_first_entry_sent_successfully(repeater);
 												}
 											}
 									} else
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    this ack is not for the sms tx buffer's first entry (dst: %u)\n", smstxbuf_first_entry->dst_id);
 
-									free(smstxbuf_first_entry);
+									smstxbuf_free_entry(smstxbuf_first_entry);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "    sms tx buffer is empty, ack is not for that\n");
 
@@ -567,6 +567,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		struct {
 			char *dst;
 			userdb_t *userdb_entry;
+			char msg[APRS_MAX_MESSAGE_LENGTH];
 		} aprs;
 	} u;
 	char *endptr;
@@ -582,25 +583,25 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		u.email.email = tok;
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing email body", 0);
+			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing email body", 0, NULL);
 			return;
 		}
 		console_log(LOGLEVEL_DMR "  sending email to %s: %s\n", u.email.email, tok);
 		remotedb_add_email_to_send(u.email.email, srcid, tok);
 		snprintf(u.email.msg, sizeof(u.email.msg), "email sent to %s", u.email.email);
-		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.email.msg, 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.email.msg, 0, NULL);
 		return;
 	}
 
 	if (strcasecmp(tok, "help") == 0 || strcasecmp(tok, "h") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"help\" command\n");
-		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info", 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "dmrshark commands: info [callsign/dmrid], ping * see github.com/nonoo/dmrshark for more info", 0, NULL);
 		return;
 	}
 
 	if (strcasecmp(tok, "ping") == 0) {
 		console_log(LOGLEVEL_DMR "  got \"ping\" command\n");
-		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "pong", 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "pong", 0, NULL);
 		return;
 	}
 
@@ -608,7 +609,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 		console_log(LOGLEVEL_DMR "  got \"info\" command\n");
 		tok = strtok(NULL, " ");
 		if (tok == NULL) {
-			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing callsign/dmrid", 0);
+			smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "missing callsign/dmrid", 0, NULL);
 			return;
 		}
 
@@ -636,23 +637,24 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 				u.info.userdb_entry->callsign, u.info.userdb_entry->id, u.info.csbline);
 		}
 		free(u.info.userdb_entry);
-		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0);
+		smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, u.info.msg, 0, NULL);
 		return;
 	}
 
 	u.aprs.dst = tok;
 	tok = strtok(NULL, "\n");
 	if (u.aprs.dst != NULL && u.aprs.dst[0] != 0 && tok != NULL && tok[0] != 0) {
+		snprintf(u.aprs.msg, sizeof(u.aprs.msg), "%s{01}", tok);
 		u.aprs.userdb_entry = userdb_get_entry_for_id(srcid);
 		if (u.aprs.userdb_entry != NULL) {
-			aprs_add_to_queue_msg(u.aprs.dst, u.aprs.userdb_entry->callsign, tok, repeater->callsign);
+			aprs_add_to_queue_msg(u.aprs.dst, u.aprs.userdb_entry->callsign, u.aprs.msg, repeater->callsign);
 			free(u.aprs.userdb_entry);
 		} else
 			console_log(LOGLEVEL_DMR "  src id not found in user db, can't get callsign to send aprs msg\n");
 		return;
 	}
 
-	smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0);
+	smstxbuf_add(0, repeater, ts, DMR_CALL_TYPE_PRIVATE, srcid, data_type, "unknown dmrshark command, send \"help\" for help", 0, NULL);
 }
 
 static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repeater_t *repeater, dmrpacket_data_fragment_t *data_fragment) {
@@ -778,7 +780,7 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 								if (smstxbuf_first_entry != NULL) {
 									if (smstxbuf_first_entry->data_type != DMR_DATA_TYPE_MOTOROLA_TMS_SMS) {
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      sms tx buffer entry is not a motorola tms sms\n");
-										free(smstxbuf_first_entry);
+										smstxbuf_free_entry(smstxbuf_first_entry);
 										return;
 									}
 
@@ -787,11 +789,11 @@ static void dmr_handle_received_complete_fragment(ipscpacket_t *ipscpacket, repe
 										smstxbuf_first_entry->call_type == calltype) {
 										 	console_log(LOGLEVEL_DMR "      got ack for sms tx buffer entry:\n");
 										 	smstxbuf_print_entry(smstxbuf_first_entry);
-										 	smstxbuf_first_entry_sent_successfully();
+										 	smstxbuf_first_entry_sent_successfully(repeater);
 									} else
 										console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us (dst: %u)\n", smstxbuf_first_entry->dst_id);
 
-								 	free(smstxbuf_first_entry);
+									smstxbuf_free_entry(smstxbuf_first_entry);
 								} else
 									console_log(LOGLEVEL_DMR LOGLEVEL_DEBUG "      ack is not for us, sms tx buffer is empty\n");
 

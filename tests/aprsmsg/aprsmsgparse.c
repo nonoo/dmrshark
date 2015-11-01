@@ -7,7 +7,8 @@
 static void aprs_processreceivedline(char *line, uint16_t line_length) {
 	char msg_from_callsign[10] = {0,};
 	char msg_to_callsign[10] = {0,};
-	char msg[100];
+	char msg[100] = {0,};
+	char ackpart[6] = {0,};
 	uint16_t i, j;
 
 	i = 0;
@@ -31,15 +32,29 @@ static void aprs_processreceivedline(char *line, uint16_t line_length) {
 			i++;
 		i++;
 
-		if (msg_from_callsign[0] != 0 && msg_to_callsign[0] != 0 && i < line_length) {
-			printf("aprs: message from %s to %s: %s\n", msg_from_callsign, msg_to_callsign, line+i);
+		j = 0;
+		while (line[i+j] != '\n' && line[i+j] != 0 && line[i+j] != '{' && i+j < line_length)
+			j++;
+		strncpy(msg, line+i, min(sizeof(msg), j));
+		i += j;
+
+		j = 0;
+		while (line[i+j] != '\n' && line[i+j] != 0 && line[i+j] != '}' && i+j < line_length)
+			j++;
+		strncpy(ackpart, line+i+1, min(sizeof(ackpart), j-1));
+
+		if (msg_from_callsign[0] != 0 && msg_to_callsign[0] != 0 && msg[0] != 0) {
+			printf("aprs: message from %s to %s: %s\n", msg_from_callsign, msg_to_callsign, msg);
+			if (*ackpart)
+				printf("  ack part: %s\n", ackpart);
 		}
 	}
 }
 
 int main(void) {
 //	char *buf2 = "HA5KDR>APRS,TCPIP*,qAC,SEVENTH::HA2NON-7 :achg";
-	char *buf2 = "# aprsc 2.0.18-ge7666c5 29 Oct 2015 22:50:12 GMT T2HUN 185.43.207.219:14580\nHA5KDR>APRS,TCPIP*,qAC,NINTH::HA2NON-7 :hey!"; // TODO
+//	char *buf2 = "# aprsc 2.0.18-ge7666c5 29 Oct 2015 22:50:12 GMT T2HUN 185.43.207.219:14580\nHA5KDR>APRS,TCPIP*,qAC,NINTH::HA2NON-7 :hey!{abcde"; // TODO
+	char *buf2 = "HA5KDR>APRS,TCPIP*,qAC,SIXTH::HA2NON-7 :teszt 1 2 3{01}";
 	char *buf = strdup(buf2);
 	int bytes_read = strlen(buf2);
 	char *tok;

@@ -258,7 +258,7 @@ static void remotedb_thread_msgqueue_poll(void) {
 
 	entry = smstxbuf_get_first_entry();
 	if (entry != NULL) { // Not getting new messages from the queue if smstxbuf is not empty.
-		free(entry);
+		smstxbuf_free_entry(entry);
 		return;
 	}
 
@@ -315,9 +315,9 @@ static void remotedb_thread_msgqueue_poll(void) {
 				send_normal = 1;
 
 			if (send_normal)
-				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_NORMAL_SMS, msg_to_send, id, NULL);
 			if (send_motorola)
-				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dstid, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg_to_send, id, NULL);
 
 			snprintf(query, sizeof(query), "update `%smsg-queue` set `state`='processing' where `index`='%s'", tableprefix, row[0]);
 		} else {

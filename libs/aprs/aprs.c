@@ -78,11 +78,7 @@ typedef struct aprs_queue_st {
 			dmr_data_gpspos_t gpspos;
 			time_t added_at;
 		} gpspos;
-		struct {
-			char dst_callsign[10];
-			char src_callsign[10];
-			char msg[67]; // See http://www.aprs.org/txt/messages.txt
-		} msg;
+		aprs_msg_t msg;
 	} u;
 
 	struct aprs_queue_st *next;
@@ -177,7 +173,7 @@ void aprs_add_to_queue_gpspos(dmr_data_gpspos_t *gpspos, char *callsign, uint8_t
 
 	aprs_add_entry_to_queue(new_entry);
 
-	console_log(LOGLEVEL_APRS "aprs queue: added entry: repeater: %s callsign: %s %s\n", new_entry->repeater_callsign,
+	console_log(LOGLEVEL_APRS "aprs queue: added entry: repeater: %s callsign: %s pos: %s\n", new_entry->repeater_callsign,
 		new_entry->u.gpspos.callsign, dmr_data_get_gps_string(gpspos));
 }
 
@@ -315,16 +311,17 @@ aprs_thread_connect_end:
 }
 
 static void aprs_processreceivedline(char *line, uint16_t line_length) {
-	char msg_from_callsign[10] = {0,};
-	char msg_to_callsign[10] = {0,};
-	char msg[DMRPACKET_MAX_FRAGMENTSIZE];
-	userdb_t *userdb_entry;
+	aprs_msg_t msg;
+	char dmr_sms[DMRPACKET_MAX_FRAGMENTSIZE] = {0,};
+	userdb_t *dst_userdb_entry;
 	uint16_t i, j;
+
+	memset(&msg, 0, sizeof(aprs_msg_t));
 
 	i = 0;
 	while (line[i] != '>' && i < line_length)
 		i++;
-	strncpy(msg_from_callsign, line, min(sizeof(msg_from_callsign), i));
+	strncpy(msg.src_callsign, line, min(sizeof(msg.src_callsign), i));
 
 	// Searching for the first ":" from "::"
 	while (line[i] != ':' && i < line_length)
@@ -336,23 +333,41 @@ static void aprs_processreceivedline(char *line, uint16_t line_length) {
 		j = 0;
 		while (line[i+j] != ':' && line[i+j] != ' ' && line[i+j] != '-' && i+j < line_length) // Halt on " " and "-".
 			j++;
-		strncpy(msg_to_callsign, line+i, min(sizeof(msg_to_callsign), j));
+		strncpy(msg.dst_callsign, line+i, min(sizeof(msg.dst_callsign), j));
 
 		// Searching for the next ":" (this is needed because we may have halted before ":").
 		while (line[i] != ':' && i < line_length)
 			i++;
 		i++;
 
-		if (msg_from_callsign[0] != 0 && msg_to_callsign[0] != 0 && i < line_length) {
-			console_log("aprs: message from %s to %s: %s\n", msg_from_callsign, msg_to_callsign, line+i);
-			userdb_entry = userdb_get_entry_for_callsign(msg_to_callsign);
-			if (userdb_entry != NULL) {
-				snprintf(msg, sizeof(msg), "APRS/%s: %s", msg_from_callsign, line+i);
-				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, userdb_entry->id, DMR_DATA_TYPE_NORMAL_SMS, msg, 0);
-				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, userdb_entry->id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, msg, 0);
-				free(userdb_entry);
-			} else
-				console_log("  ignoring, can't get dmr id for callsign %s from user db\n");
+		j = 0;
+		while (line[i+j] != '\n' && line[i+j] != 0 && line[i+j] != '{' && i+j < line_length)
+			j++;
+		strncpy(msg.msg, line+i, min(sizeof(msg.msg), j));
+		i += j;
+
+		j = 0;
+		while (line[i+j] != '\n' && line[i+j] != 0 && line[i+j] != '}' && i+j < line_length)
+			j++;
+		strncpy(msg.ackpart, line+i+1, min(sizeof(msg.ackpart), j-1));
+
+		if (msg.src_callsign[0] != 0 && msg.dst_callsign[0] != 0 && msg.msg[0] != 0) {
+			console_log("aprs: message from %s to %s: %s\n", msg.src_callsign, msg.dst_callsign, msg.msg);
+			if (msg.ackpart[0])
+				console_log(LOGLEVEL_APRS "  ack part: %s\n", msg.ackpart);
+
+			dst_userdb_entry = userdb_get_entry_for_callsign(msg.dst_callsign);
+			if (dst_userdb_entry == NULL)
+				console_log("  ignoring, can't get dmr id for dst callsign %s\n", msg.dst_callsign);
+			else {
+				if (strncmp(msg.msg, "ack01}", sizeof(msg.msg)) > 0 && msg.ackpart[0] == 0)
+					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: msg acked", msg.dst_callsign);
+				else
+					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: %s", msg.dst_callsign, msg.msg);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dst_userdb_entry->id, DMR_DATA_TYPE_NORMAL_SMS, dmr_sms, 0, &msg);
+				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dst_userdb_entry->id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, dmr_sms, 0, &msg);
+				free(dst_userdb_entry);
+			}
 		}
 	}
 }

@@ -31,6 +31,7 @@
 #include <libs/comm/repeaters.h>
 #include <libs/config/config.h>
 #include <libs/remotedb/remotedb.h>
+#include <libs/remotedb/userdb.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +53,8 @@ void smstxbuf_print_entry(smstxbuf_t *entry) {
 			repeaters_get_display_string_for_ip(&entry->repeater->ipaddr),
 			entry->ts+1);
 	}
+	if (entry->aprs_msg)
+		console_log("from aprs callsign: %s ", entry->aprs_msg->src_callsign);
 	console_log("dst id: %u type: %s added at: %s send tries: %u type: %s dbid: %u delay: %u msg: %s\n",
 		entry->dst_id, dmr_get_readable_call_type(entry->call_type), added_at_str, entry->send_tries, dmr_get_readable_data_type(entry->data_type), entry->db_id, entry->delay_before_send_sec, entry->msg);
 }
@@ -75,7 +78,7 @@ void smstxbuf_print(void) {
 }
 
 // In case of repeater is 0, the SMS will be sent broadcast.
-void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id) {
+void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id, aprs_msg_t *aprs_msg) {
 	smstxbuf_t *new_smstxbuf_entry;
 
 	if (msg == NULL)
@@ -109,6 +112,10 @@ void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_times
 	new_smstxbuf_entry->repeater = repeater;
 	new_smstxbuf_entry->ts = ts;
 	new_smstxbuf_entry->db_id = db_id;
+	if (aprs_msg) {
+		new_smstxbuf_entry->aprs_msg = (aprs_msg_t *)calloc(1, sizeof(aprs_msg_t));
+		memcpy(new_smstxbuf_entry->aprs_msg, aprs_msg, sizeof(aprs_msg_t));
+	}
 
 	console_log("smstxbuf: adding new sms:\n");
 	smstxbuf_print_entry(new_smstxbuf_entry);
@@ -141,7 +148,7 @@ static void smstxbuf_remove_first_entry(void) {
 	}
 
 	nextentry = smstxbuf_first_entry->next;
-	free(smstxbuf_first_entry);
+	smstxbuf_free_entry(smstxbuf_first_entry);
 	smstxbuf_first_entry = nextentry;
 	if (smstxbuf_first_entry == NULL)
 		smstxbuf_last_entry = NULL;
@@ -149,8 +156,10 @@ static void smstxbuf_remove_first_entry(void) {
 	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
-void smstxbuf_first_entry_sent_successfully(void) {
+void smstxbuf_first_entry_sent_successfully(repeater_t *repeater) {
 	smsrtbuf_t *smsrtbuf_entry;
+	char *aprs_ack_msg;
+	uint8_t aprs_ack_msg_length;
 
 	pthread_mutex_lock(&smstxbuf_mutex);
 	if (smstxbuf_first_entry == NULL) {
@@ -161,6 +170,23 @@ void smstxbuf_first_entry_sent_successfully(void) {
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry sent successfully\n");
 	if (smstxbuf_first_entry->db_id)
 		remotedb_msgqueue_updateentry(smstxbuf_first_entry->db_id, 1);
+	if (smstxbuf_first_entry->aprs_msg != NULL) {
+		console_log(LOGLEVEL_DATAQ "  the entry is an incoming aprs message\n");
+		if (smstxbuf_first_entry->aprs_msg->ackpart[0] == 0)
+			console_log(LOGLEVEL_DATAQ "    no aprs message ack requested\n");
+		else {
+			console_log(LOGLEVEL_DATAQ "    aprs message ack requested\n");
+			if (repeater == NULL || repeater->callsign[0] == 0)
+				console_log(LOGLEVEL_DATAQ "      repeater is not defined, can't send aprs message ack\n");
+			else {
+				aprs_ack_msg_length = sizeof(smstxbuf_first_entry->aprs_msg->ackpart)+4;
+				aprs_ack_msg = (char *)calloc(1, aprs_ack_msg_length);
+				snprintf(aprs_ack_msg, aprs_ack_msg_length, "ack%s}", smstxbuf_first_entry->aprs_msg->ackpart);
+				aprs_add_to_queue_msg(smstxbuf_first_entry->aprs_msg->src_callsign, smstxbuf_first_entry->aprs_msg->dst_callsign, aprs_ack_msg, repeater->callsign);
+				free(aprs_ack_msg);
+			}
+		}
+	}
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
 	if (smsrtbuf_entry != NULL)
@@ -198,7 +224,7 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	pthread_mutex_unlock(&smstxbuf_mutex);
 }
 
-// The returned buffer entry must be freed after use.
+// The returned buffer entry must be freed after use with smstxbuf_free_entry().
 smstxbuf_t *smstxbuf_get_first_entry(void) {
 	smstxbuf_t *result = NULL;
 
@@ -207,11 +233,20 @@ smstxbuf_t *smstxbuf_get_first_entry(void) {
 		result = (smstxbuf_t *)malloc(sizeof(smstxbuf_t));
 		if (result == NULL)
 			console_log("smstxbuf error: can't get first entry, not enough memory\n");
-		else
+		else {
 			memcpy(result, smstxbuf_first_entry, sizeof(smstxbuf_t));
+			result->aprs_msg = (aprs_msg_t *)calloc(1, sizeof(aprs_msg_t));
+			memcpy(result->aprs_msg, smstxbuf_first_entry->aprs_msg, sizeof(aprs_msg_t));
+		}
 	}
 	pthread_mutex_unlock(&smstxbuf_mutex);
 	return result;
+}
+
+void smstxbuf_free_entry(smstxbuf_t *entry) {
+	if (entry->aprs_msg)
+		free(entry->aprs_msg);
+	free(entry);
 }
 
 void smstxbuf_process(void) {
@@ -285,7 +320,7 @@ void smstxbuf_deinit(void) {
 	pthread_mutex_lock(&smstxbuf_mutex);
 	while (smstxbuf_first_entry != NULL) {
 		next_entry = smstxbuf_first_entry->next;
-		free(smstxbuf_first_entry);
+		smstxbuf_free_entry(smstxbuf_first_entry);
 		smstxbuf_first_entry = next_entry;
 	}
 	smstxbuf_last_entry = NULL;

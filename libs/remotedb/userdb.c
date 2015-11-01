@@ -30,9 +30,22 @@
 static userdb_t *userdb_first_entry = NULL;
 static pthread_mutex_t userdb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static userdb_t userdb_entry_dmrshark = {
+	.id = DMRSHARK_DEFAULT_DMR_ID,
+	.callsign = "DMRSHARK",
+	.name = "dmrshark",
+	.country = "Hungary"
+};
+
 userdb_t *userdb_get_entry_for_id(dmr_id_t id) {
 	userdb_t *entry;
 	userdb_t *result = NULL;
+
+	if (id == DMRSHARK_DEFAULT_DMR_ID) {
+		result = (userdb_t *)malloc(sizeof(userdb_t));
+		memcpy(result, &userdb_entry_dmrshark, sizeof(userdb_t));
+		return result;
+	}
 
 	pthread_mutex_lock(&userdb_mutex);
 	entry = userdb_first_entry;
@@ -52,6 +65,12 @@ userdb_t *userdb_get_entry_for_id(dmr_id_t id) {
 userdb_t *userdb_get_entry_for_callsign(char *callsign) {
 	userdb_t *entry;
 	userdb_t *result = NULL;
+
+	if (strcmp(callsign, "DMRSHARK") == 0) {
+		result = (userdb_t *)malloc(sizeof(userdb_t));
+		memcpy(result, &userdb_entry_dmrshark, sizeof(userdb_t));
+		return result;
+	}
 
 	pthread_mutex_lock(&userdb_mutex);
 	entry = userdb_first_entry;
