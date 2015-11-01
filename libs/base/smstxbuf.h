@@ -51,6 +51,7 @@ void smstxbuf_print(void);
 void smstxbuf_add(uint8_t delay_before_send_sec, repeater_t *repeater, dmr_timeslot_t ts, dmr_call_type_t calltype, dmr_id_t dstid, dmr_data_type_t data_type, char *msg, unsigned int db_id, aprs_msg_t *aprs_msg);
 
 void smstxbuf_first_entry_sent_successfully(repeater_t *repeater);
+void smstxbuf_first_entry_waiting_for_tms_ack_started(void);
 smstxbuf_t *smstxbuf_get_first_entry(void);
 void smstxbuf_free_entry(smstxbuf_t *entry);
 

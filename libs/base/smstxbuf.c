@@ -189,10 +189,9 @@ void smstxbuf_first_entry_sent_successfully(repeater_t *repeater) {
 	}
 
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
+	pthread_mutex_unlock(&smstxbuf_mutex);
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_sent_successfully(smsrtbuf_entry);
-
-	pthread_mutex_unlock(&smstxbuf_mutex);
 
 	smstxbuf_remove_first_entry();
 }
@@ -210,9 +209,8 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	console_log(LOGLEVEL_DATAQ "smstxbuf: first entry send unsuccessful\n");
 	db_id = smstxbuf_first_entry->db_id;
 
-	pthread_mutex_unlock(&smstxbuf_mutex);
-
 	smsrtbuf_entry = smsrtbuf_find_entry(smstxbuf_first_entry->dst_id, smstxbuf_first_entry->msg);
+	pthread_mutex_unlock(&smstxbuf_mutex);
 	if (smsrtbuf_entry != NULL)
 		smsrtbuf_entry_send_unsuccessful(smsrtbuf_entry);
 
@@ -222,6 +220,11 @@ static void smstxbuf_first_entry_send_unsuccessful(void) {
 	if (db_id && (smstxbuf_first_entry == NULL || (smstxbuf_first_entry != NULL && smstxbuf_first_entry->db_id != db_id)))
 		remotedb_msgqueue_updateentry(db_id, 0);
 	pthread_mutex_unlock(&smstxbuf_mutex);
+}
+
+void smstxbuf_first_entry_waiting_for_tms_ack_started(void) {
+	if (smstxbuf_first_entry)
+		smstxbuf_first_entry->waiting_for_tms_ack_started_at = time(NULL);
 }
 
 // The returned buffer entry must be freed after use with smstxbuf_free_entry().
@@ -235,8 +238,10 @@ smstxbuf_t *smstxbuf_get_first_entry(void) {
 			console_log("smstxbuf error: can't get first entry, not enough memory\n");
 		else {
 			memcpy(result, smstxbuf_first_entry, sizeof(smstxbuf_t));
-			result->aprs_msg = (aprs_msg_t *)calloc(1, sizeof(aprs_msg_t));
-			memcpy(result->aprs_msg, smstxbuf_first_entry->aprs_msg, sizeof(aprs_msg_t));
+			if (smstxbuf_first_entry->aprs_msg != NULL) {
+				result->aprs_msg = (aprs_msg_t *)calloc(1, sizeof(aprs_msg_t));
+				memcpy(result->aprs_msg, smstxbuf_first_entry->aprs_msg, sizeof(aprs_msg_t));
+			}
 		}
 	}
 	pthread_mutex_unlock(&smstxbuf_mutex);
@@ -244,6 +249,9 @@ smstxbuf_t *smstxbuf_get_first_entry(void) {
 }
 
 void smstxbuf_free_entry(smstxbuf_t *entry) {
+	if (entry == NULL)
+		return;
+
 	if (entry->aprs_msg)
 		free(entry->aprs_msg);
 	free(entry);

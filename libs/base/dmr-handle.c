@@ -366,7 +366,7 @@ void dmr_handle_data_header(struct ip *ip_packet, ipscpacket_t *ipscpacket, repe
 								if (smstxbuf_first_entry != NULL) {
 									if (smstxbuf_first_entry->data_type == DMR_DATA_TYPE_MOTOROLA_TMS_SMS) {
 										console_log(LOGLEVEL_DMR "    this ack is for a tms sms tx buffer entry, waiting for the tms ack\n");
-										smstxbuf_first_entry->waiting_for_tms_ack_started_at = time(NULL);
+										smstxbuf_first_entry_waiting_for_tms_ack_started();
 										// From now on, we don't have to broadcast data packets as we know where the station is.
 										data_packet_txbuf_found_station_for_first_entry(repeater, ipscpacket->timeslot-1);
 										dmr_handle_data_call_end(repeater, ipscpacket->timeslot-1);
@@ -644,7 +644,7 @@ static void dmr_handle_received_sms(repeater_t *repeater, dmr_timeslot_t ts, dmr
 	u.aprs.dst = tok;
 	tok = strtok(NULL, "\n");
 	if (u.aprs.dst != NULL && u.aprs.dst[0] != 0 && tok != NULL && tok[0] != 0) {
-		snprintf(u.aprs.msg, sizeof(u.aprs.msg), "%s{01}", tok);
+		snprintf(u.aprs.msg, sizeof(u.aprs.msg), "%s{01}", tok); // We add a simple ack request.
 		u.aprs.userdb_entry = userdb_get_entry_for_id(srcid);
 		if (u.aprs.userdb_entry != NULL) {
 			aprs_add_to_queue_msg(u.aprs.dst, u.aprs.userdb_entry->callsign, u.aprs.msg, repeater->callsign);
