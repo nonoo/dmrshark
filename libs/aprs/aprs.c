@@ -360,7 +360,7 @@ static void aprs_processreceivedline(char *line, uint16_t line_length) {
 			if (dst_userdb_entry == NULL)
 				console_log("  ignoring, can't get dmr id for dst callsign %s\n", msg.dst_callsign);
 			else {
-				if (strncmp(msg.msg, "ack01}", sizeof(msg.msg)) > 0 && msg.ackpart[0] == 0)
+				if (strstr(msg.msg, "ack01}") == msg.msg && msg.ackpart[0] == 0)
 					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: msg acked", msg.dst_callsign);
 				else
 					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: %s", msg.dst_callsign, msg.msg);
