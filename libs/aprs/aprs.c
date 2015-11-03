@@ -363,7 +363,7 @@ static void aprs_processreceivedline(char *line, uint16_t line_length) {
 				if (strstr(msg.msg, "ack01}") == msg.msg && msg.ackpart[0] == 0)
 					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: msg acked", msg.dst_callsign);
 				else
-					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: %s", msg.dst_callsign, msg.msg);
+					snprintf(dmr_sms, sizeof(dmr_sms), "APRS/%s: %s", msg.src_callsign, msg.msg);
 				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dst_userdb_entry->id, DMR_DATA_TYPE_NORMAL_SMS, dmr_sms, 0, &msg);
 				smstxbuf_add(0, NULL, 0, DMR_CALL_TYPE_PRIVATE, dst_userdb_entry->id, DMR_DATA_TYPE_MOTOROLA_TMS_SMS, dmr_sms, 0, &msg);
 				free(dst_userdb_entry);
