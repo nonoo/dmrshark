@@ -56,7 +56,6 @@ int main(void) {
 //	char *buf2 = "# aprsc 2.0.18-ge7666c5 29 Oct 2015 22:50:12 GMT T2HUN 185.43.207.219:14580\nHA5KDR>APRS,TCPIP*,qAC,NINTH::HA2NON-7 :hey!{abcde"; // TODO
 	char *buf2 = "HA5KDR>APRS,TCPIP*,qAC,SIXTH::HA2NON-7 :teszt 1 2 3{01}";
 	char *buf = strdup(buf2);
-	int bytes_read = strlen(buf2);
 	char *tok;
 
 	tok = strtok(buf, "\n");
@@ -64,6 +63,8 @@ int main(void) {
 		aprs_processreceivedline(tok, strlen(tok));
 		tok = strtok(NULL, "\n");
 	}
+
+	free(buf);
 
 	return 0;
 }

@@ -78,7 +78,7 @@ static void daemon_consoleserver_closeconsole(int consolenum) {
 void daemon_consoleserver_sendbroadcast(char *buffer, unsigned int buffer_length) {
 	int i;
 
-	if (!buffer || buffer_length <= 0 || daemon_serversocket < 0)
+	if (!buffer || buffer_length == 0 || daemon_serversocket < 0)
 		return;
 
 	// Sending text to remote consoles

@@ -2,3 +2,4 @@ stream-*.raw
 *.mp3
 *.ambe
 core
+cppcheck-output.txt

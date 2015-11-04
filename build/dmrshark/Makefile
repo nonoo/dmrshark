@@ -37,7 +37,7 @@ grep:
 	@ps aux | grep dmrshark | grep -v grep
 
 check:
-	@cppcheck --enable=all ../../
+	@cppcheck --enable=all ../../ 2>cppcheck-output.txt
 
 %:
 	@echo running $(NPROCS) jobs...
