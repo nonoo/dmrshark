@@ -397,7 +397,6 @@ void repeaters_play_ambe_data(dmrpacket_payload_voice_bytes_t *voice_bytes, repe
 
 	switch (repeater->slot[ts].ipsc_tx_voice_frame_num) {
 		case 0:
-			repeaters_send_ipsc_sync(repeater, ts, calltype, dstid, srcid);
 			repeaters_add_to_ipsc_packet_buffer(repeater, ts, ipscpacket_construct_raw_packet(&repeater->ipaddr, ipscpacket_construct_raw_payload(repeater->slot[ts].ipsc_tx_seqnum++, ts, IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, calltype, dstid, srcid,
 				ipscpacket_construct_payload_voice_frame(IPSCPACKET_SLOT_TYPE_VOICE_DATA_A, &voice_bits, &repeater->slot[ts].ipsc_tx_emb_sig_lc_vbptc_storage))), 0);
 			break;
