@@ -70,13 +70,17 @@ static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
 		tok = strtok(allowedtgs, ",");
 		if (tok) {
 			do {
-				if (*tok == '*')
+				if (*tok == '*') {
+					free(ignoredtgs);
+					free(allowedtgs);
 					return 0;
+				}
 
 				errno = 0;
 				tg = strtol(tok, &endptr, 10);
 				if (*endptr == 0 && errno == 0) {
 					if (tg == id) {
+						free(ignoredtgs);
 						free(allowedtgs);
 						return 0;
 					}
@@ -93,8 +97,10 @@ static flag_t ipsc_isignoredtalkgroup(dmr_id_t id) {
 		tok = strtok(ignoredtgs, ",");
 		if (tok) {
 			do {
-				if (*tok == '*')
+				if (*tok == '*') {
+					free(ignoredtgs);
 					return 1;
+				}
 
 				errno = 0;
 				tg = strtol(tok, &endptr, 10);
