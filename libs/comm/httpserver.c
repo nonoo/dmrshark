@@ -28,11 +28,11 @@
 
 #define HTTPSERVER_LWS_TXBUFFER_SIZE 65000
 
-static struct libwebsocket_context *httpserver_lws_context = NULL;
+static struct lws_context *httpserver_lws_context = NULL;
 
 typedef struct httpserver_client_st {
-	struct libwebsocket *wsi;
-	struct libwebsocket_context *context;
+	struct lws *wsi;
+	struct lws_context *context;
 	char host[100];
 	flag_t is_on_websockets;
 	voicestream_t *voicestream;
@@ -47,7 +47,7 @@ typedef struct httpserver_client_st {
 
 static httpserver_client_t *httpserver_clients = NULL;
 
-static httpserver_client_t *httpserver_get_client_by_wsi(struct libwebsocket *wsi) {
+static httpserver_client_t *httpserver_get_client_by_wsi(struct lws *wsi) {
 	httpserver_client_t *client = httpserver_clients;
 
 	if (wsi == NULL)
@@ -76,19 +76,19 @@ static uint16_t httpserver_sendtoclient(httpserver_client_t *client, uint8_t *bu
 	if (bytestowritetobuf) {
 		memcpy(client->buf+client->bytesinbuf, buf, bytestowritetobuf);
 		client->bytesinbuf += bytestowritetobuf;
-		libwebsocket_callback_on_writable(client->context, client->wsi);
+		lws_callback_on_writable(client->wsi);
 	}
 	return bytestowritetobuf;
 }
 
-static char *httpserver_get_client_host_or_ip(struct libwebsocket_context *context, struct libwebsocket *wsi) {
+static char *httpserver_get_client_host_or_ip(struct lws_context *context, struct lws *wsi) {
 	static char clienthost[100];
 	static char clientip[INET6_ADDRSTRLEN];
 	int fd;
 
-	fd = libwebsocket_get_socket_fd(wsi);
+	fd = lws_get_socket_fd(wsi);
 	if (fd >= 0)
-		libwebsockets_get_peer_addresses(context, wsi, fd, clienthost, sizeof(clienthost), clientip, sizeof(clientip));
+		lws_get_peer_addresses(wsi, fd, clienthost, sizeof(clienthost), clientip, sizeof(clientip));
 	if (clienthost[0] == 0) {
 		if (clientip[0] == 0)
 			snprintf(clientip, sizeof(clientip), "n/a");
@@ -97,7 +97,7 @@ static char *httpserver_get_client_host_or_ip(struct libwebsocket_context *conte
 	return clienthost;
 }
 
-static uint16_t httpserver_calc_datatosendsize(struct libwebsocket *wsi, httpserver_client_t *httpserver_client) {
+static uint16_t httpserver_calc_datatosendsize(struct lws *wsi, httpserver_client_t *httpserver_client) {
 	uint16_t datatosendsize;
 	int peerallowance;
 
@@ -109,10 +109,10 @@ static uint16_t httpserver_calc_datatosendsize(struct libwebsocket *wsi, httpser
 	return datatosendsize;
 }
 
-static int httpserver_http_callback(struct libwebsocket_context *context, struct libwebsocket *wsi,
-	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
+static int httpserver_http_callback(struct lws_context *context, struct lws *wsi,
+	enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
-	struct libwebsocket_pollargs *pa = (struct libwebsocket_pollargs *)in;
+	struct lws_pollargs *pa = (struct lws_pollargs *)in;
 	uint8_t txbuf[HTTPSERVER_LWS_TXBUFFER_SIZE];
 	char *requrl = (char *)in;
 	flag_t pagefound = 0;
@@ -128,7 +128,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 	switch (reason) {
 		case LWS_CALLBACK_HTTP: // Got a plain HTTP request.
 			if (len < 1) {
-				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_BAD_REQUEST, NULL);
+				lws_return_http_status(wsi, HTTP_STATUS_BAD_REQUEST, NULL);
 				return -1;
 			}
 
@@ -141,7 +141,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			// HTTP POST not allowed.
 			if (lws_hdr_total_length(wsi, WSI_TOKEN_POST_URI)) {
 				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(post request, not allowed, closing connection)\n");
-				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_FORBIDDEN, NULL);
+				lws_return_http_status(wsi, HTTP_STATUS_FORBIDDEN, NULL);
 				return -1;
 			}
 
@@ -186,7 +186,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 
 			if (!pagefound) {
 				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "(404)\n");
-				libwebsockets_return_http_status(context, wsi, HTTP_STATUS_NOT_FOUND, NULL);
+				lws_return_http_status(wsi, HTTP_STATUS_NOT_FOUND, NULL);
 				return -1;
 			}
 			break;
@@ -199,7 +199,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 			while (httpserver_client->bytesinbuf > 0) {
 				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
-				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_HTTP);
+				bytes_sent = lws_write(wsi, txbuf, datatosendsize, LWS_WRITE_HTTP);
 				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s]: sent %u bytes\n", httpserver_client->host, bytes_sent);
 				if (bytes_sent < 0)
 					return -1;
@@ -217,7 +217,7 @@ static int httpserver_http_callback(struct libwebsocket_context *context, struct
 
 			// Schedule a callback again for async tx.
 			if (httpserver_client->bytesinbuf > 0)
-				libwebsocket_callback_on_writable(context, wsi);
+				lws_callback_on_writable(wsi);
 			break;
 
 		case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED:
@@ -295,8 +295,8 @@ static void httpserver_wesockets_parse_command_line(httpserver_client_t *httpser
 }
 
 // This function handles websocket voicestream callbacks.
-static int httpserver_websockets_voicestream_callback(struct libwebsocket_context *context, struct libwebsocket *wsi,
-	enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
+static int httpserver_websockets_voicestream_callback(struct lws_context *context, struct lws *wsi,
+	enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
 	uint8_t txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING + HTTPSERVER_LWS_TXBUFFER_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 	uint8_t *txbuf = &txbuf_padded[LWS_SEND_BUFFER_PRE_PADDING];
@@ -347,7 +347,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 			while (httpserver_client->bytesinbuf > 0) {
 				datatosendsize = httpserver_calc_datatosendsize(wsi, httpserver_client);
 				memcpy(txbuf, httpserver_client->buf, datatosendsize);
-				bytes_sent = libwebsocket_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
+				bytes_sent = lws_write(wsi, txbuf, datatosendsize, LWS_WRITE_BINARY);
 				console_log(LOGLEVEL_HTTPSERVER LOGLEVEL_DEBUG "httpserver [%s/ws]: sent %u bytes\n", httpserver_client->host, bytes_sent);
 				if (bytes_sent < 0)
 					return -1;
@@ -362,7 +362,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 
 			// Schedule a callback again for async tx.
 			if (httpserver_client->bytesinbuf > 0)
-				libwebsocket_callback_on_writable(context, wsi);
+				lws_callback_on_writable(wsi);
 			break;
 
 		default:
@@ -372,7 +372,7 @@ static int httpserver_websockets_voicestream_callback(struct libwebsocket_contex
 	return 0;
 }
 
-static struct libwebsocket_protocols lwsprotocols[] = {
+static struct lws_protocols lwsprotocols[] = {
 	// First protocol must always be the HTTP handler
 	{
 		"http-only",							// Name
@@ -474,7 +474,7 @@ void httpserver_process(void) {
 	pfd = daemon_poll_getpfd();
 
 	for (i = 0; i < pfdcount; i++)
-		libwebsocket_service_fd(httpserver_lws_context, &pfd[i]);
+		lws_service_fd(httpserver_lws_context, &pfd[i]);
 }
 
 void httpserver_init(void) {
@@ -497,7 +497,7 @@ void httpserver_init(void) {
 //	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO, httpserver_websockets_log);
 	lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE, httpserver_websockets_log);
 
-	httpserver_lws_context = libwebsocket_create_context(&lwsinfo);
+	httpserver_lws_context = lws_create_context(&lwsinfo);
 	if (httpserver_lws_context == NULL) {
 		console_log("httpserver error: libwebsocket init failed\n");
 		return;
@@ -506,7 +506,7 @@ void httpserver_init(void) {
 
 void httpserver_deinit(void) {
 	if (httpserver_lws_context) {
-		libwebsocket_context_destroy(httpserver_lws_context);
+		lws_context_destroy(httpserver_lws_context);
 		httpserver_lws_context = NULL;
 	}
 
