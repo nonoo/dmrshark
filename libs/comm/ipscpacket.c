@@ -119,11 +119,11 @@ flag_t ipscpacket_decode(struct ip *ippacket, struct udphdr *udppacket, ipscpack
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "\n");
 	}
 
-	if (!packet_from_us && ipscpacket_raw->udp_source_port != udppacket->source && ipscpacket_raw->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
+/*	if (!packet_from_us && ipscpacket_raw->udp_source_port != udppacket->source && ipscpacket_raw->slot_type != IPSCPACKET_SLOT_TYPE_IPSC_SYNC) {
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, UDP source port (%u) is not equal to port in IPSC packet (%u)\n",
 			ipscpacket_raw->udp_source_port, udppacket->source);
 		return 0;
-	}
+	}*/
 
 	if (ipscpacket_raw->delimiter != 0x1111) {
 		console_log(LOGLEVEL_IPSC LOGLEVEL_DEBUG "ipscpacket: decode failed, delimiter mismatch (it's %.4x, should be 0x1111)\n",
