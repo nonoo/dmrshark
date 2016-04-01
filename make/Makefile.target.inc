@@ -8,7 +8,7 @@ include $(SRCTOPDIR)/config/app/$(APP).inc
 endif
 
 CC := gcc
-CFLAGS := $(CFLAGS) -g -Wall -std=gnu99 -O4 -DGITHASH=\"$(GITHASH)\" \
+CFLAGS := $(CFLAGS) -g -Wall -std=gnu99 -O0 -DGITHASH=\"$(GITHASH)\" \
 	-DDEFAULTCONFIG="<config/defaults.h>" \
 	-DAPPCONFIGFILE=\"$(SRCTOPDIR)/config/app/$(APP).h\" \
 	$(shell pkg-config --cflags glib-2.0) \

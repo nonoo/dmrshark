@@ -25,9 +25,16 @@ static int pfdcount = 0; // How much pollfd structures we store.
 static int polltimeout = 0;
 
 static int daemon_poll_pfdrealloc(int count) {
-	struct pollfd *newpfd = (struct pollfd *)realloc(pfd, sizeof(struct pollfd) * count);
+	struct pollfd *newpfd;
 
-	if (count > 0 && !newpfd)
+	if (count <= 0) {
+		free(pfd);
+		pfd = NULL;
+		return 1;
+	}
+
+	newpfd = (struct pollfd *)realloc(pfd, sizeof(struct pollfd) * count);
+	if (!newpfd)
 		return 0;
 
 	pfd = newpfd;

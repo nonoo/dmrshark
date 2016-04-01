@@ -473,7 +473,7 @@ void httpserver_process(void) {
 	pfdcount = daemon_poll_getpfdcount();
 	pfd = daemon_poll_getpfd();
 
-	for (i = 0; i < pfdcount; i++)
+	for (i = 0; i < pfdcount-1; i++)
 		lws_service_fd(httpserver_lws_context, &pfd[i]);
 }
 
