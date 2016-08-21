@@ -76,6 +76,7 @@ int config_get_aprsserverport(void);
 char *config_get_aprsservercallsign(void);
 int config_get_aprsserverpasscode(void);
 char *config_get_aprsposdescription(void);
+flag_t config_get_smsretransmitenabled(void);
 
 // If NULL is given, reloads the current config file.
 void config_init(char *configfilename);

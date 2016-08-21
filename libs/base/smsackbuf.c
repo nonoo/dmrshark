@@ -25,6 +25,7 @@
 #include "smsackbuf.h"
 #include "smsrtbuf.h"
 
+#include <libs/config/config.h>
 #include <libs/daemon/console.h>
 #include <libs/remotedb/remotedb.h>
 
@@ -133,9 +134,11 @@ void smsackbuf_call_ended(repeater_t *repeater, dmr_timeslot_t ts) {
 			if (entry->acked && entry->datatype != DMR_DATA_TYPE_UNKNOWN)
 				remotedb_add_data_to_log(repeater, ts, entry->dstid, entry->srcid, entry->calltype, entry->datatype, entry->msg);
 			else {
-				if (entry->dstid != DMRSHARK_DEFAULT_DMR_ID && entry->srcid != DMRSHARK_DEFAULT_DMR_ID &&
-					(entry->datatype == DMR_DATA_TYPE_NORMAL_SMS || entry->datatype == DMR_DATA_TYPE_MOTOROLA_TMS_SMS))
-						smsrtbuf_add_decoded_message(repeater, ts, entry->datatype, entry->dstid, entry->srcid, entry->calltype, entry->msg);
+				if (config_get_smsretransmitenabled()) {
+					if (entry->dstid != DMRSHARK_DEFAULT_DMR_ID && entry->srcid != DMRSHARK_DEFAULT_DMR_ID &&
+						(entry->datatype == DMR_DATA_TYPE_NORMAL_SMS || entry->datatype == DMR_DATA_TYPE_MOTOROLA_TMS_SMS))
+							smsrtbuf_add_decoded_message(repeater, ts, entry->datatype, entry->dstid, entry->srcid, entry->calltype, entry->msg);
+				}
 			}
 
 			if (entry->prev)

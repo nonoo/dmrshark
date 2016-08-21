@@ -841,6 +841,23 @@ char *config_get_aprsposdescription(void) {
 	return value;
 }
 
+flag_t config_get_smsretransmitenabled(void) {
+	GError *error = NULL;
+	int value = 0;
+	char *key = "smsretransmitenabled";
+	int defaultvalue;
+
+	pthread_mutex_lock(&config_mutex);
+	defaultvalue = 0;
+	value = g_key_file_get_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, &error);
+	if (error) {
+		value = defaultvalue;
+		g_key_file_set_integer(keyfile, CONFIG_MAIN_SECTION_NAME, key, value);
+	}
+	pthread_mutex_unlock(&config_mutex);
+	return (value != 0 ? 1 : 0);
+}
+
 void config_init(char *configfilename) {
 	GError *error = NULL;
 	char *tmp_str;
@@ -937,6 +954,7 @@ void config_init(char *configfilename) {
 	config_get_aprsserverpasscode();
 	tmp_str = config_get_aprsposdescription();
 	free(tmp_str);
+	config_get_smsretransmitenabled();
 
 	config_writeconfigfile();
 }
