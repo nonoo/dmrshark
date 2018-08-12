@@ -2,6 +2,8 @@
 
 dmrshark analyses the traffic, and adds extra features to a Hytera IPSC network.
 
+**NOTE: this project is no longer maintained. Please do not ask for support.**
+
 It can be used for:
 
 - Tracking and decoding voice calls, logging to a text file, and/or inserting them to a remote MySQL-compatible database.
